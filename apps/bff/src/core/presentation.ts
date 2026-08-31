@@ -1,6 +1,6 @@
 import * as vc from '@digitalbazaar/vc';
 import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
-import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
+import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
 import type { PresentationDefinition } from '@interop/shared';
 import { evaluateConstraints } from './constraints.js';
 import type { DocumentLoader } from './jsonld.js';
@@ -110,12 +110,24 @@ async function verifyJsonLdPresentation(
       : 'No proof on the presentation: the verifier cannot tell who assembled it, only who issued the credential inside it.',
   });
 
+  const credentialsForTiming = toArray(presentation.verifiableCredential).filter(
+    (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object',
+  );
+
+  // Proofs are evaluated at a moment when the credential was still within its
+  // validity window. The library's verify path enforces `expirationDate` as
+  // part of credential checking, which would report an expired-but-authentic
+  // credential as a proof failure and collapse the distinction between a stale
+  // credential and a forged one. Expiry is asserted separately below.
+  const evaluationTime = earliestValidityInstant(credentialsForTiming);
+
   const result = await vc.verify({
     presentation,
     suite: new Ed25519Signature2020(),
     documentLoader: options.documentLoader,
     challenge: options.nonce,
     unsignedPresentation: !hasProof,
+    ...(evaluationTime ? { now: evaluationTime } : {}),
   });
 
   const errors = collectErrors(result);
@@ -191,7 +203,10 @@ async function verifySdJwtPresentation(
   } else {
     try {
       const { key } = await resolveVerificationKey(kid, options.documentLoader, parsed.header.alg as string);
-      await jwtVerify(parsed.issuerJwt, key);
+      // `compactVerify` rather than `jwtVerify`: the latter also enforces `exp`,
+      // which would report an expired-but-authentic credential as a signature
+      // failure and collapse the distinction between stale and forged.
+      await compactVerify(parsed.issuerJwt, key);
       checks.push({
         id: 'sdjwt.issuer-signature',
         title: 'Issuer signature verifies',
@@ -341,6 +356,21 @@ function constraintCheck(
       ? `All ${result.details.length} constraint(s) satisfied.`
       : failures.map((f) => `${f.path}: ${f.reason}`).join(' '),
   };
+}
+
+/**
+ * A time at which every credential present was still valid, or undefined when
+ * none of them has expired and the current time will do.
+ */
+function earliestValidityInstant(credentials: Array<Record<string, unknown>>): Date | undefined {
+  const expiries = credentials
+    .map((credential) => credential.expirationDate ?? credential.validUntil)
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => new Date(value).getTime())
+    .filter((time) => Number.isFinite(time) && time < Date.now());
+
+  if (expiries.length === 0) return undefined;
+  return new Date(Math.min(...expiries) - 1000);
 }
 
 function collectErrors(result: { verified: boolean; error?: { errors?: Error[]; message?: string } }): string[] {

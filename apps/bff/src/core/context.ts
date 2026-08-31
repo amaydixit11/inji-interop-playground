@@ -83,6 +83,18 @@ export class RunContext {
     readonly runId: string,
     readonly config: RunConfig,
     private readonly emit: EventSink,
+    /**
+     * Maps an outbound URL to the address this process should actually dial.
+     *
+     * The hosted reference issuer and verifier publish their public URL in
+     * metadata and offers, because that is what an external wallet has to be
+     * able to reach. When this process then follows one of its own published
+     * URLs, that address may not resolve from where it is running — inside a
+     * container with a remapped port, or behind a tunnel. Rewriting to loopback
+     * at dial time keeps the published identifiers correct while letting the
+     * playground talk to itself.
+     */
+    private readonly resolveUrl: (url: string) => string = (url) => url,
   ) {}
 
   get step(): StepId {
@@ -238,8 +250,12 @@ export class RunContext {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), req.timeoutMs ?? 30_000);
 
+    // The exchange records the URL as published; only the dial target changes,
+    // so the inspector still shows what a real client would have requested.
+    const target = this.resolveUrl(req.url);
+
     try {
-      const response = await fetch(req.url, { method, headers, body, signal: controller.signal });
+      const response = await fetch(target, { method, headers, body, signal: controller.signal });
       const raw = await response.text();
       const contentType = response.headers.get('content-type') ?? '';
       const parsed = contentType.includes('json') ? safeParseJson(raw) : raw;

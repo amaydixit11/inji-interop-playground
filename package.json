@@ -17,7 +17,8 @@
     "dev:bff": "npm run build:shared && npm run dev -w @interop/bff",
     "dev:web": "npm run dev -w @interop/web",
     "build": "npm run build:shared && npm run build -w @interop/bff && npm run build -w @interop/web",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "matrix": "node scripts/run-matrix.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

@@ -10,6 +10,11 @@ export interface AppConfig {
    * tunnel URL whenever a handheld wallet is in the run.
    */
   publicUrl: string;
+  /**
+   * Loopback address this process can always reach itself on, regardless of
+   * how the public URL is published or mapped.
+   */
+  internalUrl: string;
   certifyBaseUrl: string;
   certifyConfigurationId: string;
   verifyBaseUrl: string;
@@ -21,6 +26,7 @@ export function loadConfig(): AppConfig {
   return {
     port,
     publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, ''),
+    internalUrl: `http://127.0.0.1:${port}`,
     certifyBaseUrl: process.env.CERTIFY_BASE_URL ?? 'http://localhost:8090/v1/certify',
     certifyConfigurationId: process.env.CERTIFY_CREDENTIAL_CONFIG_ID ?? '',
     verifyBaseUrl: process.env.VERIFY_BASE_URL ?? 'http://localhost:8000/v1/verify',

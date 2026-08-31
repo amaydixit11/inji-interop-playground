@@ -42,6 +42,7 @@ declare module '@digitalbazaar/vc' {
     purpose?: unknown;
     unsignedPresentation?: boolean;
     checkStatus?: unknown;
+    now?: Date | string;
   }): Promise<{ verified: boolean; error?: { errors?: Error[]; message?: string }; results?: unknown }>;
 }
 

@@ -321,13 +321,30 @@ export class ReferenceWallet implements WalletAdapter {
       });
     }
 
+    const tamper = ctx.config.tamper;
+
+    if (tamper === 'strip-holder-proof') {
+      // Sent unsigned: the credential inside is still authentic, but nothing
+      // binds the presentation to the holder, so the verifier has no evidence
+      // the presenter is the subject.
+      ctx.log('warn', 'Presenting without a holder proof, as requested by the injected fault.');
+      return {
+        vpToken: presentation,
+        submission: buildSubmission(request, 'ldp_vp', 'ldp_vc'),
+      };
+    }
+
+    // A nonce from a different exchange: the presentation is well-formed and
+    // correctly signed, but replayed, and a verifier must refuse it.
+    const challenge = tamper === 'replay-nonce' ? 'stale-nonce-from-an-earlier-exchange' : request.nonce;
+
     let signed: Record<string, unknown>;
     try {
       signed = credentialExpired
         ? await jsigs.sign(presentation, {
             suite: new Ed25519Signature2020({ key: walletKey.suiteKey }),
             purpose: new jsigs.purposes.AuthenticationProofPurpose({
-              challenge: request.nonce,
+              challenge,
               domain: request.authorizationRequest.client_id,
             }),
             documentLoader: this.deps.documentLoader(),
@@ -338,7 +355,7 @@ export class ReferenceWallet implements WalletAdapter {
             documentLoader: this.deps.documentLoader(),
             // The verifier's nonce becomes the proof challenge; this is what
             // makes the presentation non-replayable against another request.
-            challenge: request.nonce,
+            challenge,
             domain: request.authorizationRequest.client_id,
           });
     } catch (error) {
@@ -348,25 +365,7 @@ export class ReferenceWallet implements WalletAdapter {
       );
     }
 
-    const definitionId = request.authorizationRequest.presentation_definition?.id ?? 'unknown';
-    const descriptorId =
-      request.authorizationRequest.presentation_definition?.input_descriptors?.[0]?.id ?? 'unknown';
-
-    return {
-      vpToken: signed,
-      submission: {
-        id: randomUUID(),
-        definition_id: definitionId,
-        descriptor_map: [
-          {
-            id: descriptorId,
-            format: 'ldp_vp',
-            path: '$',
-            path_nested: { id: descriptorId, format: 'ldp_vc', path: '$.verifiableCredential[0]' },
-          },
-        ],
-      },
-    };
+    return { vpToken: signed, submission: buildSubmission(request, 'ldp_vp', 'ldp_vc') };
   }
 
   private async buildSdJwtPresentation(
@@ -391,33 +390,55 @@ export class ReferenceWallet implements WalletAdapter {
           : `The request did not constrain individual claims, so all ${parsed.disclosures.length} were disclosed. A verifier asking for limit_disclosure should also name the fields it needs.`,
     });
 
+    const tamper = ctx.config.tamper;
+    const omitKeyBinding = opts.walletProofType === 'none' || tamper === 'strip-holder-proof';
+
+    if (tamper === 'strip-holder-proof') {
+      ctx.log('warn', 'Omitting the key binding JWT, as requested by the injected fault.');
+    }
+
     const vpToken = await presentSdJwt({
       combined: held.raw as string,
       disclose,
-      keyBinding:
-        opts.walletProofType === 'none'
-          ? undefined
-          : {
-              audience: request.authorizationRequest.client_id,
-              nonce: request.nonce,
-              signingKey: walletKey.privateKey,
-              alg: walletKey.alg,
-            },
+      keyBinding: omitKeyBinding
+        ? undefined
+        : {
+            audience: request.authorizationRequest.client_id,
+            // A nonce from a different exchange: correctly signed, but replayed.
+            nonce: tamper === 'replay-nonce' ? 'stale-nonce-from-an-earlier-exchange' : request.nonce,
+            signingKey: walletKey.privateKey,
+            alg: walletKey.alg,
+          },
     });
 
-    const definitionId = request.authorizationRequest.presentation_definition?.id ?? 'unknown';
-    const descriptorId =
-      request.authorizationRequest.presentation_definition?.input_descriptors?.[0]?.id ?? 'unknown';
-
-    return {
-      vpToken,
-      submission: {
-        id: randomUUID(),
-        definition_id: definitionId,
-        descriptor_map: [{ id: descriptorId, format: held.format, path: '$' }],
-      },
-    };
+    return { vpToken, submission: buildSubmission(request, held.format, held.format) };
   }
+}
+
+/** Builds the presentation submission describing where each credential sits. */
+function buildSubmission(
+  request: PresentationRequest,
+  format: string,
+  nestedFormat: string,
+): PresentationSubmission {
+  const definition = request.authorizationRequest.presentation_definition;
+  const descriptorId = definition?.input_descriptors?.[0]?.id ?? 'unknown';
+  const isEnvelope = format === 'ldp_vp';
+
+  return {
+    id: randomUUID(),
+    definition_id: definition?.id ?? 'unknown',
+    descriptor_map: [
+      {
+        id: descriptorId,
+        format,
+        path: '$',
+        ...(isEnvelope
+          ? { path_nested: { id: descriptorId, format: nestedFormat, path: '$.verifiableCredential[0]' } }
+          : {}),
+      },
+    ],
+  };
 }
 
 /**

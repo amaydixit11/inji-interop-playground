@@ -67,11 +67,17 @@ export class Run {
     readonly config: RunConfig,
     private readonly participants: RunParticipants,
     private readonly emit: EventSink,
+    resolveUrl?: (url: string) => string,
   ) {
-    this.ctx = new RunContext(this.id, config, (event) => {
-      if (event.type === 'step.status') this.steps[event.step] = event.status;
-      this.emit(event);
-    });
+    this.ctx = new RunContext(
+      this.id,
+      config,
+      (event) => {
+        if (event.type === 'step.status') this.steps[event.step] = event.status;
+        this.emit(event);
+      },
+      resolveUrl,
+    );
   }
 
   get runStatus(): RunStatus {

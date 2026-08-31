@@ -1,4 +1,7 @@
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -78,6 +81,17 @@ function broadcast(event: RunEvent): void {
   }
 }
 
+/**
+ * Rewrites a URL the playground published for itself onto loopback.
+ *
+ * Without this, a container whose published port differs from its listening
+ * port cannot follow its own credential offer: the offer correctly names the
+ * public address, which does not resolve from inside the container.
+ */
+function dialInternally(url: string): string {
+  return url.startsWith(config.publicUrl) ? config.internalUrl + url.slice(config.publicUrl.length) : url;
+}
+
 /* --------------------------- Hosted participants -------------------------- */
 
 app.use('/mock-issuer', createMockIssuer({
@@ -149,6 +163,7 @@ app.post('/api/runs', async (req, res) => {
         verifier: registry.verifier(runConfig.verifierId),
       },
       broadcast,
+      dialInternally,
     );
   } catch (error) {
     res.status(400).json({ error: 'invalid_configuration', message: String(error) });
@@ -193,6 +208,20 @@ app.post('/api/runs/:id/abort', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+/* ------------------------------ Static UI -------------------------------- */
+
+// In production the built UI is served by this same process, so the playground
+// is one container rather than two that must agree on a proxy configuration.
+// In development Vite serves it instead and this directory does not exist.
+const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../web/dist');
+if (existsSync(webDist)) {
+  app.use(express.static(webDist));
+  // Client-side routing fallback, excluding paths this server owns.
+  app.get(/^\/(?!api|ws|mock-issuer|mock-verifier|issuer|wallet|contexts).*/, (_req, res) => {
+    res.sendFile(resolve(webDist, 'index.html'));
+  });
+}
+
 /* -------------------------------- Startup -------------------------------- */
 
 const server = createServer(app);
@@ -216,6 +245,7 @@ async function start(): Promise<void> {
     console.log(`  Reference verifier ${config.publicUrl}/mock-verifier`);
     console.log(`  Issuer DID         ${issuer.did}`);
     console.log(`  Wallet DID         ${wallet.did}`);
+    if (existsSync(webDist)) console.log(`  UI                 ${config.publicUrl}`);
     if (config.publicUrl.includes('localhost')) {
       console.log(
         '  Note: PUBLIC_URL is localhost, so QR codes will not resolve from a phone. Set PUBLIC_URL to a tunnel URL for handheld wallet runs.',

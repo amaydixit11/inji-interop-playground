@@ -1,0 +1,39 @@
+# The playground on its own. It has no external dependencies: the reference
+# issuer, wallet and verifier are all hosted inside this one container, so a
+# full issue -> hold -> present -> verify cycle works immediately.
+#
+# To test against real Inji modules, run them separately (see their own
+# local-setup guides) and point the playground at them with CERTIFY_BASE_URL and
+# VERIFY_BASE_URL, or override those per run in the UI.
+
+services:
+  playground:
+    build: .
+    ports:
+      - '8787:8787'
+    environment:
+      PORT: 8787
+      # Must be reachable from anything that participates in a run. It becomes
+      # the issuer's did:web, the credential_issuer in every offer, and the host
+      # inside every QR code — so a phone wallet needs a tunnel URL here, not
+      # localhost. See README, "Testing with a real phone wallet".
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8787}
+      CERTIFY_BASE_URL: ${CERTIFY_BASE_URL:-http://host.docker.internal:8090/v1/certify}
+      VERIFY_BASE_URL: ${VERIFY_BASE_URL:-http://host.docker.internal:8000/v1/verify}
+      INJI_WEB_URL: ${INJI_WEB_URL:-https://injiweb.collab.mosip.net}
+    volumes:
+      # Keys persist so credentials issued in one session still verify in the
+      # next; runs persist so the interoperability matrix survives a restart.
+      - playground-keys:/app/.keys
+      - playground-runs:/app/runs
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  playground-keys:
+  playground-runs:
