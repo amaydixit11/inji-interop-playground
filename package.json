@@ -1,0 +1,29 @@
+{
+  "name": "inji-interop-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A unified sandbox for testing Verifiable Credential interoperability across the Inji stack and external OpenID4VCI/OpenID4VP implementations.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @interop/shared",
+    "dev": "npm run build:shared && concurrently -n bff,web -c cyan,magenta \"npm run dev -w @interop/bff\" \"npm run dev -w @interop/web\"",
+    "dev:bff": "npm run build:shared && npm run dev -w @interop/bff",
+    "dev:web": "npm run dev -w @interop/web",
+    "build": "npm run build:shared && npm run build -w @interop/bff && npm run build -w @interop/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
