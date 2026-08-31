@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import cors from 'cors';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { RunConfig, RunEvent } from '@interop/shared';
+import type { RunConfig, RunEvent, StampedRunEvent } from '@interop/shared';
 import { loadConfig } from './config.js';
 import { Run } from './core/engine.js';
 import { buildDocumentLoader, PLAYGROUND_CONTEXT, PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from './core/jsonld.js';
@@ -62,14 +62,17 @@ const store = new RunStore();
 const activeRuns = new Map<string, Run>();
 const sockets = new Set<WebSocket>();
 /** Recent events, replayed to a client that connects mid-run. */
-const eventLog = new Map<string, RunEvent[]>();
+const eventLog = new Map<string, StampedRunEvent[]>();
 
 function broadcast(event: RunEvent): void {
   const log = eventLog.get(event.runId) ?? [];
-  log.push(event);
+  // Stamped with its position so a client can discard anything it has already
+  // applied, whether it arrived over the socket or in the catch-up log.
+  const stamped: StampedRunEvent = { ...event, seq: log.length + 1 };
+  log.push(stamped);
   eventLog.set(event.runId, log);
 
-  const payload = JSON.stringify(event);
+  const payload = JSON.stringify(stamped);
   for (const socket of sockets) {
     if (socket.readyState === socket.OPEN) socket.send(payload);
   }

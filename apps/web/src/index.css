@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-canvas: #0b0f14;
+  --color-surface: #121820;
+  --color-surface-2: #182029;
+  --color-line: #263140;
+  --color-ink: #e6edf3;
+  --color-muted: #8b9bb0;
+  --color-accent: #4da3ff;
+  --color-pass: #3fb950;
+  --color-fail: #f85149;
+  --color-warn: #d29922;
+  --color-info: #a371f7;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Payload panes are read as data, so they get a real monospace stack and
+   comfortable line height rather than the default tight code styling. */
+.payload {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3543;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -233,6 +233,16 @@ export type RunEvent =
   | { type: 'user.action'; runId: string; action: UserAction; at: string }
   | { type: 'run.finished'; runId: string; status: RunStatus; summary: RunSummary; at: string };
 
+/**
+ * A run event carrying its position in the run's event log.
+ *
+ * The sequence number exists because a client can receive the same event twice:
+ * once over the socket, and again in the catch-up log it fetches after starting
+ * a run. Without an ordering key, replaying that log can apply a stale prefix
+ * over newer state and wind the UI backwards.
+ */
+export type StampedRunEvent = RunEvent & { seq: number };
+
 export interface UserAction {
   id: string;
   step: StepId;
