@@ -3,7 +3,13 @@ import type { AuthorizationRequest, Participant, PresentationDefinition } from '
 import type { RunContext } from '../core/context.js';
 import { buildPresentationDefinition } from '../services/mock-verifier.js';
 import { pollUntil } from '../core/poll.js';
-import type { PresentOptions, PresentationRequest, VerificationOutcome, VerifierAdapter } from './types.js';
+import type {
+  HeldCredential,
+  PresentOptions,
+  PresentationRequest,
+  VerificationOutcome,
+  VerifierAdapter,
+} from './types.js';
 
 /**
  * Verifier adapter for Inji Verify's `verify-service`.
@@ -95,7 +101,7 @@ export class InjiVerifyVerifier implements VerifierAdapter {
       status: 'warn',
       spec: 'OpenID4VP §5',
       detail:
-        'verify-service returns its authorization request as a camelCase envelope (clientId, responseUri, presentationDefinition). OpenID4VP defines these as client_id, response_uri and presentation_definition, so the caller must translate before handing the request to a wallet.',
+        'The /vp-request response is a camelCase envelope (clientId, responseUri, presentationDefinition) rather than the specified client_id, response_uri and presentation_definition. This affects only a caller wiring a wallet against that API directly — the request object served at the request_uri does use the specified names, so the normal cross-device path is unaffected.',
       attributedTo: 'verifier',
     });
 
@@ -124,6 +130,8 @@ export class InjiVerifyVerifier implements VerifierAdapter {
         : {}),
     };
 
+    await this.inspectRequestObject(ctx, base, response.body.requestId);
+
     ctx.artifact({ label: 'Authorization Request (normalised)', kind: 'json', value: authorizationRequest });
     ctx.artifact({ label: 'verify-service response (raw)', kind: 'json', value: response.body });
 
@@ -148,6 +156,142 @@ export class InjiVerifyVerifier implements VerifierAdapter {
       state: response.body.requestId,
       responseUri: details.responseUri,
     };
+  }
+
+  /**
+   * Submits the credential to verify-service on its own, via
+   * `POST /v2/vc-verification`.
+   *
+   * The v2 endpoint is used rather than v1 because v1 answers only
+   * `{"verificationStatus":"INVALID"}` with no reason, which is not enough to
+   * act on. v2 returns the individual check that failed and its error code.
+   */
+  async verifyCredentialDirectly(ctx: RunContext, held: HeldCredential): Promise<void> {
+    const base = this.baseUrl(ctx);
+    const credential = typeof held.raw === 'string' ? held.raw : JSON.stringify(held.raw);
+
+    const response = await ctx.http<{
+      allChecksSuccessful?: boolean;
+      schemaAndSignatureCheck?: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } };
+      expiryCheck?: { valid?: boolean } | null;
+      statusCheck?: unknown[];
+      claims?: Record<string, unknown>;
+    }>({
+      label: 'Direct Credential Verification',
+      from: 'Playground',
+      to: 'Inji Verify',
+      url: `${base}/v2/vc-verification`,
+      json: { verifiableCredential: credential, includeClaims: true, skipStatusChecks: false },
+      allowNonOk: true,
+    });
+
+    if (!response.ok) {
+      ctx.check({
+        id: 'verifier.direct.reachable',
+        title: 'Verifier can be asked to verify a credential on its own',
+        status: 'warn',
+        spec: 'Inji Verify /v2/vc-verification',
+        detail: `The endpoint returned HTTP ${response.status}. Only the presentation path can be exercised against this deployment.`,
+      });
+      return;
+    }
+
+    const signatureCheck = response.body.schemaAndSignatureCheck;
+    const ok = signatureCheck?.valid === true;
+
+    ctx.check({
+      id: 'verifier.direct.credential',
+      title: 'Verifier accepts the issued credential on its own',
+      status: ok ? 'pass' : 'fail',
+      spec: 'W3C VC Data Model / Inji Verify credential verification',
+      detail: ok
+        ? 'verify-service verified the credential outside any presentation, so the credential itself is readable by this verifier.'
+        : `verify-service rejected the credential before any presentation was involved: ${
+            signatureCheck?.error?.errorCode ?? 'unknown'
+          } — ${signatureCheck?.error?.errorMessage ?? 'no detail given'}. Whatever happens in the OpenID4VP exchange, the credential itself cannot be read by this verifier.`,
+      attributedTo: ok ? undefined : 'issuer',
+    });
+
+    ctx.artifact({ label: 'Direct verification result (Inji Verify)', kind: 'json', value: response.body });
+  }
+
+  /**
+   * Fetches the request object verify-service publishes at
+   * `GET /vp-request/{requestId}`.
+   *
+   * OpenID4VP lets a verifier pass its request by reference, and a signed
+   * request object is what lets a wallet trust that the request really came
+   * from the client id it names. Whether this deployment signs it, and whether
+   * the object uses the specified parameter names, both matter to any wallet
+   * that follows the `request_uri`.
+   */
+  private async inspectRequestObject(ctx: RunContext, base: string, requestId: string): Promise<void> {
+    const response = await ctx.http<unknown>({
+      label: 'Fetch Request Object',
+      from: 'Wallet',
+      to: 'Inji Verify',
+      url: `${base}/vp-request/${requestId}`,
+      accept: 'application/oauth-authz-req+jwt',
+      allowNonOk: true,
+    });
+
+    if (!response.ok) {
+      ctx.check({
+        id: 'vp.request-object.available',
+        title: 'Request object is retrievable by reference',
+        status: 'warn',
+        spec: 'OpenID4VP §5.10 (request_uri)',
+        detail: `GET /vp-request/${requestId} returned HTTP ${response.status}. A wallet handed a request_uri would have nothing to fetch, so only by-value requests work against this deployment.`,
+        attributedTo: 'verifier',
+      });
+      return;
+    }
+
+    const raw = typeof response.body === 'string' ? response.body : JSON.stringify(response.body);
+    const isJwt = raw.split('.').length === 3 && !raw.trimStart().startsWith('{');
+
+    ctx.check({
+      id: 'vp.request-object.signed',
+      title: 'Request object is a signed JWT',
+      status: isJwt ? 'pass' : 'warn',
+      spec: 'OpenID4VP §5.10, JAR (RFC 9101)',
+      detail: isJwt
+        ? 'The request object is a JWS, so a wallet can establish that the request came from the client it names.'
+        : 'The request object is returned unsigned. A wallet cannot tell whether the request genuinely came from the client id it carries, which matters most in exactly the cross-device flow request_uri exists for.',
+      attributedTo: isJwt ? undefined : 'verifier',
+    });
+
+    if (isJwt) {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(raw.split('.')[1] as string, 'base64url').toString('utf8'),
+        ) as Record<string, unknown>;
+        ctx.artifact({ label: 'Request object (decoded)', kind: 'json', value: payload });
+
+        const missing = ['client_id', 'response_uri', 'nonce', 'response_type'].filter((key) => !(key in payload));
+        ctx.check({
+          id: 'vp.request-object.parameters',
+          title: 'Request object uses the specified parameter names',
+          status: missing.length === 0 ? 'pass' : 'fail',
+          spec: 'OpenID4VP §5',
+          detail:
+            missing.length === 0
+              ? 'All required parameters are present under their specified names.'
+              : `Missing from the request object: ${missing.join(', ')}. Present keys: ${Object.keys(payload).join(', ')}.`,
+          attributedTo: missing.length === 0 ? undefined : 'verifier',
+        });
+      } catch {
+        ctx.check({
+          id: 'vp.request-object.parameters',
+          title: 'Request object uses the specified parameter names',
+          status: 'warn',
+          spec: 'OpenID4VP §5',
+          detail: 'The request object payload could not be decoded as JSON.',
+        });
+      }
+    } else {
+      ctx.artifact({ label: 'Request object (raw)', kind: 'text', value: raw });
+    }
   }
 
   async awaitResult(ctx: RunContext, request: PresentationRequest): Promise<VerificationOutcome> {

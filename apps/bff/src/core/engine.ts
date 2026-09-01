@@ -136,6 +136,14 @@ export class Run {
       this.ctx.setStep('issue', 'running');
       const held = await this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions);
       this.checkIssuedFormat(held.format);
+
+      // Asked before any presentation exists, so a verifier that simply cannot
+      // read this credential is distinguished from one that cannot complete the
+      // exchange.
+      if (this.participants.verifier.verifyCredentialDirectly && held.raw !== null) {
+        await this.participants.verifier.verifyCredentialDirectly(this.ctx, held);
+      }
+
       this.ctx.setStep('issue', 'passed');
 
       this.ctx.setStep('present', 'running');

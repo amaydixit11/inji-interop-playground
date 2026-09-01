@@ -260,42 +260,69 @@ presentation and then fails to record it.
 
 ---
 
-## 11. verify-service returns authorization request parameters in camelCase
+## 11. verify-service returns camelCase in its API envelope — but the request object is correct
 
-**Source-derived**, and visible in every run.
-`dto/authorizationrequest/AuthorizationRequestResponseDto.java`.
+**Observed**, and this one is narrower than it first appeared.
 
 `POST /vp-request` responds with `clientId`, `responseType`, `responseMode`, `responseUri` and
 `presentationDefinition`. OpenID4VP §5 names these `client_id`, `response_type`, `response_mode`,
-`response_uri` and `presentation_definition`. A wallet handed this envelope verbatim finds none of
-the parameters the specification tells it to read.
+`response_uri` and `presentation_definition`.
 
-Defensible as an internal API between verify-service and its own SDK — which does translate — but
-the boundary between "our API" and "the protocol" is undocumented at that point. The playground
-translates and raises a warning.
+An earlier draft of this document treated that as an interoperability defect. Fetching the request
+object the way a wallet actually would shows otherwise:
+
+```
+GET /v1/verify/vp-request/{requestId}   Accept: application/oauth-authz-req+jwt
+```
+
+returns **a signed JWT** whose payload carries `client_id`, `response_uri`, `nonce` and
+`response_type` under their specified names. So a wallet handed a `request_uri` — the normal
+cross-device path — gets a conformant, signed request object and works.
+
+The camelCase envelope is therefore a verifier-facing convenience API, not a protocol surface, and
+the only people affected are those wiring a wallet against `/vp-request` directly instead of
+following the `request_uri`. Worth a line in the documentation; not a defect.
+
+Recorded here rather than deleted because being wrong about a finding is itself worth showing: the
+correction came from testing the path a wallet takes rather than the one that was easiest to call.
 
 ---
+
+## 12. Direct credential verification isolates the two Inji Verify blockers
+
+**Observed.** The playground now submits each issued credential to
+`POST /v2/vc-verification` before any presentation exists. Both failures reproduce there:
+
+| Format | Error from `/v2/vc-verification` |
+| --- | --- |
+| `ldp_vc` | `LOADING_REMOTE_CONTEXT_FAILED` (finding 7) |
+| `vc+sd-jwt` | `getX509CertChain(...) must not be null` (finding 8) |
+
+This matters for triage. Both findings are properties of the **credential** as this verifier reads
+it, not of the OpenID4VP exchange — which, as finding 11 now shows, is itself conformant. Anyone
+investigating either should look at credential handling in the vcverifier library, not at the
+presentation flow.
 
 ## Findings against our own code
 
 Included because they are the ones only a real counterparty could have surfaced, and because a
 report that lists only other people's defects is not a credible one.
 
-### 12. The reference wallet sent two key identifiers in a proof
+### 13. The reference wallet sent two key identifiers in a proof
 
 Certify rejected our proof with `invalid_proof: Error encountered during proof jwt parsing`. Our
 wallet was setting both `jwk` and `kid` in the `openid4vci-proof+jwt` header. OpenID4VCI §7.2.1
 requires **exactly one**. Our own issuer accepted it, so the bug was invisible until a second
 implementation saw it.
 
-### 13. Preferring a DID reference over a raw key broke SD-JWT holder binding
+### 14. Preferring a DID reference over a raw key broke SD-JWT holder binding
 
 Once fixed, our wallet chose `kid` whenever the issuer advertised any DID method. An SD-JWT issuer
 needs a raw key to place in `cnf`, so credentials went out unbound and Inji Verify correctly
 rejected them with `ERR_INVALID_CNF: Missing 'cnf' in SD-JWT payload`. The wallet now prefers a bare
 `jwk`, falling back to `did:jwk`.
 
-### 14. Corrupting the last base64url character may not corrupt anything
+### 15. Corrupting the last base64url character may not corrupt anything
 
 An Ed25519 signature is 64 bytes, or 86 base64url characters, of which the last carries 4
 significant bits and 2 unused. Changing it can decode to the same bytes, leaving the signature
@@ -303,14 +330,14 @@ valid. Our first fault-injection implementation did exactly this, and the `break
 passed while testing nothing. Any negative-path suite that corrupts an encoded signature by touching
 its last character has the same problem.
 
-### 15. A verifier that checks only signatures accepts the wrong credential
+### 16. A verifier that checks only signatures accepts the wrong credential
 
 An early version of our reference verifier checked issuer signatures, disclosure digests and key
 binding — and accepted a credential of an unrelated type, because nothing evaluated the presentation
 definition it had itself sent. A valid signature proves someone authentic signed something; it does
 not prove the holder satisfies what was asked. The same gap is worth checking for in any verifier.
 
-### 16. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
+### 17. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
 
 `toJwk({secretKey: true})` returns the 64-byte libsodium private key (seed ‖ public key) as JWK `d`.
 RFC 8037 §2 defines `d` as the 32-byte seed alone, and Node rejects the longer value with
@@ -330,7 +357,8 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | 7, 8 | `mosip/inji-verify` | interoperability limits worth documenting if intended |
 | 9 | `mosip/inji-certify` | the mock emits a credential no conformant verifier can check |
 | 10 | `mosip/inji-verify` | blocker — shipped schema does not match shipped image |
-| 11 | `mosip/inji-verify` | documentation |
-| 16 | `@digitalbazaar/ed25519-multikey` | spec deviation |
+| 11 | `mosip/inji-verify` | documentation only — the request object itself is conformant |
+| 12 | `mosip/inji-verify` | triage note for findings 7 and 8 |
+| 17 | `@digitalbazaar/ed25519-multikey` | spec deviation |
 
-Findings 12–15 are ours and are already fixed in this repository.
+Findings 13–16 are ours and are already fixed in this repository.

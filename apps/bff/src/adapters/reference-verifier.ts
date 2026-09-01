@@ -1,6 +1,12 @@
 import type { AuthorizationRequest, Participant } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
-import type { PresentOptions, PresentationRequest, VerificationOutcome, VerifierAdapter } from './types.js';
+import type {
+  HeldCredential,
+  PresentOptions,
+  PresentationRequest,
+  VerificationOutcome,
+  VerifierAdapter,
+} from './types.js';
 import { pollUntil } from '../core/poll.js';
 
 /** Verifier adapter for the playground's own OpenID4VP relying party. */
@@ -73,6 +79,44 @@ export class ReferenceVerifier implements VerifierAdapter {
       state: body.state,
       responseUri: body.response_uri,
     };
+  }
+
+  /** Verifies the credential alone, before any presentation exists. */
+  async verifyCredentialDirectly(ctx: RunContext, held: HeldCredential): Promise<void> {
+    const response = await ctx.http<{
+      valid: boolean;
+      expired: boolean;
+      errors: string[];
+    }>({
+      label: 'Direct Credential Verification',
+      from: 'Playground',
+      to: 'Verifier',
+      url: `${this.baseUrl(ctx)}/verify-credential`,
+      json: { credential: held.raw, format: held.format },
+      allowNonOk: true,
+    });
+
+    if (!response.ok) {
+      ctx.check({
+        id: 'verifier.direct.reachable',
+        title: 'Verifier can be asked to verify a credential on its own',
+        status: 'warn',
+        spec: 'Playground credential verification',
+        detail: `The endpoint returned HTTP ${response.status}.`,
+      });
+      return;
+    }
+
+    ctx.check({
+      id: 'verifier.direct.credential',
+      title: 'Verifier accepts the issued credential on its own',
+      status: response.body.valid ? 'pass' : 'fail',
+      spec: 'W3C VC Data Model',
+      detail: response.body.valid
+        ? 'The credential verified outside any presentation.'
+        : `Rejected before any presentation was involved: ${response.body.errors.join('; ') || 'no detail given'}.`,
+      attributedTo: response.body.valid ? undefined : 'issuer',
+    });
   }
 
   async awaitResult(ctx: RunContext, request: PresentationRequest): Promise<VerificationOutcome> {

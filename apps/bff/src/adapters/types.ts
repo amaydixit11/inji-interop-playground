@@ -108,4 +108,14 @@ export interface VerifierAdapter {
   createRequest(ctx: RunContext, opts: PresentOptions): Promise<PresentationRequest>;
   /** Wait for the wallet's submission and return the verifier's verdict. */
   awaitResult(ctx: RunContext, request: PresentationRequest): Promise<VerificationOutcome>;
+  /**
+   * Optionally verify the credential on its own, outside any presentation.
+   *
+   * Run straight after issuance, before OpenID4VP is involved at all. It
+   * separates two questions a single end-to-end result conflates: whether the
+   * verifier can read this credential, and whether the presentation exchange
+   * works. When a run fails, knowing which of the two broke is most of the
+   * diagnosis.
+   */
+  verifyCredentialDirectly?(ctx: RunContext, held: HeldCredential): Promise<void>;
 }

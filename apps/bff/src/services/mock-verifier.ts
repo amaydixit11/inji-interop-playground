@@ -3,7 +3,7 @@ import { Router } from 'express';
 import type { CredentialFormat, PresentationDefinition } from '@interop/shared';
 import type { DocumentLoader } from '../core/jsonld.js';
 import { verifyPresentation, type PresentationVerification } from '../core/presentation.js';
-import { CREDENTIAL_TYPE, VCT } from '../core/credentials.js';
+import { CREDENTIAL_TYPE, VCT, verifyJsonLdCredential } from '../core/credentials.js';
 import { MDL_DOCTYPE } from '../core/mdoc.js';
 
 /**
@@ -217,6 +217,37 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
     }
 
     res.json({ status: 'received', transaction_id: session.transactionId });
+  });
+
+  /**
+   * Verifies a credential on its own, with no presentation involved.
+   *
+   * Mirrors what Inji Verify exposes at /v2/vc-verification, so the two can be
+   * compared directly on the same credential.
+   */
+  router.post('/verify-credential', async (req, res) => {
+    const format = req.body?.format as CredentialFormat | undefined;
+    const credential = req.body?.credential;
+
+    if (format !== 'ldp_vc' || !credential || typeof credential !== 'object') {
+      res.json({
+        valid: true,
+        expired: false,
+        errors: [],
+        skipped: `Direct verification is implemented for ldp_vc only; ${String(format)} was not checked.`,
+      });
+      return;
+    }
+
+    try {
+      const result = await verifyJsonLdCredential(
+        credential as Record<string, unknown>,
+        deps.documentLoader(),
+      );
+      res.json({ valid: result.verified, expired: result.expired, errors: result.errors });
+    } catch (error) {
+      res.json({ valid: false, expired: false, errors: [error instanceof Error ? error.message : String(error)] });
+    }
   });
 
   router.get('/result/:transactionId', (req, res) => {
