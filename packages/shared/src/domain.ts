@@ -22,6 +22,20 @@ export const CREDENTIAL_FORMAT_LABELS: Record<CredentialFormat, string> = {
   mso_mdoc: 'ISO/IEC 18013-5 mDoc / mDL',
 };
 
+/**
+ * How each format is described to someone who is not implementing it.
+ *
+ * The technical labels name the specification, which is what a developer needs
+ * and exactly what a non-specialist does not: "vc+sd-jwt" says nothing about
+ * what the thing can do.
+ */
+export const CREDENTIAL_FORMAT_PLAIN: Record<CredentialFormat, string> = {
+  ldp_vc: 'a standard W3C digital credential, the format most government wallets use',
+  'vc+sd-jwt': 'a compact credential that lets the holder reveal individual details separately',
+  'dc+sd-jwt': 'a compact credential that lets the holder reveal individual details separately',
+  mso_mdoc: 'a mobile driving licence, in the ISO format used by physical-ID schemes',
+};
+
 /** Proof / signature suite used on the issued credential. */
 export type ProofType =
   | 'Ed25519Signature2018'
@@ -365,6 +379,32 @@ export interface StatBucket {
   durationP50: number;
 }
 
+/**
+ * A plain-language account of what a run actually did.
+ *
+ * Built by the engine rather than reconstructed in the UI, because the facts
+ * that matter to a non-specialist — which claims were shared, which were
+ * withheld, whether anyone could tell the credential was genuine — are known
+ * precisely at the moment they happen and only approximately afterwards.
+ */
+export interface RunNarrative {
+  /** Every claim the issuer put in the credential. */
+  issuedClaims: Record<string, unknown>;
+  /** Claim names the verifier's request actually asked for, when it named any. */
+  requestedClaims: string[];
+  /** Claims the verifier ended up seeing. */
+  disclosedClaims: Record<string, unknown>;
+  /** Claims the holder kept back — the point of selective disclosure. */
+  withheldClaims: string[];
+  /** Whether the credential is cryptographically tied to this holder's key. */
+  holderBound: boolean;
+  /** Whether the presentation could only be used for this one request. */
+  boundToRequest: boolean;
+  verdict?: 'valid' | 'invalid' | 'valid-but-expired' | 'error';
+  /** What the verifier established, in words rather than clause references. */
+  verifierEstablished: Array<{ claim: string; ok: boolean; note?: string }>;
+}
+
 /** The persisted record of a completed run, and the row in the matrix report. */
 export interface RunRecord {
   id: string;
@@ -378,6 +418,8 @@ export interface RunRecord {
   checks: ConformanceCheck[];
   artifacts: Artifact[];
   summary?: RunSummary;
+  /** Plain-language account of the run, for readers who are not protocol people. */
+  narrative?: RunNarrative;
   /** Weakest traceability across the three participants; caveats the result. */
   traceability: Traceability;
 }

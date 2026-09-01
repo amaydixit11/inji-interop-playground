@@ -90,7 +90,15 @@ export function buildPresentationDefinition(format: CredentialFormat): Presentat
           : { ldp_vc: { proof_type: ['Ed25519Signature2020', 'Ed25519Signature2018', 'RsaSignature2018'] } },
         constraints: {
           fields: isSdJwt
-            ? [{ path: ['$.vct'], filter: { type: 'string', const: VCT } }]
+            ? [
+                { path: ['$.vct'], filter: { type: 'string', const: VCT } },
+                // Named explicitly so the wallet can withhold everything else.
+                // `limit_disclosure` on its own only says "send the minimum" —
+                // without naming fields there is no minimum to compute, and a
+                // conformant wallet has no choice but to send the lot.
+                { path: ['$.fullName'] },
+                { path: ['$.dateOfBirth'] },
+              ]
             : [{ path: ['$.type'], filter: { type: 'array', contains: { const: CREDENTIAL_TYPE } } }],
           // Selective disclosure is the point of SD-JWT; ask for it explicitly
           // so a wallet that ignores the hint shows up as a finding.

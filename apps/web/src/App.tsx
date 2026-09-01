@@ -12,6 +12,7 @@ import { ProtocolInspector } from './components/ProtocolInspector.js';
 import { RunBuilder } from './components/RunBuilder.js';
 import { Scenarios } from './components/Scenarios.js';
 import { SequenceDiagram } from './components/SequenceDiagram.js';
+import { Story } from './components/Story.js';
 import { Timeline } from './components/Timeline.js';
 import { UserActionPrompt } from './components/UserActionPrompt.js';
 import { Badge, runTone } from './components/primitives.js';
@@ -26,7 +27,7 @@ const DEFAULT_CONFIG: RunConfig = {
   tamper: 'none',
 };
 
-type View = 'live' | 'sequence' | 'dashboard' | 'compare' | 'history';
+type View = 'live' | 'story' | 'sequence' | 'dashboard' | 'compare' | 'history';
 
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -40,6 +41,7 @@ export function App() {
   const [explain, setExplain] = useState(true);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [activeScenario, setActiveScenario] = useState<Scenario>();
+  const [lastRecord, setLastRecord] = useState<RunRecord>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
   const refreshHistoryRef = useRef<() => void>(() => undefined);
@@ -68,6 +70,9 @@ export function App() {
   useEffect(() => {
     if (run && (run.status === 'passed' || run.status === 'failed' || run.status === 'aborted')) {
       refreshHistory();
+      // The narrative is built when the run finishes, so it only exists on the
+      // persisted record rather than in the live event stream.
+      api.run(run.id).then(setLastRecord).catch(() => undefined);
     }
   }, [run?.status, refreshHistory, run]);
 
@@ -136,7 +141,7 @@ export function App() {
         </button>
 
         <nav className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
-          {(['live', 'sequence', 'dashboard', 'compare', 'history'] as View[]).map((value) => (
+          {(['live', 'story', 'sequence', 'dashboard', 'compare', 'history'] as View[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -160,6 +165,20 @@ export function App() {
       <main className="min-h-0 flex-1 overflow-auto p-3">
         {view === 'dashboard' ? (
           <Dashboard runs={history} />
+        ) : view === 'story' ? (
+          lastRecord?.narrative ? (
+            <Story
+              narrative={lastRecord.narrative}
+              participants={lastRecord.participants}
+              format={lastRecord.config.format}
+              status={lastRecord.status}
+            />
+          ) : (
+            <div className="rounded-lg border border-line bg-surface p-4 text-[12px] text-muted">
+              Run a scenario first — this view describes what happened in the most recent one, without
+              assuming you know the protocols.
+            </div>
+          )
         ) : view === 'compare' ? (
           <Compare runs={history} />
         ) : view === 'history' ? (

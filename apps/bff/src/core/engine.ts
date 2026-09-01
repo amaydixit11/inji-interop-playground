@@ -5,12 +5,14 @@ import type {
   RunEvent,
   RunRecord,
   RunStatus,
+  RunNarrative,
   RunSummary,
   StepId,
   StepStatus,
   TamperMode,
 } from '@interop/shared';
 import { RunContext, RunFailure, type EventSink } from './context.js';
+import { buildNarrative } from './narrative.js';
 import { DEFAULT_CLAIMS } from './credentials.js';
 import type { IssuerAdapter, VerificationOutcome, VerifierAdapter, WalletAdapter } from '../adapters/types.js';
 
@@ -147,6 +149,9 @@ export class Run {
     };
 
     let failure: RunSummary['failure'];
+    let held: Awaited<ReturnType<WalletAdapter['acceptOffer']>> | undefined;
+    let request: Awaited<ReturnType<VerifierAdapter['createRequest']>> | undefined;
+    let outcome: VerificationOutcome | undefined;
 
     try {
       this.preflight();
@@ -172,7 +177,7 @@ export class Run {
       this.ctx.setStep('offer', 'passed');
 
       this.ctx.setStep('issue', 'running');
-      const held = await this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions);
+      held = await this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions);
       this.checkIssuedFormat(held.format);
 
       // Asked before any presentation exists, so a verifier that simply cannot
@@ -190,12 +195,12 @@ export class Run {
       this.ctx.setStep('issue', 'passed');
 
       this.ctx.setStep('present', 'running');
-      const request = await this.participants.verifier.createRequest(this.ctx, presentOptions);
+      request = await this.participants.verifier.createRequest(this.ctx, presentOptions);
       await this.participants.wallet.present(this.ctx, request, held, presentOptions);
       this.ctx.setStep('present', 'passed');
 
       this.ctx.setStep('verify', 'running');
-      const outcome = await this.participants.verifier.awaitResult(this.ctx, request);
+      outcome = await this.participants.verifier.awaitResult(this.ctx, request);
       this.ctx.artifact({ label: 'Verification result', kind: 'json', value: outcome.raw });
       this.evaluateOutcome(outcome);
       this.ctx.setStep('verify', 'passed');
@@ -239,7 +244,7 @@ export class Run {
       at: new Date().toISOString(),
     });
 
-    return this.toRecord(summary);
+    return this.toRecord(summary, buildNarrative({ held, request, outcome, checks: this.ctx.checks }));
   }
 
   /** Rejects combinations that cannot work, before any network traffic. */
@@ -361,7 +366,7 @@ export class Run {
     });
   }
 
-  private toRecord(summary: RunSummary): RunRecord {
+  private toRecord(summary: RunSummary, narrative: RunNarrative): RunRecord {
     const manifests: Record<'issuer' | 'wallet' | 'verifier', Participant> = {
       issuer: this.participants.issuer.manifest,
       wallet: this.participants.wallet.manifest,
@@ -380,6 +385,7 @@ export class Run {
       checks: [...this.ctx.checks],
       artifacts: [...this.ctx.artifacts],
       summary,
+      narrative,
       // The report is only as trustworthy as its least-observable participant.
       traceability: Object.values(manifests).some((p) => p.traceability === 'endpoint-only')
         ? 'endpoint-only'
