@@ -5,6 +5,7 @@ import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type KeyLike } 
 import type { CredentialFormat, TamperMode } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import { mintCredential, CREDENTIAL_TYPE, VCT, DEFAULT_CLAIMS } from '../core/credentials.js';
+import { MDL_DOCTYPE } from '../core/mdoc.js';
 import { PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from '../core/jsonld.js';
 import type { IssuerKey } from '../core/keys.js';
 
@@ -73,6 +74,17 @@ export function credentialConfigurations(publicUrl: string): Record<string, unkn
       proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256', 'EdDSA'] } },
       display: [{ name: 'Interop Test Credential (SD-JWT)', locale: 'en' }],
     },
+    InteropTestCredential_mdoc: {
+      format: 'mso_mdoc',
+      scope: 'InteropTestCredential',
+      doctype: MDL_DOCTYPE,
+      // The MobileSecurityObject binds a COSE_Key, so the holder key has to be
+      // supplied as a raw JWK rather than referenced by a DID.
+      cryptographic_binding_methods_supported: ['jwk'],
+      credential_signing_alg_values_supported: ['ES256'],
+      proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256'] } },
+      display: [{ name: 'Interop Test mDL (ISO 18013-5)', locale: 'en' }],
+    },
     InteropTestCredential_dc_sd_jwt: {
       format: 'dc+sd-jwt',
       scope: 'InteropTestCredential',
@@ -94,6 +106,8 @@ export function configurationIdForFormat(format: CredentialFormat): string {
       return 'InteropTestCredential_sd_jwt';
     case 'dc+sd-jwt':
       return 'InteropTestCredential_dc_sd_jwt';
+    case 'mso_mdoc':
+      return 'InteropTestCredential_mdoc';
     default:
       throw new Error(`The built-in issuer does not support ${format}`);
   }

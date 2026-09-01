@@ -1,4 +1,5 @@
 import type { Participant, Role } from '@interop/shared';
+import { ExternalIssuer, ExternalVerifier } from '../adapters/external.js';
 import { HandheldWallet } from '../adapters/handheld-wallet.js';
 import { InjiCertifyIssuer } from '../adapters/inji-certify.js';
 import { InjiVerifyVerifier } from '../adapters/inji-verify.js';
@@ -40,6 +41,7 @@ export class Registry {
         baseUrl: deps.env.certifyBaseUrl,
         credentialConfigurationId: deps.env.certifyConfigurationId,
       }),
+      new ExternalIssuer(),
     ];
 
     this.wallets = [
@@ -63,6 +65,7 @@ export class Registry {
     this.verifiers = [
       new ReferenceVerifier(deps.publicUrl),
       new InjiVerifyVerifier({ baseUrl: deps.env.verifyBaseUrl }),
+      new ExternalVerifier(),
     ];
   }
 

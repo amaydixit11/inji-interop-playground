@@ -8,6 +8,7 @@ import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
 import type { DocumentLoader } from '../core/jsonld.js';
 import type { WalletKey } from '../core/keys.js';
+import { presentMdoc } from '../core/mdoc.js';
 import { parseSdJwt, presentSdJwt } from '../core/sdjwt.js';
 import type {
   HeldCredential,
@@ -44,7 +45,7 @@ export class ReferenceWallet implements WalletAdapter {
       summary:
         'A protocol-only OpenID4VCI/OpenID4VP client with no vendor-specific behaviour. Runs unattended and every exchange is captured.',
       traceability: 'full',
-      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'],
+      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'],
       specs: ['openid4vci-draft-13', 'openid4vci-1.0', 'openid4vp-draft-21', 'openid4vp-draft-23'],
       interactive: false,
       config: [],
@@ -190,9 +191,15 @@ export class ReferenceWallet implements WalletAdapter {
     const { vpToken, submission } =
       held.format === 'ldp_vc'
         ? await this.buildJsonLdPresentation(ctx, request, held, walletKey)
-        : await this.buildSdJwtPresentation(ctx, request, held, opts, walletKey);
+        : held.format === 'mso_mdoc'
+          ? await this.buildMdocPresentation(ctx, request, held, walletKey)
+          : await this.buildSdJwtPresentation(ctx, request, held, opts, walletKey);
 
-    ctx.artifact({ label: 'vp_token', kind: held.format === 'ldp_vc' ? 'json' : 'sd-jwt', value: vpToken });
+    ctx.artifact({
+      label: 'vp_token',
+      kind: held.format === 'ldp_vc' ? 'json' : held.format === 'mso_mdoc' ? 'cbor' : 'sd-jwt',
+      value: vpToken,
+    });
     ctx.artifact({ label: 'presentation_submission', kind: 'json', value: submission });
 
     await ctx.http({
@@ -295,6 +302,11 @@ export class ReferenceWallet implements WalletAdapter {
     opts: IssueOptions,
     walletKey: WalletKey,
   ): HeldCredential {
+    if (opts.format === 'mso_mdoc' && typeof credential === 'string') {
+      ctx.artifact({ label: 'Issued credential (mdoc IssuerSigned)', kind: 'cbor', value: credential });
+      return { format: 'mso_mdoc', raw: credential, holderKeyId: walletKey.kid };
+    }
+
     if (typeof credential === 'string' && credential.includes('~')) {
       const parsed = parseSdJwt(credential);
       ctx.artifact({ label: 'Issued credential (SD-JWT VC)', kind: 'sd-jwt', value: credential });
@@ -502,6 +514,49 @@ export class ReferenceWallet implements WalletAdapter {
     }
 
     return { vpToken: signed, submission: buildSubmission(request, 'ldp_vp', 'ldp_vc') };
+  }
+
+  /**
+   * Builds an OpenID4VP `DeviceResponse`.
+   *
+   * Device authentication signs over a session transcript derived from the
+   * verifier's client id, response URI and nonce, so the response cannot be
+   * replayed against a different request.
+   */
+  private async buildMdocPresentation(
+    ctx: RunContext,
+    request: PresentationRequest,
+    held: HeldCredential,
+    walletKey: WalletKey,
+  ): Promise<{ vpToken: string; submission: PresentationSubmission }> {
+    const tamper = ctx.config.tamper;
+
+    if (tamper === 'strip-holder-proof') {
+      ctx.log('warn', 'Omitting mdoc device authentication, as requested by the injected fault.');
+    }
+
+    const presented = await presentMdoc({
+      credential: held.raw as string,
+      deviceKey: walletKey.privateKey,
+      clientId: request.authorizationRequest.client_id,
+      responseUri: request.responseUri,
+      nonce: request.nonce,
+      omitDeviceAuth: tamper === 'strip-holder-proof',
+      replayNonce: tamper === 'replay-nonce' ? 'stale-nonce-from-an-earlier-exchange' : undefined,
+    });
+
+    ctx.check({
+      id: 'vp.mdoc.device-binding',
+      title: 'DeviceResponse binds to this request',
+      status: tamper === 'strip-holder-proof' ? 'warn' : 'pass',
+      spec: 'ISO/IEC 18013-5 §9.1.3, ISO/IEC 18013-7 Annex B',
+      detail:
+        tamper === 'strip-holder-proof'
+          ? 'Device authentication omitted; the response proves issuance but not possession.'
+          : 'Device signature covers the session transcript built from the verifier client id, response URI and nonce.',
+    });
+
+    return { vpToken: presented.vpToken, submission: buildSubmission(request, 'mso_mdoc', 'mso_mdoc') };
   }
 
   private async buildSdJwtPresentation(

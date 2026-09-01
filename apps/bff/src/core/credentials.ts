@@ -7,6 +7,7 @@ import type { CredentialFormat, TamperMode } from '@interop/shared';
 import type { IssuerKey } from './keys.js';
 import type { DocumentLoader } from './jsonld.js';
 import { PLAYGROUND_CONTEXT_PATH } from './jsonld.js';
+import { issueMdoc, MDL_DOCTYPE } from './mdoc.js';
 import { issueSdJwt } from './sdjwt.js';
 
 export const CREDENTIAL_TYPE = 'InteropTestCredential';
@@ -55,9 +56,7 @@ export async function mintCredential(options: MintOptions): Promise<MintedCreden
     case 'dc+sd-jwt':
       return mintSdJwtVc(options, options.format);
     case 'mso_mdoc':
-      throw new Error(
-        'mso_mdoc issuance is not implemented by the built-in issuer; select Inji Certify with its mock mDoc plugin instead.',
-      );
+      return mintMdoc(options);
     default: {
       const exhaustive: never = options.format;
       throw new Error(`Unsupported format: ${String(exhaustive)}`);
@@ -163,6 +162,61 @@ async function mintSdJwtVc(
     decoded: { header: { typ, alg: 'EdDSA', kid: options.issuerKey.kid }, payload: issued.payload, disclosures: issued.disclosures },
     tamperNotes,
   };
+}
+
+/**
+ * Issues an ISO 18013-5 mdoc.
+ *
+ * The claim names are remapped onto the mDL namespace, because an mdoc's data
+ * elements are drawn from a registered set rather than being free-form as in
+ * JSON-LD or SD-JWT. Sending `fullName` where the standard says `given_name`
+ * would produce a document no conformant reader would understand.
+ */
+async function mintMdoc(options: MintOptions): Promise<MintedCredential> {
+  if (!options.holderJwk) {
+    throw new Error(
+      'mso_mdoc requires a holder key: the MobileSecurityObject binds a deviceKey, and there is no unbound form of the format.',
+    );
+  }
+
+  const tamperNotes: string[] = [];
+  const expired = options.tamper === 'expire-credential';
+  const now = new Date();
+
+  const issued = await issueMdoc({
+    docType: options.tamper === 'wrong-type' ? 'org.example.unrelated.doc' : MDL_DOCTYPE,
+    claims: toMdlElements(options.claims),
+    signingKey: options.issuerKey.joseMdocKey,
+    kid: options.issuerKey.mdocKid,
+    deviceKeyJwk: options.holderJwk,
+    signedAt: expired ? new Date(now.getTime() - 365 * 864e5) : now,
+    validFrom: expired ? new Date(now.getTime() - 365 * 864e5) : now,
+    validUntil: expired ? new Date(now.getTime() - 864e5) : new Date(now.getTime() + 365 * 864e5),
+    corruptSignature: options.tamper === 'break-signature',
+  });
+
+  if (expired) tamperNotes.push('validUntil backdated by one day.');
+  if (options.tamper === 'wrong-type') tamperNotes.push('docType set to an unrelated document type.');
+  if (options.tamper === 'break-signature') tamperNotes.push('A byte of the issuerAuth COSE signature was flipped.');
+
+  return { format: 'mso_mdoc', raw: issued.credential, decoded: issued.decoded, tamperNotes };
+}
+
+/** Maps the playground's claim names onto ISO 18013-5 mDL data elements. */
+const MDL_ELEMENT_NAMES: Record<string, string> = {
+  fullName: 'given_name',
+  dateOfBirth: 'birth_date',
+  gender: 'sex',
+  nationality: 'nationality',
+  idNumber: 'document_number',
+};
+
+function toMdlElements(claims: Record<string, unknown>): Record<string, unknown> {
+  const elements: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(claims)) {
+    elements[MDL_ELEMENT_NAMES[key] ?? key] = value;
+  }
+  return elements;
 }
 
 /**

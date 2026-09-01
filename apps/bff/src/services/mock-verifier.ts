@@ -4,6 +4,7 @@ import type { CredentialFormat, PresentationDefinition } from '@interop/shared';
 import type { DocumentLoader } from '../core/jsonld.js';
 import { verifyPresentation, type PresentationVerification } from '../core/presentation.js';
 import { CREDENTIAL_TYPE, VCT } from '../core/credentials.js';
+import { MDL_DOCTYPE } from '../core/mdoc.js';
 
 /**
  * A standards-compliant OpenID4VP relying party, served over real HTTP.
@@ -40,6 +41,34 @@ export interface MockVerifierDeps {
 /** Builds a Presentation Exchange definition constraining to our test type. */
 export function buildPresentationDefinition(format: CredentialFormat): PresentationDefinition {
   const isSdJwt = format === 'vc+sd-jwt' || format === 'dc+sd-jwt';
+
+  if (format === 'mso_mdoc') {
+    return {
+      id: 'interop-playground-mso-mdoc',
+      name: 'Interop Playground mDL Verification',
+      purpose: 'Demonstrate an end-to-end OpenID4VP exchange with an ISO 18013-5 mdoc.',
+      input_descriptors: [
+        {
+          id: 'interop-test-mdl',
+          name: 'Interop Test mDL',
+          // mdoc constraints address data elements inside a namespace rather
+          // than JSON paths into a credential document.
+          format: { mso_mdoc: { alg: ['ES256'] } },
+          constraints: {
+            fields: [
+              // Constrains the document type as well as the elements. Without
+              // this a reader would accept any correctly signed mdoc, of any
+              // kind, as satisfying a request for a driving licence.
+              { path: ['$.docType'], filter: { type: 'string', const: MDL_DOCTYPE } },
+              { path: ['$.given_name'] },
+              { path: ['$.birth_date'] },
+            ],
+            limit_disclosure: 'required',
+          },
+        },
+      ],
+    };
+  }
 
   return {
     id: `interop-playground-${format.replace(/\W+/g, '-')}`,
@@ -174,6 +203,7 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
         nonce: session.nonce,
         audience: session.clientId,
         presentationDefinition: session.presentationDefinition,
+        responseUri: `${base()}/response`,
         documentLoader: deps.documentLoader(),
       });
     } catch (error) {

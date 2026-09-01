@@ -61,9 +61,15 @@ The playground answers it directly:
 
 | Role | Implementations available |
 | --- | --- |
-| **Issuer** | Reference Issuer (built in) · Inji Certify |
+| **Issuer** | Reference Issuer (built in) · Inji Certify · any external OpenID4VCI issuer |
 | **Wallet** | Reference Wallet (built in, headless) · Inji Wallet (mobile, via QR) · Inji Web |
-| **Verifier** | Reference Verifier (built in) · Inji Verify |
+| **Verifier** | Reference Verifier (built in) · Inji Verify · any external OpenID4VP verifier |
+
+The **external** participants are how cross-ecosystem testing works. Paste a credential offer from
+any third-party issuer's demo page and the playground redeems it through exactly the same
+standards-only path it uses for Inji Certify; paste an authorization request from any relying party
+and the wallet answers it for real. No adapter code is needed for a new implementation that speaks
+the protocols.
 
 The three **reference** implementations are written against the specifications alone, with no
 knowledge of any vendor. They are the controls: they exist so that when something fails, you can
@@ -90,12 +96,16 @@ reporting them identically would be misleading.
 
 ## Credential formats
 
-| Format | Issuer support | Notes |
+| Format | Issued by | Notes |
 | --- | --- | --- |
 | `ldp_vc` | Reference, Certify | W3C VC 1.1 JSON-LD with an `Ed25519Signature2020` Data Integrity proof |
-| `vc+sd-jwt` | Reference, Certify | IETF SD-JWT VC, draft media type |
+| `vc+sd-jwt` | Reference, Certify | IETF SD-JWT VC, draft media type, with holder key binding |
 | `dc+sd-jwt` | Reference | IETF SD-JWT VC, registered media type |
-| `mso_mdoc` | Certify only | ISO/IEC 18013-5, via Certify's mock mDoc plugin |
+| `mso_mdoc` | Reference, Certify | ISO/IEC 18013-5 mdoc: COSE_Sign1 issuer authentication over a MobileSecurityObject, selective disclosure by digest, and device binding over an OpenID4VP session transcript |
+
+All four are implemented against the specifications rather than wrapped from a library, so the
+playground can emit deliberately malformed variants — a library that refuses to produce a bad
+credential cannot exercise a verifier's negative paths.
 
 The format selector only offers formats that **all three** selected participants declare support for.
 A combination with no format in common is itself an interoperability finding, and the UI says so
@@ -219,6 +229,29 @@ apps/bff/src/services/              The hosted reference issuer and verifier
 ```
 
 ---
+
+## What the live runs found
+
+Running against real Certify 0.14.0 and verify-service 0.18.2 produced sixteen findings, recorded in
+[`docs/FINDINGS.md`](docs/FINDINGS.md) with the evidence for each and a note on whether it was
+observed or read from source. The most consequential:
+
+- **Inji Certify cannot complete a pre-authorized-code issuance with the configuration it ships.**
+  Three separate blockers, each hiding the next.
+- **Inji Verify cannot resolve a `did:web` that carries a port** — it does not percent-decode the
+  host — which rules out every development and CI deployment. Small fix, large effect.
+- **Inji Verify cannot load an issuer-hosted JSON-LD context**, which affects any credential with
+  custom claims, since such claims must be defined in a context of their own.
+- **inji-verify ships a database schema that does not match its own image**, so every presentation
+  submission returns HTTP 500 until the authoritative DDL is used instead.
+
+Four of the sixteen are defects in *this* project that only a real counterparty exposed — including
+a proof header carrying two key identifiers where OpenID4VCI permits exactly one, which our own
+issuer had been happily accepting.
+
+Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
+[Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
+[Inji Verify](docs/INTEROPERABILITY-inji-verify.md).
 
 ## Running the matrix from CI
 

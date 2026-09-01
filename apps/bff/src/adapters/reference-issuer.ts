@@ -21,9 +21,9 @@ export class ReferenceIssuer extends BaseOid4vciIssuer {
       label: 'Reference Issuer (OpenID4VCI)',
       kind: 'mock',
       summary:
-        'A specification-only OpenID4VCI issuer hosted by the playground. Issues W3C VC JSON-LD and SD-JWT VC with real signatures.',
+        'A specification-only OpenID4VCI issuer hosted by the playground. Issues W3C VC JSON-LD, SD-JWT VC and ISO 18013-5 mdoc with real signatures.',
       traceability: 'full',
-      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'],
+      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'],
       specs: ['openid4vci-draft-13', 'openid4vci-1.0'],
       interactive: false,
       config: [

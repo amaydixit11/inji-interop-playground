@@ -151,6 +151,54 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
         </Field>
       </div>
 
+      {selected.some((participant) => (participant?.config.length ?? 0) > 0) && (
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-3">
+          <h3 className="text-[12px] font-semibold text-ink">Endpoint configuration</h3>
+          <p className="-mt-2 text-[11px] text-muted">
+            Overrides apply to this run only, so you can point at a local stack for one run and a sandbox for the
+            next without restarting.
+          </p>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {selected.map(
+              (participant) =>
+                participant &&
+                participant.config.length > 0 && (
+                  <div key={participant.id} className="space-y-2">
+                    <div className="text-[11px] font-medium text-accent">{participant.label}</div>
+                    {participant.config.map((field) => (
+                      <label key={field.key} className="block">
+                        <span className="mb-1 block text-[10.5px] text-muted">
+                          {field.label}
+                          {field.required && <span className="text-fail"> *</span>}
+                        </span>
+                        <input
+                          disabled={disabled}
+                          type={field.secret ? 'password' : 'text'}
+                          value={config.overrides?.[participant.id]?.[field.key] ?? field.value}
+                          placeholder={field.placeholder}
+                          onChange={(event) =>
+                            onChange({
+                              ...config,
+                              overrides: {
+                                ...config.overrides,
+                                [participant.id]: {
+                                  ...config.overrides?.[participant.id],
+                                  [field.key]: event.target.value,
+                                },
+                              },
+                            })
+                          }
+                          className="payload w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-ink outline-none focus:border-accent disabled:opacity-50"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                ),
+            )}
+          </div>
+        </div>
+      )}
+
       {commonFormats.length === 0 && (
         <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] text-warn">
           The selected issuer, wallet and verifier share no credential format. That mismatch is itself an

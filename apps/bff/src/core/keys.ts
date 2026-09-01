@@ -66,6 +66,16 @@ export interface IssuerKey {
   /** Verification method document served at `kid`. */
   verificationMethod: Record<string, unknown>;
   didDocument: Record<string, unknown>;
+  /**
+   * ES256 key used to sign mdoc issuer authentication.
+   *
+   * A separate key because the ISO 18013-5 COSE profile is built around ECDSA
+   * on P-256; an Ed25519 key cannot be used where the specification and the
+   * readers that implement it expect ES256.
+   */
+  joseMdocKey: KeyLike;
+  mdocKid: string;
+  mdocPublicJwk: JWK;
 }
 
 /**
@@ -131,6 +141,16 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
     includeContext: true,
   })) as Record<string, unknown>;
 
+  const mdocKid = `${did}#mdoc-1`;
+  let mdocStored = await readJson<{ privateJwk: JWK; publicJwk: JWK }>('mock-issuer-mdoc');
+  if (!mdocStored) {
+    const { privateKey, publicKey } = await generateKeyPair('ES256', { extractable: true });
+    mdocStored = { privateJwk: await exportJWK(privateKey), publicJwk: await exportJWK(publicKey) };
+    await writeJson('mock-issuer-mdoc', mdocStored);
+  }
+  const joseMdocKey = (await importJWK(mdocStored.privateJwk, 'ES256')) as KeyLike;
+  const mdocPublicJwk: JWK = { ...mdocStored.publicJwk, alg: 'ES256' };
+
   const didDocument = {
     '@context': [
       'https://www.w3.org/ns/did/v1',
@@ -143,12 +163,24 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
       // Published alongside the multibase form because SD-JWT verifiers look
       // for a JWK, while Data Integrity verifiers look for publicKeyMultibase.
       { id: `${did}#jwk-1`, type: 'JsonWebKey2020', controller: did, publicKeyJwk: { ...publicJwk, alg: 'EdDSA' } },
+      { id: mdocKid, type: 'JsonWebKey2020', controller: did, publicKeyJwk: mdocPublicJwk },
     ],
-    assertionMethod: [kid, `${did}#jwk-1`],
-    authentication: [kid, `${did}#jwk-1`],
+    assertionMethod: [kid, `${did}#jwk-1`, mdocKid],
+    authentication: [kid, `${did}#jwk-1`, mdocKid],
   };
 
-  return { did, kid, suiteKey, joseKey, publicJwk: { ...publicJwk, kid, alg: 'EdDSA' }, verificationMethod, didDocument };
+  return {
+    did,
+    kid,
+    suiteKey,
+    joseKey,
+    publicJwk: { ...publicJwk, kid, alg: 'EdDSA' },
+    verificationMethod,
+    didDocument,
+    joseMdocKey,
+    mdocKid,
+    mdocPublicJwk,
+  };
 }
 
 async function buildWalletKey(publicUrl: string): Promise<WalletKey> {

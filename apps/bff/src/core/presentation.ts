@@ -4,6 +4,7 @@ import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, 
 import type { PresentationDefinition } from '@interop/shared';
 import { evaluateConstraints } from './constraints.js';
 import type { DocumentLoader } from './jsonld.js';
+import { verifyMdocPresentation } from './mdoc.js';
 import { resolveVerificationKey } from './resolver.js';
 import { parseSdJwt, verifyDisclosureDigests, verifyKeyBindingHash } from './sdjwt.js';
 
@@ -34,6 +35,8 @@ export interface VerifyPresentationOptions {
   audience: string;
   /** What the verifier asked for; the presentation must actually satisfy it. */
   presentationDefinition?: PresentationDefinition;
+  /** Needed to rebuild an mdoc session transcript; defaults to the audience. */
+  responseUri?: string;
   documentLoader: DocumentLoader;
 }
 
@@ -56,6 +59,10 @@ export async function verifyPresentation(
   if (base64Json) return verifyJsonLdPresentation(JSON.stringify(base64Json), options);
 
   if (token.includes('~')) return verifySdJwtPresentation(token, options);
+
+  // A base64url CBOR map is an mdoc DeviceResponse; nothing else in this
+  // ecosystem is shaped that way.
+  if (looksLikeCbor(token)) return verifyMdoc(token, options);
 
   return {
     verdict: 'invalid',
@@ -80,6 +87,48 @@ function tryDecodeBase64Json(token: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/** A base64url CBOR major-type-5 (map) head, which every DeviceResponse has. */
+function looksLikeCbor(token: string): boolean {
+  if (!/^[A-Za-z0-9_-]+={0,2}$/.test(token)) return false;
+  try {
+    const first = Buffer.from(token.slice(0, 8), 'base64url')[0];
+    return first !== undefined && first >= 0xa0 && first <= 0xbf;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyMdoc(
+  token: string,
+  options: VerifyPresentationOptions,
+): Promise<PresentationVerification> {
+  const result = await verifyMdocPresentation({
+    vpToken: token,
+    clientId: options.audience,
+    responseUri: options.responseUri ?? options.audience,
+    nonce: options.nonce,
+    resolveIssuerKey: async (kid) => {
+      if (!kid) throw new Error('issuerAuth carries no kid, so the issuer key cannot be resolved.');
+      const { key } = await resolveVerificationKey(kid, options.documentLoader, 'ES256');
+      return key;
+    },
+  });
+
+  const checks: PresentationCheck[] = result.checks.map((check) => ({
+    id: check.id,
+    title: check.title,
+    ok: check.ok,
+    detail: check.detail,
+    expiryRelated: check.expiryRelated,
+  }));
+
+  // Constraints are evaluated against the disclosed elements plus the document
+  // type, so a request for one kind of document is not satisfied by another.
+  checks.push(constraintCheck(options.presentationDefinition, { docType: result.docType, ...result.claims }));
+
+  return { verdict: decideVerdict(checks), checks, claims: result.claims, decoded: result.decoded };
 }
 
 async function verifyJsonLdPresentation(

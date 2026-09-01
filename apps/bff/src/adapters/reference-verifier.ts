@@ -16,7 +16,7 @@ export class ReferenceVerifier implements VerifierAdapter {
       summary:
         'A specification-only OpenID4VP relying party hosted by the playground. Reports every individual check it performs, not just a verdict.',
       traceability: 'full',
-      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'],
+      formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'],
       specs: ['openid4vp-draft-21', 'openid4vp-draft-23', 'openid4vp-1.0'],
       interactive: false,
       config: [

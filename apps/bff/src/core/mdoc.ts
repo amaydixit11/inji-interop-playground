@@ -439,6 +439,8 @@ export interface MdocVerifyOptions {
 export interface MdocVerification {
   checks: MdocCheck[];
   claims: Record<string, unknown>;
+  /** Document type from the signed MSO, for constraint evaluation. */
+  docType?: string;
   decoded: unknown;
 }
 
@@ -639,7 +641,7 @@ export async function verifyMdocPresentation(options: MdocVerifyOptions): Promis
     }
   }
 
-  return { checks, claims, decoded: describe(response) };
+  return { checks, claims, docType, decoded: describe(response) };
 }
 
 function readDocType(issuerSigned: Map<string, unknown>): string {

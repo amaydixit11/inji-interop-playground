@@ -20,7 +20,7 @@ const args = parseArgs(process.argv.slice(2));
 const base = (args.base ?? process.env.PLAYGROUND_URL ?? 'http://localhost:8787').replace(/\/$/, '');
 const outputPath = args.out ?? 'docs/INTEROPERABILITY.md';
 
-const DEFAULT_FORMATS = ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'];
+const DEFAULT_FORMATS = ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'];
 const DEFAULT_FAULTS = [
   'none',
   'break-signature',

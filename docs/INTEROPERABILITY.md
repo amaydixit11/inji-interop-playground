@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-08-31T20:23:47.023Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-01T06:53:38.730Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -12,8 +12,8 @@ exchanges captured.
 | Issuer | Reference Issuer (OpenID4VCI) (`reference-issuer`, mock) |
 | Wallet | Reference Wallet (headless) (`reference-wallet`, mock) |
 | Verifier | Reference Verifier (OpenID4VP) (`reference-verifier`, mock) |
-| Runs | 18 |
-| Passed | 18 |
+| Runs | 24 |
+| Passed | 24 |
 | Failed | 0 |
 | Traceability | full |
 
@@ -21,24 +21,30 @@ exchanges captured.
 
 | Format | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `none` | **passed** | `valid` | 18 | 0 | 0 | 0 |
-| `ldp_vc` | `break-signature` | **passed** | `invalid` | 17 | 0 | 1 | 0 |
-| `ldp_vc` | `expire-credential` | **passed** | `valid-but-expired` | 17 | 0 | 0 | 2 |
-| `ldp_vc` | `wrong-type` | **passed** | `invalid` | 17 | 0 | 1 | 0 |
-| `ldp_vc` | `strip-holder-proof` | **passed** | `invalid` | 16 | 0 | 1 | 0 |
-| `ldp_vc` | `replay-nonce` | **passed** | `invalid` | 16 | 0 | 2 | 0 |
-| `vc+sd-jwt` | `none` | **passed** | `valid` | 21 | 0 | 0 | 1 |
-| `vc+sd-jwt` | `break-signature` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
-| `vc+sd-jwt` | `expire-credential` | **passed** | `valid-but-expired` | 20 | 0 | 0 | 2 |
-| `vc+sd-jwt` | `wrong-type` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
-| `vc+sd-jwt` | `strip-holder-proof` | **passed** | `invalid` | 17 | 0 | 1 | 1 |
-| `vc+sd-jwt` | `replay-nonce` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
-| `dc+sd-jwt` | `none` | **passed** | `valid` | 21 | 0 | 0 | 1 |
-| `dc+sd-jwt` | `break-signature` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
-| `dc+sd-jwt` | `expire-credential` | **passed** | `valid-but-expired` | 20 | 0 | 0 | 2 |
-| `dc+sd-jwt` | `wrong-type` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
-| `dc+sd-jwt` | `strip-holder-proof` | **passed** | `invalid` | 17 | 0 | 1 | 1 |
-| `dc+sd-jwt` | `replay-nonce` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
+| `ldp_vc` | `none` | **passed** | `valid` | 23 | 0 | 0 | 0 |
+| `ldp_vc` | `break-signature` | **passed** | `invalid` | 22 | 0 | 1 | 0 |
+| `ldp_vc` | `expire-credential` | **passed** | `valid-but-expired` | 22 | 0 | 0 | 2 |
+| `ldp_vc` | `wrong-type` | **passed** | `invalid` | 22 | 0 | 1 | 0 |
+| `ldp_vc` | `strip-holder-proof` | **passed** | `invalid` | 21 | 0 | 1 | 0 |
+| `ldp_vc` | `replay-nonce` | **passed** | `invalid` | 21 | 0 | 2 | 0 |
+| `vc+sd-jwt` | `none` | **passed** | `valid` | 22 | 0 | 0 | 1 |
+| `vc+sd-jwt` | `break-signature` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `expire-credential` | **passed** | `valid-but-expired` | 21 | 0 | 0 | 2 |
+| `vc+sd-jwt` | `wrong-type` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `strip-holder-proof` | **passed** | `invalid` | 18 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `replay-nonce` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `none` | **passed** | `valid` | 22 | 0 | 0 | 1 |
+| `dc+sd-jwt` | `break-signature` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `expire-credential` | **passed** | `valid-but-expired` | 21 | 0 | 0 | 2 |
+| `dc+sd-jwt` | `wrong-type` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `strip-holder-proof` | **passed** | `invalid` | 18 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `replay-nonce` | **passed** | `invalid` | 21 | 0 | 1 | 1 |
+| `mso_mdoc` | `none` | **passed** | `valid` | 22 | 0 | 0 | 0 |
+| `mso_mdoc` | `break-signature` | **passed** | `invalid` | 21 | 0 | 1 | 0 |
+| `mso_mdoc` | `expire-credential` | **passed** | `valid-but-expired` | 21 | 0 | 0 | 1 |
+| `mso_mdoc` | `wrong-type` | **passed** | `invalid` | 21 | 0 | 1 | 0 |
+| `mso_mdoc` | `strip-holder-proof` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
+| `mso_mdoc` | `replay-nonce` | **passed** | `invalid` | 21 | 0 | 1 | 0 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -62,28 +68,46 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | `dc+sd-jwt` | `wrong-type` | Presentation satisfies the presentation definition |
 | `dc+sd-jwt` | `strip-holder-proof` | Presentation includes a key binding JWT |
 | `dc+sd-jwt` | `replay-nonce` | Key binding JWT echoes the verifier nonce |
+| `mso_mdoc` | `break-signature` | Issuer authentication verifies |
+| `mso_mdoc` | `expire-credential` | **not detected** |
+| `mso_mdoc` | `wrong-type` | Presentation satisfies the presentation definition |
+| `mso_mdoc` | `strip-holder-proof` | Document includes device authentication |
+| `mso_mdoc` | `replay-nonce` | Device authentication verifies against the session transcript |
 
 ## Findings
 
 - **Wallet discloses only the requested claims** — `warn`, 12 run(s). The request did not constrain individual claims, so all 5 were disclosed. A verifier asking for limit_disclosure should also name the fields it needs.
 - **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
 - **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-30T20:23:41.000Z.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-30T20:23:45.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-31T06:53:30.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-31T06:53:33.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-08-31T06:53:36.713Z.
+- **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised
 
-32 distinct assertions across this run set.
+45 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
 | Authorization server advertises the pre-authorized code grant | OpenID4VCI §3.5, RFC 8414 |
+| Credential carries a credential subject | W3C VC Data Model §4.4 |
 | Credential is within its validity window | OpenID4VP §7 / credential format specification |
+| Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
 | Credential response carries a credential | OpenID4VCI §7.3 |
+| Device authentication verifies against the session transcript | OpenID4VP §7 / credential format specification |
+| DeviceResponse binds to this request | ISO/IEC 18013-5 §9.1.3, ISO/IEC 18013-7 Annex B |
+| DeviceResponse reports success status | OpenID4VP §7 / credential format specification |
+| Disclosed elements match the signed digests | OpenID4VP §7 / credential format specification |
 | Disclosures match the issuer-signed digests | OpenID4VP §7 / credential format specification |
+| Document includes device authentication | OpenID4VP §7 / credential format specification |
+| Document is within its validity window | OpenID4VP §7 / credential format specification |
+| Document type matches the signed MobileSecurityObject | OpenID4VP §7 / credential format specification |
+| Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
 | Holder echoed the verifier nonce | OpenID4VP §7 / credential format specification |
 | Issued credential is in the requested format | OpenID4VCI §7.3 |
 | Issuer advertises the requested credential format | OpenID4VCI §11.2.3 |
+| Issuer authentication verifies | OpenID4VP §7 / credential format specification |
 | Issuer signature verifies | OpenID4VP §7 / credential format specification |
 | Issuer supplied a nonce for the holder proof | OpenID4VCI §7.2 (c_nonce) / §8 (Nonce Endpoint) |
 | Key binding JWT covers the presented disclosures | OpenID4VP §7 / credential format specification |
@@ -99,6 +123,8 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Presentation carries a holder proof | OpenID4VP §7 / credential format specification |
 | Presentation includes a key binding JWT | OpenID4VP §7 / credential format specification |
 | Presentation satisfies the presentation definition | OpenID4VP §7 / credential format specification |
+| Proof JWT carries exactly one key identifier | OpenID4VCI §7.2.1 |
+| Proof verification method identifies a single key | W3C VC Data Integrity §2.2 |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
 | Verification succeeded | An untampered credential must verify. |
 | Verifier correctly rejected the tampered credential (break-signature) | A tampered credential must be rejected. |
