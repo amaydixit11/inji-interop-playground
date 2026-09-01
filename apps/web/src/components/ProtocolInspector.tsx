@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Artifact, HttpExchange } from '@interop/shared';
-import { STEP_LABELS } from '@interop/shared';
+import { explainExchange, STEP_EXPLANATIONS, STEP_LABELS } from '@interop/shared';
 import { Badge, formatPayload, Panel } from './primitives.js';
 
 /**
@@ -10,9 +10,11 @@ import { Badge, formatPayload, Panel } from './primitives.js';
 export function ProtocolInspector({
   exchanges,
   artifacts,
+  explain,
 }: {
   exchanges: HttpExchange[];
   artifacts: Artifact[];
+  explain?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [tab, setTab] = useState<'exchanges' | 'artifacts'>('exchanges');
@@ -99,7 +101,11 @@ export function ProtocolInspector({
           </div>
 
           <div className="min-h-0 overflow-auto">
-            {selected ? <ExchangeDetail exchange={selected} /> : <Empty>Select an exchange.</Empty>}
+            {selected ? (
+              <ExchangeDetail exchange={selected} explain={explain} />
+            ) : (
+              <Empty>Select an exchange.</Empty>
+            )}
           </div>
         </div>
       ) : (
@@ -125,7 +131,9 @@ export function ProtocolInspector({
   );
 }
 
-function ExchangeDetail({ exchange }: { exchange: HttpExchange }) {
+function ExchangeDetail({ exchange, explain }: { exchange: HttpExchange; explain?: boolean }) {
+  const explanation = explainExchange(exchange.label);
+
   return (
     <div className="space-y-3 p-3">
       <div>
@@ -142,6 +150,23 @@ function ExchangeDetail({ exchange }: { exchange: HttpExchange }) {
       {exchange.error && (
         <div className="rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] leading-snug text-warn">
           {exchange.error}
+        </div>
+      )}
+
+      {explain && (
+        <div className="space-y-1.5 rounded-md border border-info/30 bg-info/5 px-2.5 py-2">
+          <p className="text-[11px] leading-snug text-ink">
+            {explanation?.what ?? STEP_EXPLANATIONS[exchange.step].what}
+          </p>
+          <p className="text-[11px] leading-snug text-muted">
+            {explanation?.why ?? STEP_EXPLANATIONS[exchange.step].why}
+          </p>
+          {(explanation?.lookFor ?? STEP_EXPLANATIONS[exchange.step].lookFor) && (
+            <p className="text-[11px] leading-snug text-muted">
+              <span className="text-info">What to look for: </span>
+              {explanation?.lookFor ?? STEP_EXPLANATIONS[exchange.step].lookFor}
+            </p>
+          )}
         </div>
       )}
 

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Participant, RunConfig, RunRecord } from '@interop/shared';
+import type { Participant, RunConfig, RunRecord, Scenario } from '@interop/shared';
 import { api } from './api.js';
+import { download, runReport } from './report.js';
 import { useRun } from './hooks/useRun.js';
 import { ChecksPanel } from './components/ChecksPanel.js';
+import { Compare } from './components/Compare.js';
 import { Dashboard } from './components/Dashboard.js';
 import { HistoryMatrix, toMarkdown } from './components/HistoryMatrix.js';
 import { ProtocolInspector } from './components/ProtocolInspector.js';
 import { RunBuilder } from './components/RunBuilder.js';
+import { Scenarios } from './components/Scenarios.js';
 import { SequenceDiagram } from './components/SequenceDiagram.js';
 import { Timeline } from './components/Timeline.js';
 import { UserActionPrompt } from './components/UserActionPrompt.js';
@@ -22,7 +25,7 @@ const DEFAULT_CONFIG: RunConfig = {
   tamper: 'none',
 };
 
-type View = 'live' | 'sequence' | 'history' | 'dashboard';
+type View = 'live' | 'sequence' | 'dashboard' | 'compare' | 'history';
 
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -31,6 +34,11 @@ export function App() {
   const [history, setHistory] = useState<RunRecord[]>([]);
   const [view, setView] = useState<View>('live');
   const [loadError, setLoadError] = useState<string>();
+  // On by default: the playground's first job is explaining the protocols, and
+  // somebody who already knows them can turn it off in one click.
+  const [explain, setExplain] = useState(true);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [activeScenario, setActiveScenario] = useState<Scenario>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
   const busy = run?.status === 'running' || run?.status === 'awaiting-user';
@@ -67,6 +75,17 @@ export function App() {
     return counts;
   }, [run?.exchanges]);
 
+  /** Exports the run currently on screen, fetching the persisted record. */
+  const exportRun = useCallback(async () => {
+    if (!run) return;
+    try {
+      const record = await api.run(run.id);
+      download(`inji-run-${record.id.slice(0, 8)}.md`, runReport(record));
+    } catch (caught) {
+      setLoadError(caught instanceof Error ? caught.message : String(caught));
+    }
+  }, [run]);
+
   const exportMarkdown = useCallback(() => {
     const blob = new Blob([toMarkdown(history)], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -101,8 +120,19 @@ export function App() {
           )}
         </div>
 
+        <button
+          type="button"
+          onClick={() => setExplain((value) => !value)}
+          title="Annotate each step and payload with what it is and why the protocol has it"
+          className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition ${
+            explain ? 'border-info/50 bg-info/10 text-info' : 'border-line text-muted hover:text-ink'
+          }`}
+        >
+          Explain
+        </button>
+
         <nav className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
-          {(['live', 'sequence', 'dashboard', 'history'] as View[]).map((value) => (
+          {(['live', 'sequence', 'dashboard', 'compare', 'history'] as View[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -126,6 +156,8 @@ export function App() {
       <main className="min-h-0 flex-1 overflow-auto p-3">
         {view === 'dashboard' ? (
           <Dashboard runs={history} />
+        ) : view === 'compare' ? (
+          <Compare runs={history} />
         ) : view === 'history' ? (
           <div className="h-full">
             <HistoryMatrix
@@ -139,17 +171,50 @@ export function App() {
           </div>
         ) : (
           <div className="flex h-full min-h-0 flex-col gap-3">
-            <RunBuilder participants={participants} config={config} onChange={setConfig} disabled={busy} />
+            <Scenarios
+              participants={participants}
+              disabled={busy}
+              onRun={(scenarioConfig, scenario) => {
+                setConfig(scenarioConfig);
+                setActiveScenario(scenario);
+                void start(scenarioConfig);
+              }}
+            />
+
+            <details
+              open={builderOpen}
+              onToggle={(event) => setBuilderOpen((event.currentTarget as HTMLDetailsElement).open)}
+              className="rounded-lg border border-line bg-surface"
+            >
+              <summary className="cursor-pointer px-3 py-2 text-[12px] font-medium text-ink hover:text-accent">
+                Configure a run yourself
+                <span className="ml-2 text-[11px] font-normal text-muted">
+                  {config.issuerId} → {config.walletId} → {config.verifierId} · {config.format}
+                </span>
+              </summary>
+              <div className="border-t border-line p-3">
+                <RunBuilder participants={participants} config={config} onChange={setConfig} disabled={busy} />
+              </div>
+            </details>
 
             <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2">
               <button
                 type="button"
                 disabled={busy || participants.length === 0}
-                onClick={() => void start(config)}
+                onClick={() => {
+                  setActiveScenario(undefined);
+                  void start(config);
+                }}
                 className="rounded-md bg-accent px-4 py-1.5 text-[12px] font-semibold text-canvas transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {busy ? 'Run in progress…' : 'Run interoperability test'}
               </button>
+
+              {activeScenario && (
+                <span className="text-[11px] text-info" title={activeScenario.expect}>
+                  {activeScenario.title}
+                </span>
+              )}
 
               {run && (
                 <>
@@ -166,13 +231,27 @@ export function App() {
                   {run.summary?.failure && (
                     <span className="text-[11px] text-fail">{run.summary.failure.message}</span>
                   )}
+                  {activeScenario && run.status === 'failed' && activeScenario.expect.startsWith('Fails') && (
+                    <span className="text-[11px] text-info">
+                      This scenario is expected to fail — the findings are the result.
+                    </span>
+                  )}
+                  {(run.status === 'passed' || run.status === 'failed') && (
+                    <button
+                      type="button"
+                      onClick={() => void exportRun()}
+                      className="ml-auto rounded border border-line px-2 py-0.5 text-[10.5px] text-muted transition hover:border-accent hover:text-accent"
+                    >
+                      export this run
+                    </button>
+                  )}
                 </>
               )}
             </div>
 
             {run && (
               <div className="shrink-0 rounded-lg border border-line bg-surface">
-                <Timeline steps={run.steps} exchangeCounts={exchangeCounts} />
+                <Timeline steps={run.steps} exchangeCounts={exchangeCounts} explain={explain} />
               </div>
             )}
 
@@ -180,7 +259,11 @@ export function App() {
               {view === 'sequence' ? (
                 <SequenceDiagram exchanges={run?.exchanges ?? []} />
               ) : (
-                <ProtocolInspector exchanges={run?.exchanges ?? []} artifacts={run?.artifacts ?? []} />
+                <ProtocolInspector
+                  exchanges={run?.exchanges ?? []}
+                  artifacts={run?.artifacts ?? []}
+                  explain={explain}
+                />
               )}
               <ChecksPanel checks={run?.checks ?? []} />
             </div>

@@ -20,10 +20,14 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173> and press **Run interoperability test**.
+Open <http://localhost:5173> and pick a scenario from **Start here**.
 
-That first run works with no other services installed. The playground hosts its own reference issuer,
-wallet and verifier, so there is a complete working cycle to look at before you wire up anything real.
+Nothing else needs installing. The playground hosts its own reference issuer, wallet and verifier, so
+there is a complete working cycle to look at before wiring up anything real.
+
+Eleven scenarios, each phrased as a question the run answers — *Does the verifier catch a forged
+credential?*, *Is a revoked credential still accepted?*, *What happens against real Inji Certify?* —
+with what to expect stated up front, including the two that are supposed to fail.
 
 Or with Docker:
 
@@ -198,6 +202,18 @@ as `localhost`.
 
 ---
 
+## Learning from a run
+
+**Explain** (on by default, top right) annotates every phase and every payload with what it is, why
+the protocol has it, and what an experienced reader checks. The point is that someone who does not
+already know OpenID4VCI should be able to read a run and come away understanding it — a wall of JSON
+proves something to an expert and teaches nobody else.
+
+**Compare** puts two runs side by side, shows only the configuration fields that differ, and diffs
+their assertions: which resolved differently, and — usually more revealing — which only one side
+ever got far enough to evaluate. Swapping the reference verifier for Inji Verify and comparing is how
+finding 7 reduces to a single line.
+
 ## Reading a run
 
 **Timeline** — the five phases: discover, offer, issue, present, verify.
@@ -215,6 +231,10 @@ the run.
 
 **Interoperability matrix** — every recorded run, filterable, exportable as Markdown for a report or
 a GitHub issue.
+
+**Export this run** — any finished run as a self-contained Markdown report: configuration, every
+assertion with the clause it cites, and the exchanges that produced them. Written to be pasted into
+a bug report by someone who was not watching.
 
 **Dashboard** — pass rate and latency by format, fault, issuer and verifier; median time per phase;
 and the checks that fail or warn most often, with deliberately provoked failures excluded so real
