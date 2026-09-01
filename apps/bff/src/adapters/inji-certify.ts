@@ -27,7 +27,7 @@ export class InjiCertifyIssuer extends BaseOid4vciIssuer {
         'MOSIP Inji Certify issuing over OpenID4VCI via the pre-authorized code grant. Point it at a local Docker Compose stack or the Collab sandbox.',
       traceability: 'full',
       formats: ['ldp_vc', 'vc+sd-jwt', 'mso_mdoc'],
-      specs: ['openid4vci-draft-13', 'openid4vci-1.0'],
+      specs: ['openid4vci-draft-11', 'openid4vci-draft-12', 'openid4vci-draft-13', 'openid4vci-1.0'],
       interactive: false,
       config: [
         {

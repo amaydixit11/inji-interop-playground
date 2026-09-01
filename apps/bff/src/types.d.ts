@@ -93,3 +93,41 @@ declare module 'jsonld-signatures' {
   const jsigs: JsonLdSignatures;
   export default jsigs;
 }
+
+declare module '@digitalbazaar/ed25519-signature-2018' {
+  export class Ed25519Signature2018 {
+    constructor(options?: { key?: unknown; verificationMethod?: string; date?: string });
+  }
+}
+
+declare module '@digitalbazaar/ed25519-verification-key-2018' {
+  export class Ed25519VerificationKey2018 {
+    id: string;
+    controller: string;
+    type: string;
+    static generate(options?: { controller?: string; id?: string }): Promise<Ed25519VerificationKey2018>;
+    static from(key: Record<string, unknown>): Promise<Ed25519VerificationKey2018>;
+    export(options: { publicKey?: boolean; privateKey?: boolean; includeContext?: boolean }): Record<string, unknown>;
+  }
+}
+
+declare module '@digitalbazaar/jws-linked-data-signature' {
+  export class JwsLinkedDataSignature {
+    constructor(options: {
+      type: string;
+      alg: string;
+      LDKeyClass?: unknown;
+      key?: unknown;
+      signer?: { sign(options: { data: Uint8Array }): Promise<Uint8Array>; id?: string };
+      verifier?: { verify(options: { data: Uint8Array; signature: Uint8Array }): Promise<boolean> };
+      proof?: unknown;
+      date?: string;
+      contextUrl: string;
+    });
+    type: string;
+    alg: string;
+    verificationMethod?: string;
+    ensureSuiteContext(options: { document: Record<string, unknown>; addSuiteContext: boolean }): void;
+    assertVerificationMethod(options: { verificationMethod: Record<string, unknown> }): Promise<void>;
+  }
+}

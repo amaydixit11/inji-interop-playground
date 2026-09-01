@@ -2,7 +2,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { JWK } from 'jose';
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type KeyLike } from 'jose';
-import type { CredentialFormat, TamperMode } from '@interop/shared';
+import type { CredentialFormat, ProofType, TamperMode } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import { mintCredential, CREDENTIAL_TYPE, VCT, DEFAULT_CLAIMS } from '../core/credentials.js';
 import { MDL_DOCTYPE } from '../core/mdoc.js';
@@ -28,6 +28,8 @@ interface PendingOffer {
   configurationId: string;
   format: CredentialFormat;
   claims: Record<string, unknown>;
+  /** Data Integrity suite to sign with, for JSON-LD credentials. */
+  proofType: ProofType;
   /** Deliberate corruption to apply when this offer is redeemed. */
   tamper: TamperMode;
   txCode?: string;
@@ -57,7 +59,7 @@ export function credentialConfigurations(publicUrl: string): Record<string, unkn
       format: 'ldp_vc',
       scope: 'InteropTestCredential',
       cryptographic_binding_methods_supported: ['did:web', 'did:jwk'],
-      credential_signing_alg_values_supported: ['Ed25519Signature2020'],
+      credential_signing_alg_values_supported: ['Ed25519Signature2020', 'Ed25519Signature2018', 'RsaSignature2018'],
       proof_types_supported: { jwt: { proof_signing_alg_values_supported: ['ES256', 'EdDSA'] } },
       credential_definition: {
         '@context': ['https://www.w3.org/2018/credentials/v1', contextUrl],
@@ -170,6 +172,7 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       claims: (req.body?.claims as Record<string, unknown>) ?? DEFAULT_CLAIMS,
       // Carried on the offer rather than read from the credential request, so
       // the wallet driving the flow stays a plain protocol client.
+      proofType: (req.body?.proofType as ProofType) ?? 'Ed25519Signature2020',
       tamper: (req.body?.tamper as TamperMode) ?? 'none',
       txCode: req.body?.txCode,
       createdAt: Date.now(),
@@ -254,7 +257,19 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
     res.set('cache-control', 'no-store').json({ c_nonce: nonce, c_nonce_expires_in: 300 });
   });
 
-  router.post('/credential', async (req, res) => {
+  // Draft 11 and 12 carried the credential at a distinct path and echoed the
+  // requested `format` in the response; draft 13 dropped the echo and 1.0
+  // replaced the single `credential` with an array. Serving all three lets a
+  // wallet be tested against the revision it actually implements.
+  router.post('/vd11/credential', (req, res) => issueCredential(req, res, 'draft-11'));
+  router.post('/vd12/credential', (req, res) => issueCredential(req, res, 'draft-12'));
+  router.post('/credential', (req, res) => issueCredential(req, res, 'draft-13'));
+
+  async function issueCredential(
+    req: Parameters<Parameters<typeof router.post>[1]>[0],
+    res: Parameters<Parameters<typeof router.post>[1]>[1],
+    draft: 'draft-11' | 'draft-12' | 'draft-13',
+  ): Promise<void> {
     const authorization = req.header('authorization') ?? '';
     const accessToken = authorization.startsWith('Bearer ') ? authorization.slice(7) : undefined;
     const token = accessToken ? tokens.get(accessToken) : undefined;
@@ -299,6 +314,7 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
     try {
       const minted = await mintCredential({
         format: token.offer.format,
+        proofType: token.offer.proofType,
         claims: token.offer.claims,
         issuerKey: await deps.issuerKey(),
         publicUrl: deps.publicUrl,
@@ -311,22 +327,31 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       // Access tokens are single use at the credential endpoint.
       tokens.delete(token.accessToken);
 
-      res.json({
-        format: token.offer.format,
-        credential: minted.raw,
-        // OpenID4VCI 1.0 moved to an array; both are emitted so wallets written
-        // against either revision can read the response.
-        credentials: [{ credential: minted.raw }],
+      const body: Record<string, unknown> = {
         c_nonce: randomBytes(16).toString('base64url'),
         c_nonce_expires_in: 300,
-      });
+      };
+
+      if (draft === 'draft-11' || draft === 'draft-12') {
+        // Pre-13 responses echo the format alongside the credential.
+        body.format = token.offer.format;
+        body.credential = minted.raw;
+      } else {
+        // Draft 13 dropped the format echo. The 1.0 `credentials` array is sent
+        // alongside so a wallet on either revision can read the response; a
+        // strict 1.0 wallet reads the array and ignores the scalar.
+        body.credential = minted.raw;
+        body.credentials = [{ credential: minted.raw }];
+      }
+
+      res.json(body);
     } catch (error) {
       res.status(500).json({
         error: 'credential_request_denied',
         error_description: error instanceof Error ? error.message : String(error),
       });
     }
-  });
+  }
 
   return router;
 }

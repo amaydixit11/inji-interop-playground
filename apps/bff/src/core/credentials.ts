@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import * as vc from '@digitalbazaar/vc';
 import jsigs from 'jsonld-signatures';
-import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
+import { createIssuanceSuite, SUITE_CONTEXTS, verificationSuites } from './suites.js';
 import type { JWK } from 'jose';
-import type { CredentialFormat, TamperMode } from '@interop/shared';
+import type { CredentialFormat, ProofType, TamperMode } from '@interop/shared';
 import type { IssuerKey } from './keys.js';
 import type { DocumentLoader } from './jsonld.js';
 import { PLAYGROUND_CONTEXT_PATH } from './jsonld.js';
@@ -23,6 +23,8 @@ export const DEFAULT_CLAIMS: Record<string, unknown> = {
 
 export interface MintOptions {
   format: CredentialFormat;
+  /** Data Integrity suite to sign a JSON-LD credential with. */
+  proofType: ProofType;
   claims: Record<string, unknown>;
   issuerKey: IssuerKey;
   publicUrl: string;
@@ -80,10 +82,15 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
   }
   if (expired) tamperNotes.push(`expirationDate backdated to ${expirationDate.toISOString()}.`);
 
+  // The suite's own context has to be present before signing: it is what
+  // defines the proof terms, and without it canonicalisation silently drops the
+  // proof's own properties.
+  const suiteContext = SUITE_CONTEXTS[options.proofType];
   const credential: Record<string, unknown> = {
     '@context': [
       'https://www.w3.org/2018/credentials/v1',
       new URL(PLAYGROUND_CONTEXT_PATH, options.publicUrl).toString(),
+      ...(suiteContext ? [suiteContext] : []),
     ],
     id: `urn:uuid:${randomUUID()}`,
     type,
@@ -96,7 +103,7 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
     },
   };
 
-  const suite = new Ed25519Signature2020({ key: options.issuerKey.suiteKey });
+  const suite = createIssuanceSuite(options.proofType, options.issuerKey);
 
   // `vc.issue` validates the credential before signing and refuses one whose
   // expirationDate has already passed — reasonable for a real issuer, but it
@@ -117,8 +124,19 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
 
   if (options.tamper === 'break-signature') {
     const proof = signed.proof as Record<string, unknown>;
-    proof.proofValue = corruptSignature(String(proof.proofValue));
-    tamperNotes.push('A character of proofValue was altered; the Ed25519 signature no longer verifies.');
+
+    // Where the signature lives depends on the suite: the 2020 suite carries a
+    // multibase `proofValue`, while the 2018 suites carry a detached JWS whose
+    // signature is the segment after the final dot. Corrupting the wrong field
+    // would leave the proof intact and the test meaningless.
+    if (typeof proof.jws === 'string') {
+      const [header, , signature] = String(proof.jws).split('.');
+      proof.jws = `${header}..${corruptSignature(String(signature))}`;
+      tamperNotes.push('A character of the detached JWS signature was altered.');
+    } else {
+      proof.proofValue = corruptSignature(String(proof.proofValue));
+      tamperNotes.push('A character of proofValue was altered.');
+    }
   }
 
   return { format: 'ldp_vc', raw: signed, decoded: signed, tamperNotes };
@@ -258,7 +276,7 @@ export async function verifyJsonLdCredential(
   try {
     const result = await vc.verifyCredential({
       credential,
-      suite: new Ed25519Signature2020(),
+      suite: verificationSuites(),
       documentLoader,
     });
     verified = result.verified;

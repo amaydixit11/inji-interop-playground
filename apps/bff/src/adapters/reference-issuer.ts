@@ -24,7 +24,7 @@ export class ReferenceIssuer extends BaseOid4vciIssuer {
         'A specification-only OpenID4VCI issuer hosted by the playground. Issues W3C VC JSON-LD, SD-JWT VC and ISO 18013-5 mdoc with real signatures.',
       traceability: 'full',
       formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'],
-      specs: ['openid4vci-draft-13', 'openid4vci-1.0'],
+      specs: ['openid4vci-draft-11', 'openid4vci-draft-12', 'openid4vci-draft-13', 'openid4vci-1.0'],
       interactive: false,
       config: [
         {
@@ -54,7 +54,12 @@ export class ReferenceIssuer extends BaseOid4vciIssuer {
       from: 'Playground',
       to: 'Issuer',
       url: `${this.baseUrl(ctx).replace(/\/$/, '')}/offers`,
-      json: { format: opts.format, claims: opts.claims, tamper: ctx.config.tamper },
+      json: {
+        format: opts.format,
+        proofType: opts.proofType,
+        claims: opts.claims,
+        tamper: ctx.config.tamper,
+      },
     });
 
     const offer = response.body.credential_offer;

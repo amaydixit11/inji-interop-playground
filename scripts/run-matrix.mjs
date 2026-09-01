@@ -32,6 +32,11 @@ const DEFAULT_FAULTS = [
 
 const formats = args.formats ? args.formats.split(',') : DEFAULT_FORMATS;
 const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
+// Proof suites and protocol revisions are extra dimensions rather than part of
+// the default sweep: crossing all four would be hundreds of runs, and they vary
+// independently of the fault modes.
+const proofTypes = args.proofTypes ? args.proofTypes.split(',') : ['Ed25519Signature2020'];
+const drafts = args.drafts ? args.drafts.split(',') : ['draft-13'];
 const issuerId = args.issuer ?? 'reference-issuer';
 const walletId = args.wallet ?? 'reference-wallet';
 const verifierId = args.verifier ?? 'reference-verifier';
@@ -58,13 +63,19 @@ console.log(`Playground: ${base}`);
 console.log(`Matrix:     ${issuerId} → ${walletId} → ${verifierId}`);
 console.log(`Formats:    ${supported.join(', ') || '(none)'}${skipped.length ? ` (skipped: ${skipped.join(', ')})` : ''}`);
 console.log(`Faults:     ${faults.join(', ')}`);
+console.log(`Suites:     ${proofTypes.join(', ')}`);
+console.log(`Revisions:  ${drafts.join(', ')}`);
 console.log('');
 
 const records = [];
 for (const format of supported) {
-  for (const tamper of faults) {
-    process.stdout.write(`  ${format.padEnd(11)} ${tamper.padEnd(19)} `);
-    const record = await runOne({ format, tamper });
+  for (const proofType of proofTypes) {
+    for (const draft of drafts) {
+      for (const tamper of faults) {
+    process.stdout.write(
+      `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
+    );
+    const record = await runOne({ format, tamper, proofType, draft });
     records.push(record);
     const summary = record.summary ?? {};
     console.log(
@@ -74,6 +85,8 @@ for (const format of supported) {
     );
     if (record.status !== 'passed' && record.summary?.failure) {
       console.log(`      ↳ ${record.summary.failure.message}`);
+    }
+      }
     }
   }
 }
@@ -88,14 +101,15 @@ process.exit(failures.length === 0 ? 0 : 1);
 
 /* ------------------------------------------------------------------ */
 
-async function runOne({ format, tamper }) {
+async function runOne({ format, tamper, proofType, draft }) {
   const { runId } = await postJson(`${base}/api/runs`, {
     issuerId,
     walletId,
     verifierId,
     format,
-    proofType: 'Ed25519Signature2020',
+    proofType,
     walletProofType: 'jwt',
+    vciDraft: draft,
     tamper,
   });
 
@@ -134,12 +148,12 @@ function buildReport(records, { issuerId, walletId, verifierId, byId, skipped })
   push('');
 
   push('## Matrix', '');
-  push('| Format | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |');
-  push('| --- | --- | --- | --- | --- | --- | --- | --- |');
+  push('| Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |');
+  push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const record of records) {
     const s = record.summary ?? {};
     push(
-      `| \`${record.config.format}\` | \`${record.config.tamper}\` | **${record.status}** | ` +
+      `| \`${record.config.format}\` | \`${record.config.proofType}\` | \`${record.config.vciDraft ?? 'draft-13'}\` | \`${record.config.tamper}\` | **${record.status}** | ` +
         `${verdictOf(record)} | ${s.checksPassed ?? 0} | ${s.checksFailed ?? 0} | ` +
         `${s.checksExpectedFailures ?? 0} | ${s.checksWarned ?? 0} |`,
     );

@@ -41,6 +41,8 @@ async function loadDocumentLoader(): Promise<DocumentLoader> {
         [issuer.kid]: issuer.verificationMethod,
         [`${issuer.did}#jwk-1`]: (issuer.didDocument.verificationMethod as unknown[])[1],
         [issuer.mdocKid]: (issuer.didDocument.verificationMethod as unknown[])[2],
+        [issuer.suiteKid2018]: issuer.verificationMethod2018,
+        [issuer.rsaKid]: issuer.rsaKey.verificationMethod(),
         [wallet.did]: wallet.didDocument,
         [wallet.suiteKid]: wallet.suiteVerificationMethod,
         [wallet.kid]: (wallet.didDocument.verificationMethod as unknown[])[0],

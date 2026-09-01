@@ -1,6 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { Ed25519VerificationKey2018 } from '@digitalbazaar/ed25519-verification-key-2018';
 import { Ed25519VerificationKey2020 } from '@digitalbazaar/ed25519-verification-key-2020';
+import { generateKeyPairSync } from 'node:crypto';
+import { RsaKeyPair } from './suites.js';
 import * as Ed25519Multikey from '@digitalbazaar/ed25519-multikey';
 import { exportJWK, generateKeyPair, importJWK, type JWK, type KeyLike } from 'jose';
 
@@ -76,6 +79,15 @@ export interface IssuerKey {
   joseMdocKey: KeyLike;
   mdocKid: string;
   mdocPublicJwk: JWK;
+  /**
+   * Additional suite keys, so the issuer can sign with any of the three proof
+   * types the Inji stack advertises rather than only the newest.
+   */
+  suiteKey2018: Ed25519VerificationKey2018;
+  suiteKid2018: string;
+  verificationMethod2018: Record<string, unknown>;
+  rsaKey: RsaKeyPair;
+  rsaKid: string;
 }
 
 /**
@@ -141,6 +153,27 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
     includeContext: true,
   })) as Record<string, unknown>;
 
+  const suiteKid2018 = `${did}#key-2018`;
+  let export2018 = await readJson<Record<string, unknown>>('mock-issuer-ed25519-2018');
+  if (!export2018) {
+    const generated = await Ed25519VerificationKey2018.generate({ controller: did, id: suiteKid2018 });
+    export2018 = generated.export({ publicKey: true, privateKey: true, includeContext: true });
+    await writeJson('mock-issuer-ed25519-2018', export2018);
+  }
+  const suiteKey2018 = await Ed25519VerificationKey2018.from({ ...export2018, id: suiteKid2018, controller: did });
+  const verificationMethod2018 = suiteKey2018.export({ publicKey: true, includeContext: true });
+
+  const rsaKid = `${did}#rsa-2018`;
+  let rsaStored = await readJson<{ privatePem: string }>('mock-issuer-rsa');
+  if (!rsaStored) {
+    // 2048 bits: the smallest size still considered acceptable, and fast enough
+    // that key generation does not delay a cold start noticeably.
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    rsaStored = { privatePem: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString() };
+    await writeJson('mock-issuer-rsa', rsaStored);
+  }
+  const rsaKey = RsaKeyPair.fromPem(rsaKid, did, rsaStored.privatePem);
+
   const mdocKid = `${did}#mdoc-1`;
   let mdocStored = await readJson<{ privateJwk: JWK; publicJwk: JWK }>('mock-issuer-mdoc');
   if (!mdocStored) {
@@ -155,7 +188,9 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
     '@context': [
       'https://www.w3.org/ns/did/v1',
       'https://w3id.org/security/suites/ed25519-2020/v1',
+      'https://w3id.org/security/suites/ed25519-2018/v1',
       'https://w3id.org/security/suites/jws-2020/v1',
+      'https://w3id.org/security/v2',
     ],
     id: did,
     verificationMethod: [
@@ -164,9 +199,11 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
       // for a JWK, while Data Integrity verifiers look for publicKeyMultibase.
       { id: `${did}#jwk-1`, type: 'JsonWebKey2020', controller: did, publicKeyJwk: { ...publicJwk, alg: 'EdDSA' } },
       { id: mdocKid, type: 'JsonWebKey2020', controller: did, publicKeyJwk: mdocPublicJwk },
+      verificationMethod2018,
+      rsaKey.verificationMethod(),
     ],
-    assertionMethod: [kid, `${did}#jwk-1`, mdocKid],
-    authentication: [kid, `${did}#jwk-1`, mdocKid],
+    assertionMethod: [kid, `${did}#jwk-1`, mdocKid, suiteKid2018, rsaKid],
+    authentication: [kid, `${did}#jwk-1`, mdocKid, suiteKid2018, rsaKid],
   };
 
   return {
@@ -180,6 +217,11 @@ async function buildIssuerKey(publicUrl: string): Promise<IssuerKey> {
     joseMdocKey,
     mdocKid,
     mdocPublicJwk,
+    suiteKey2018,
+    suiteKid2018,
+    verificationMethod2018,
+    rsaKey,
+    rsaKid,
   };
 }
 
@@ -216,7 +258,9 @@ async function buildWalletKey(publicUrl: string): Promise<WalletKey> {
     '@context': [
       'https://www.w3.org/ns/did/v1',
       'https://w3id.org/security/suites/ed25519-2020/v1',
+      'https://w3id.org/security/suites/ed25519-2018/v1',
       'https://w3id.org/security/suites/jws-2020/v1',
+      'https://w3id.org/security/v2',
     ],
     id: did,
     verificationMethod: [

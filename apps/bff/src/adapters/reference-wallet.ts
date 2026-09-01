@@ -3,7 +3,7 @@ import * as vc from '@digitalbazaar/vc';
 import jsigs from 'jsonld-signatures';
 import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
 import { SignJWT, type JWK } from 'jose';
-import type { Participant, PresentationSubmission } from '@interop/shared';
+import type { Participant, PresentationSubmission, VciDraft } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
 import type { DocumentLoader } from '../core/jsonld.js';
@@ -46,7 +46,7 @@ export class ReferenceWallet implements WalletAdapter {
         'A protocol-only OpenID4VCI/OpenID4VP client with no vendor-specific behaviour. Runs unattended and every exchange is captured.',
       traceability: 'full',
       formats: ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt', 'mso_mdoc'],
-      specs: ['openid4vci-draft-13', 'openid4vci-1.0', 'openid4vp-draft-21', 'openid4vp-draft-23'],
+      specs: ['openid4vci-draft-11', 'openid4vci-draft-12', 'openid4vci-draft-13', 'openid4vci-1.0', 'openid4vp-draft-21', 'openid4vp-draft-23'],
       interactive: false,
       config: [],
     };
@@ -132,40 +132,24 @@ export class ReferenceWallet implements WalletAdapter {
     const proofJwt = await this.buildProofJwt(ctx, walletKey, endpoints.credentialIssuer, endpoints, cNonce);
     ctx.artifact({ label: 'Holder key binding proof (decoded)', kind: 'jwt', value: proofJwt });
 
+    const draft = ctx.config.vciDraft ?? 'draft-13';
+    const credentialEndpoint = credentialEndpointFor(endpoints.credentialEndpoint, draft);
+
     const credentialRequest = this.buildCredentialRequest(endpoints, opts, proofJwt);
     const credentialResponse = await ctx.http<{
       credential?: unknown;
       credentials?: Array<{ credential: unknown }>;
       format?: string;
     }>({
-      label: 'Credential Request',
+      label: `Credential Request (${draft})`,
       from: 'Wallet',
       to: 'Issuer',
-      url: endpoints.credentialEndpoint,
+      url: credentialEndpoint,
       headers: { authorization: `Bearer ${accessToken}` },
       json: credentialRequest,
     });
 
-    // Both the draft-13 single `credential` and the 1.0 `credentials` array are
-    // accepted, since issuers in this ecosystem are split across the revisions.
-    const credential =
-      credentialResponse.body.credential ?? credentialResponse.body.credentials?.[0]?.credential;
-
-    if (credential === undefined) {
-      ctx.fail(
-        'Credential response contained neither `credential` (draft 13) nor `credentials[0].credential` (1.0).',
-        'issuer',
-      );
-    }
-
-    ctx.expect(credential !== undefined, {
-      id: 'vci.credential.present',
-      title: 'Credential response carries a credential',
-      spec: 'OpenID4VCI §7.3',
-      pass: 'The response contained an issued credential.',
-      fail: 'No credential in the response.',
-      attributedTo: 'issuer',
-    });
+    const credential = this.readCredential(ctx, credentialResponse.body, draft);
 
     return this.toHeldCredential(ctx, credential, opts, walletKey);
   }
@@ -215,6 +199,78 @@ export class ReferenceWallet implements WalletAdapter {
     });
   }
 
+  /**
+   * Reads the credential out of a response, holding the issuer to the shape its
+   * revision defines.
+   *
+   * The revisions disagree about this in ways a wallet cannot paper over
+   * silently: draft 11 and 12 echo `format` and return a single `credential`,
+   * draft 13 drops the echo, and 1.0 replaces the scalar with a `credentials`
+   * array. Accepting whatever turns up would hide exactly the mismatch this
+   * playground exists to find, so the expected shape is asserted first and the
+   * fallback recorded as a finding rather than applied quietly.
+   */
+  private readCredential(
+    ctx: RunContext,
+    body: { credential?: unknown; credentials?: Array<{ credential: unknown }>; format?: string },
+    draft: VciDraft,
+  ): unknown {
+    const scalar = body.credential;
+    const fromArray = body.credentials?.[0]?.credential;
+
+    if (draft === '1.0') {
+      ctx.check({
+        id: 'vci.credential.envelope',
+        title: 'Response uses the credentials array required by OpenID4VCI 1.0',
+        status: fromArray !== undefined ? 'pass' : 'fail',
+        spec: 'OpenID4VCI 1.0 §8.3',
+        detail:
+          fromArray !== undefined
+            ? 'Response carries credentials[0].credential.'
+            : 'Response carries only the pre-1.0 scalar `credential`. A wallet built strictly to 1.0 would find nothing.',
+        attributedTo: fromArray !== undefined ? undefined : 'issuer',
+      });
+    } else {
+      ctx.check({
+        id: 'vci.credential.envelope',
+        title: `Response carries a credential in the shape ${draft} defines`,
+        status: scalar !== undefined ? 'pass' : 'fail',
+        spec: 'OpenID4VCI draft 11-13 §7.3',
+        detail:
+          scalar !== undefined
+            ? 'Response carries the scalar `credential`.'
+            : 'Response carries no scalar `credential`. Only the 1.0 array form is present.',
+        attributedTo: scalar !== undefined ? undefined : 'issuer',
+      });
+    }
+
+    // `format` was echoed up to draft 12 and removed in draft 13.
+    const echoesFormat = body.format !== undefined;
+    const shouldEcho = draft === 'draft-11' || draft === 'draft-12';
+    ctx.check({
+      id: 'vci.credential.format-echo',
+      title: `Response ${shouldEcho ? 'echoes' : 'omits'} the format, as ${draft} requires`,
+      status: echoesFormat === shouldEcho ? 'pass' : 'warn',
+      spec: 'OpenID4VCI draft 12 §7.3 vs draft 13 §7.3',
+      detail: shouldEcho
+        ? echoesFormat
+          ? `format is "${body.format}".`
+          : 'No format in the response. A draft 11 or 12 wallet expects it to be echoed.'
+        : echoesFormat
+          ? `Response still echoes format ("${body.format}"), which draft 13 removed. Harmless to a tolerant wallet, but it signals the issuer is on an earlier revision than advertised.`
+          : 'No format echoed, as expected.',
+      attributedTo: echoesFormat === shouldEcho ? undefined : 'issuer',
+    });
+
+    const credential = scalar ?? fromArray;
+    if (credential === undefined) {
+      ctx.fail(
+        'Credential response contained neither `credential` (draft 11-13) nor `credentials[0].credential` (1.0).',
+        'issuer',
+      );
+    }
+    return credential;
+  }
   /**
    * Builds an `openid4vci-proof+jwt` proving control of the holder key.
    *
@@ -663,4 +719,17 @@ function toArray(value: unknown): unknown[] {
 /** `did:jwk` per the DID JWK method: base64url of the JSON public key. */
 function didJwk(jwk: JWK): string {
   return `did:jwk:${Buffer.from(JSON.stringify(jwk)).toString('base64url')}`;
+}
+
+/**
+ * Maps the credential endpoint onto the path a given revision serves it at.
+ *
+ * Draft 11 and 12 are served beside the current endpoint rather than replacing
+ * it, so a deployment can support several revisions at once — which is exactly
+ * the situation that makes testing them separately worthwhile.
+ */
+function credentialEndpointFor(credentialEndpoint: string, draft: VciDraft): string {
+  if (draft !== 'draft-11' && draft !== 'draft-12') return credentialEndpoint;
+  const segment = draft === 'draft-11' ? 'vd11' : 'vd12';
+  return credentialEndpoint.replace(/\/credential$/, `/${segment}/credential`);
 }

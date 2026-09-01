@@ -1,5 +1,5 @@
 import * as vc from '@digitalbazaar/vc';
-import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
+import { verificationSuites } from './suites.js';
 import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
 import type { PresentationDefinition } from '@interop/shared';
 import { evaluateConstraints } from './constraints.js';
@@ -172,7 +172,10 @@ async function verifyJsonLdPresentation(
 
   const result = await vc.verify({
     presentation,
-    suite: new Ed25519Signature2020(),
+    // Every suite the playground understands is offered: the verifier does not
+    // choose what arrives, and rejecting a credential because it used a
+    // different-but-valid suite would be a false negative.
+    suite: verificationSuites(),
     documentLoader: options.documentLoader,
     challenge: options.nonce,
     unsignedPresentation: !hasProof,

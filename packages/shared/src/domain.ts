@@ -32,6 +32,19 @@ export type ProofType =
   | 'EdDSA'
   | 'RS256';
 
+/** Data Integrity suites the playground can issue and verify. */
+export const ISSUABLE_PROOF_TYPES = [
+  'Ed25519Signature2020',
+  'Ed25519Signature2018',
+  'RsaSignature2018',
+] as const satisfies readonly ProofType[];
+
+export const PROOF_TYPE_LABELS: Partial<Record<ProofType, string>> = {
+  Ed25519Signature2020: 'Ed25519Signature2020 (multibase proofValue)',
+  Ed25519Signature2018: 'Ed25519Signature2018 (detached JWS)',
+  RsaSignature2018: 'RsaSignature2018 (detached JWS, RS256)',
+};
+
 /** Key-binding proof the wallet sends to the credential endpoint. */
 export type WalletProofType = 'jwt' | 'cwt' | 'none';
 
@@ -41,11 +54,32 @@ export type WalletProofType = 'jwt' | 'cwt' | 'none';
  * implementing different drafts of the same protocol.
  */
 export type SpecVersion =
+  | 'openid4vci-draft-11'
+  | 'openid4vci-draft-12'
   | 'openid4vci-draft-13'
   | 'openid4vci-1.0'
   | 'openid4vp-draft-21'
   | 'openid4vp-draft-23'
   | 'openid4vp-1.0';
+
+/**
+ * The OpenID4VCI revision a run speaks on the wire.
+ *
+ * Kept as an explicit dimension of a run rather than inferred, because the
+ * revisions differ in ways that silently break a client that assumes the wrong
+ * one — where the credential sits in the response, whether `format` is echoed,
+ * and where the nonce for the holder proof comes from. Being able to select it
+ * is what turns "our wallet works against our issuer" into a statement about
+ * which revisions actually interoperate.
+ */
+export type VciDraft = 'draft-11' | 'draft-12' | 'draft-13' | '1.0';
+
+export const VCI_DRAFT_LABELS: Record<VciDraft, string> = {
+  'draft-11': 'OpenID4VCI draft 11 (/vd11/credential)',
+  'draft-12': 'OpenID4VCI draft 12 (/vd12/credential)',
+  'draft-13': 'OpenID4VCI draft 13 (/credential)',
+  '1.0': 'OpenID4VCI 1.0 final (/credential, credentials[])',
+};
 
 /**
  * How much of a participant's traffic the playground can actually observe.
@@ -132,6 +166,8 @@ export interface RunConfig {
   format: CredentialFormat;
   proofType: ProofType;
   walletProofType: WalletProofType;
+  /** OpenID4VCI revision to speak; defaults to draft 13. */
+  vciDraft?: VciDraft;
   tamper: TamperMode;
   /** Claims to put in the credential; defaults to a sample identity subject. */
   claims?: Record<string, unknown>;

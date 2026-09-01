@@ -5,7 +5,14 @@ import type {
   RunConfig,
   TamperMode,
 } from '@interop/shared';
-import { CREDENTIAL_FORMAT_LABELS, TAMPER_MODE_LABELS } from '@interop/shared';
+import type { ProofType, VciDraft } from '@interop/shared';
+import {
+  CREDENTIAL_FORMAT_LABELS,
+  ISSUABLE_PROOF_TYPES,
+  PROOF_TYPE_LABELS,
+  TAMPER_MODE_LABELS,
+  VCI_DRAFT_LABELS,
+} from '@interop/shared';
 import { Badge, kindTone, TraceabilityBadge } from './primitives.js';
 
 const ROLE_TITLES: Record<Role, string> = {
@@ -104,7 +111,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 xl:grid-cols-5">
         <Field label="Credential format" hint="Must be supported by all three participants">
           <select
             disabled={disabled}
@@ -131,6 +138,43 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             {(Object.keys(TAMPER_MODE_LABELS) as TamperMode[]).map((mode) => (
               <option key={mode} value={mode}>
                 {TAMPER_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          label="Proof suite"
+          hint={
+            config.format === 'ldp_vc'
+              ? 'Data Integrity suite the issuer signs with'
+              : 'JSON-LD only; ignored for this format'
+          }
+        >
+          <select
+            disabled={disabled || config.format !== 'ldp_vc'}
+            value={config.proofType}
+            onChange={(event) => onChange({ ...config, proofType: event.target.value as ProofType })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {ISSUABLE_PROOF_TYPES.map((proofType) => (
+              <option key={proofType} value={proofType}>
+                {PROOF_TYPE_LABELS[proofType] ?? proofType}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="OpenID4VCI revision" hint="Which draft the wallet speaks on the wire">
+          <select
+            disabled={disabled}
+            value={config.vciDraft ?? 'draft-13'}
+            onChange={(event) => onChange({ ...config, vciDraft: event.target.value as VciDraft })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(VCI_DRAFT_LABELS) as VciDraft[]).map((draft) => (
+              <option key={draft} value={draft}>
+                {VCI_DRAFT_LABELS[draft]}
               </option>
             ))}
           </select>
