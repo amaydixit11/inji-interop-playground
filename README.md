@@ -314,6 +314,41 @@ Four of the findings are drafted as ready-to-file upstream issues in
 [`docs/upstream-issues/`](docs/upstream-issues/). **None has been filed** — they should be checked
 against the latest release first, since all were found on pinned versions.
 
+## If you are changing one of these services
+
+The question when you have just modified `inji-verify` is not "does the playground pass" — it never
+passed against real Inji, and it should not start. The question is whether *your change* broke
+something that used to work.
+
+```bash
+# Point the playground at your build
+VERIFY_BASE_URL=http://localhost:8010/v1/verify npm run dev:bff
+
+# Record what it does today
+node scripts/run-matrix.mjs --verifier inji-verify --save-baseline my-baseline.json
+
+# ... make your change, rebuild, restart ...
+
+# Ask what moved
+node scripts/run-matrix.mjs --verifier inji-verify \
+  --baseline my-baseline.json --fail-on-regression
+```
+
+Regressions exit non-zero; everything else exits zero. The comparison reports **fixes as prominently
+as regressions**, because someone verifying a change needs to see the assertions that started
+passing, not only the ones that stopped.
+
+It also treats an assertion that **stopped running at all** as a regression. That case is easy to
+miss and worth catching: a verifier that quietly stops checking revocation still reports every run as
+passing, and no comparison of the surviving checks would ever reveal it. Reproduced deliberately
+while building this — two runs still said `PASS`, and only the baseline caught it.
+
+`docs/baseline-reference.json` is the reference implementations' current behaviour, committed, so a
+change to the playground's own engine can be checked the same way.
+
+Every participant's endpoint can also be overridden per run from the UI, so you can point one run at
+your local build and the next at the Collab sandbox without restarting anything.
+
 ## Running the matrix from CI
 
 ```bash

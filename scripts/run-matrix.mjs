@@ -11,6 +11,14 @@
  *                               [--out docs/INTEROPERABILITY.md]
  *                               [--issuer <id>] [--verifier <id>]
  *                               [--formats a,b] [--faults a,b]
+ *                               [--save-baseline baseline.json]
+ *                               [--baseline baseline.json] [--fail-on-regression]
+ *
+ * Baselines are for the person changing one of these services. Record what your
+ * build does today, change it, run again against the baseline, and the exit code
+ * and report say whether anything that used to pass now does not — which is a
+ * far more useful signal than an absolute pass count that was never 100% to
+ * begin with.
  *
  * Only non-interactive participants can be driven this way; a matrix including
  * a handheld wallet would stall waiting for someone to scan a QR code.
@@ -54,6 +62,9 @@ const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
 const proofTypes = args.proofTypes ? args.proofTypes.split(',') : ['Ed25519Signature2020'];
 const drafts = args.drafts ? args.drafts.split(',') : ['draft-13'];
 const flowModes = args.flowModes ? args.flowModes.split(',') : ['cross-device'];
+const baselinePath = args.baseline;
+const saveBaselinePath = args['save-baseline'];
+const failOnRegression = 'fail-on-regression' in args;
 const issuerId = args.issuer ?? 'reference-issuer';
 const walletId = args.wallet ?? 'reference-wallet';
 const verifierId = args.verifier ?? 'reference-verifier';
@@ -115,12 +126,38 @@ for (const format of supported) {
   }
 }
 
+const fs = await import('node:fs/promises');
 const failures = records.filter((record) => record.status !== 'passed');
-const report = buildReport(records, { issuerId, walletId, verifierId, byId, skipped });
-await import('node:fs/promises').then((fs) => fs.writeFile(outputPath, report, 'utf8'));
+
+let comparison;
+if (baselinePath) {
+  comparison = compareToBaseline(await readBaseline(baselinePath), records);
+  printComparison(comparison);
+}
+
+if (saveBaselinePath) {
+  await fs.writeFile(saveBaselinePath, JSON.stringify(toBaseline(records), null, 2), 'utf8');
+  console.log(`\nBaseline written to ${saveBaselinePath}`);
+}
+
+const report = buildReport(records, { issuerId, walletId, verifierId, byId, skipped, comparison });
+await fs.writeFile(outputPath, report, 'utf8');
 
 console.log('');
 console.log(`${records.length - failures.length}/${records.length} passed. Report written to ${outputPath}`);
+
+// Exit code priority: when a baseline is given, regressions are the signal
+// worth failing on. An absolute failure count is close to meaningless against a
+// service with known open defects, and would make the check permanently red.
+if (comparison && failOnRegression) {
+  if (comparison.regressed.length > 0) {
+    console.error(`\n${comparison.regressed.length} regression(s) against the baseline.`);
+    process.exit(1);
+  }
+  console.log('No regressions against the baseline.');
+  process.exit(0);
+}
+
 process.exit(failures.length === 0 ? 0 : 1);
 
 /* ------------------------------------------------------------------ */
@@ -149,7 +186,118 @@ async function runOne({ format, tamper, proofType, draft, flowMode }) {
   fail(`Run ${runId} (${format}, ${tamper}) did not complete within 180s.`);
 }
 
-function buildReport(records, { issuerId, walletId, verifierId, byId, skipped }) {
+/** Reduces a run set to the assertion outcomes worth comparing later. */
+function toBaseline(records) {
+  return {
+    recordedAt: new Date().toISOString(),
+    runs: records.map((record) => ({
+      key: runKey(record),
+      status: record.status,
+      checks: Object.fromEntries(
+        record.checks.map((check) => [check.id, check.expected ? 'expected' : check.status]),
+      ),
+    })),
+  };
+}
+
+/** A run's identity across executions: same inputs, same key. */
+function runKey(record) {
+  const c = record.config;
+  return [
+    record.participants.issuer.label,
+    record.participants.wallet.label,
+    record.participants.verifier.label,
+    c.format,
+    c.proofType,
+    c.vciDraft ?? 'draft-13',
+    c.flowMode ?? 'cross-device',
+    c.tamper,
+  ].join(' | ');
+}
+
+async function readBaseline(path) {
+  try {
+    const fs = await import('node:fs/promises');
+    return JSON.parse(await fs.readFile(path, 'utf8'));
+  } catch (error) {
+    fail(`Could not read baseline ${path}: ${error.message}`);
+  }
+}
+
+/**
+ * Diffs this run set against a baseline.
+ *
+ * Reports fixes as prominently as regressions: someone verifying that their
+ * change did what they intended needs to see the assertions that started
+ * passing, not only the ones that stopped.
+ */
+function compareToBaseline(baseline, records) {
+  const before = new Map(baseline.runs.map((run) => [run.key, run]));
+  const regressed = [];
+  const fixed = [];
+  const added = [];
+  const removed = [];
+
+  for (const record of records) {
+    const key = runKey(record);
+    const prior = before.get(key);
+    if (!prior) {
+      added.push({ key, status: record.status });
+      continue;
+    }
+
+    // A check that has vanished is a regression in its own right: the verifier
+    // has stopped asking a question it used to ask, which no comparison of the
+    // surviving checks would ever reveal.
+    const currentIds = new Set(record.checks.map((check) => check.id));
+    for (const [id, then] of Object.entries(prior.checks)) {
+      if (currentIds.has(id)) continue;
+      if (then !== 'pass' && then !== 'expected') continue;
+      regressed.push({
+        key,
+        id,
+        title: id,
+        then,
+        now: 'no longer evaluated',
+        detail: 'This assertion ran in the baseline and does not run now.',
+      });
+    }
+
+    for (const check of record.checks) {
+      const now = check.expected ? 'expected' : check.status;
+      const then = prior.checks[check.id];
+      if (then === undefined) continue;
+      if (then === now) continue;
+
+      // "pass" and "expected" are both acceptable outcomes; a move between the
+      // other states is what counts.
+      const wasGood = then === 'pass' || then === 'expected';
+      const isGood = now === 'pass' || now === 'expected';
+      if (wasGood && !isGood) regressed.push({ key, id: check.id, title: check.title, then, now, detail: check.detail });
+      else if (!wasGood && isGood) fixed.push({ key, id: check.id, title: check.title, then, now });
+    }
+  }
+
+  const seen = new Set(records.map(runKey));
+  for (const [key] of before) if (!seen.has(key)) removed.push({ key });
+
+  return { regressed, fixed, added, removed, recordedAt: baseline.recordedAt };
+}
+
+function printComparison(comparison) {
+  console.log('');
+  console.log(`Against baseline recorded ${comparison.recordedAt}:`);
+  console.log(`  ${comparison.regressed.length} regressed · ${comparison.fixed.length} fixed · ${comparison.added.length} new run(s) · ${comparison.removed.length} no longer run`);
+  for (const entry of comparison.regressed) {
+    console.log(`  REGRESSED  ${entry.title}`);
+    console.log(`             ${entry.then} → ${entry.now} · ${entry.key}`);
+  }
+  for (const entry of comparison.fixed) {
+    console.log(`  FIXED      ${entry.title} (${entry.then} → ${entry.now})`);
+  }
+}
+
+function buildReport(records, { issuerId, walletId, verifierId, byId, skipped, comparison }) {
   const passed = records.filter((r) => r.status === 'passed').length;
   const lines = [];
   const push = (...values) => lines.push(...values);
@@ -171,6 +319,28 @@ function buildReport(records, { issuerId, walletId, verifierId, byId, skipped })
     push(`| Formats skipped | ${skipped.join(', ')} — not supported by all three participants |`);
   }
   push('');
+
+  if (comparison) {
+    push('## Against the baseline', '');
+    push(`Baseline recorded ${comparison.recordedAt}.`, '');
+    push(
+      `**${comparison.regressed.length} regressed · ${comparison.fixed.length} fixed · ` +
+        `${comparison.added.length} new · ${comparison.removed.length} no longer run**`,
+      '',
+    );
+    if (comparison.regressed.length > 0) {
+      push('### Regressions', '', '| Check | Was | Now | Run |', '| --- | --- | --- | --- |');
+      for (const entry of comparison.regressed) {
+        push(`| ${entry.title} | ${entry.then} | **${entry.now}** | \`${entry.key}\` |`);
+      }
+      push('');
+    }
+    if (comparison.fixed.length > 0) {
+      push('### Fixed', '', '| Check | Was | Now |', '| --- | --- | --- |');
+      for (const entry of comparison.fixed) push(`| ${entry.title} | ${entry.then} | **${entry.now}** |`);
+      push('');
+    }
+  }
 
   push('## Matrix', '');
   push('| Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |');
@@ -263,7 +433,17 @@ function parseArgs(argv) {
   const parsed = {};
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (token.startsWith('--')) parsed[token.slice(2)] = argv[++index];
+    if (!token.startsWith('--')) continue;
+    const next = argv[index + 1];
+    // A flag followed by another flag, or by nothing, is boolean. Consuming the
+    // next token unconditionally makes `--fail-on-regression --out x` swallow
+    // `--out` and silently write to the default path.
+    if (next === undefined || next.startsWith('--')) {
+      parsed[token.slice(2)] = true;
+    } else {
+      parsed[token.slice(2)] = next;
+      index += 1;
+    }
   }
   return parsed;
 }
