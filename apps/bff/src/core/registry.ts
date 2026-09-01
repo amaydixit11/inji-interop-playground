@@ -52,13 +52,21 @@ export class Registry {
         kind: 'inji',
         summary:
           'The Inji Wallet app on a phone, driven by scanning QR codes. Exercises the real cross-device flow; wallet-side payloads are not captured.',
+        constraints: [
+          'Requires PUBLIC_URL to be an address the phone can reach; a localhost QR code cannot resolve.',
+        ],
       }),
       new HandheldWallet({
         id: 'inji-web',
         label: 'Inji Web',
         kind: 'inji',
-        summary: 'The browser-based Inji wallet, driven by pasting the credential offer link.',
+        summary:
+          'The browser-based Inji wallet. Downloads only from issuers pre-registered in its Mimoto backend, so it cannot be paired with an arbitrary issuer.',
         launchUrl: deps.env.injiWebUrl,
+        constraints: [
+          'Its Mimoto backend takes an issuer_id from mimoto-issuers-config.json, not a credential offer, so the issuer must be registered there in advance.',
+          'Credential download requires an authorization code, so an interactive user login is unavoidable.',
+        ],
       }),
     ];
 

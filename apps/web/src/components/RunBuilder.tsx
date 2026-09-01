@@ -101,6 +101,11 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
                       <div className="mt-2 flex flex-wrap gap-1">
                         <TraceabilityBadge traceability={participant.traceability} />
                         {participant.interactive && <Badge tone="warn">needs a human</Badge>}
+                        {participant.constraints && participant.constraints.length > 0 && (
+                          <Badge tone="warn" title={participant.constraints.join('\n\n')}>
+                            pairing limits
+                          </Badge>
+                        )}
                       </div>
                     </button>
                   );

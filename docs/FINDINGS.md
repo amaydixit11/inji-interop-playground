@@ -303,26 +303,75 @@ it, not of the OpenID4VP exchange — which, as finding 11 now shows, is itself 
 investigating either should look at credential handling in the vcverifier library, not at the
 presentation flow.
 
+## 13. Inji Web cannot be paired with an arbitrary issuer
+
+**Source-derived**, from `mosip/mimoto` — the backend Inji Web runs on. This is the finding with the
+most direct bearing on what a "pick any issuer, any wallet, any verifier" playground can actually do.
+
+Mimoto's credential download is `POST /wallets/{walletId}/credentials`, and its request body is:
+
+```java
+public class VerifiableCredentialRequestDTO {
+    @NotBlank String issuer;                     // an issuer_id from mimoto-issuers-config.json
+    @NotBlank String credentialConfigurationId;
+    @NotBlank String code;                       // an OAuth authorization code
+    @NotBlank String grantType;
+    @NotBlank String redirectUri;
+    @NotBlank String codeVerifier;               // PKCE
+}
+```
+
+Three consequences follow, and none has a configuration workaround:
+
+1. **There is no credential offer.** Searching the whole of `mimoto/src/main/java` for
+   `credential_offer`, `credentialOffer` or `openid-credential-offer` returns nothing. The wallet
+   cannot be handed an offer at all — it is told which *pre-registered issuer* to fetch from.
+2. **The issuer must be registered in advance.** `issuer` is an id looked up in
+   `mimoto-issuers-config.json`, which also carries that issuer's `client_id`, `redirect_uri` and
+   `authorization_audience`. An issuer not in that file cannot be used.
+3. **Only the authorization code grant is supported.** `code` and `codeVerifier` are mandatory, so an
+   interactive user login is unavoidable and the pre-authorized code grant — the one that makes
+   unattended issuance possible — is not available.
+
+So Inji Web is a wallet *for a curated set of issuers*, not a general OpenID4VCI wallet. It cannot
+be the holder in a run against the reference issuer, an external issuer, or any Certify deployment
+not already listed in its configuration.
+
+This is a reasonable product decision for a government wallet, where the set of trusted issuers is
+deliberately closed. It is worth stating plainly because the surrounding documentation describes
+Inji Web as an OpenID4VCI wallet without qualification, and anyone planning cross-ecosystem testing
+will otherwise plan around a capability that is not there.
+
+The playground therefore declares the constraint on the participant itself and surfaces it before a
+run rather than failing partway through. **No Mimoto adapter was built**: one could only ever
+exercise the pre-registered path, behind an interactive login, which is the case the playground is
+least useful for.
+
+Scope: this is a finding about Mimoto and Inji Web. The Inji Wallet mobile app was not inspected and
+may well consume credential offers directly; nothing here should be read as a claim about it.
+
+---
+
 ## Findings against our own code
 
 Included because they are the ones only a real counterparty could have surfaced, and because a
 report that lists only other people's defects is not a credible one.
 
-### 13. The reference wallet sent two key identifiers in a proof
+### 14. The reference wallet sent two key identifiers in a proof
 
 Certify rejected our proof with `invalid_proof: Error encountered during proof jwt parsing`. Our
 wallet was setting both `jwk` and `kid` in the `openid4vci-proof+jwt` header. OpenID4VCI §7.2.1
 requires **exactly one**. Our own issuer accepted it, so the bug was invisible until a second
 implementation saw it.
 
-### 14. Preferring a DID reference over a raw key broke SD-JWT holder binding
+### 15. Preferring a DID reference over a raw key broke SD-JWT holder binding
 
 Once fixed, our wallet chose `kid` whenever the issuer advertised any DID method. An SD-JWT issuer
 needs a raw key to place in `cnf`, so credentials went out unbound and Inji Verify correctly
 rejected them with `ERR_INVALID_CNF: Missing 'cnf' in SD-JWT payload`. The wallet now prefers a bare
 `jwk`, falling back to `did:jwk`.
 
-### 15. Corrupting the last base64url character may not corrupt anything
+### 16. Corrupting the last base64url character may not corrupt anything
 
 An Ed25519 signature is 64 bytes, or 86 base64url characters, of which the last carries 4
 significant bits and 2 unused. Changing it can decode to the same bytes, leaving the signature
@@ -330,14 +379,14 @@ valid. Our first fault-injection implementation did exactly this, and the `break
 passed while testing nothing. Any negative-path suite that corrupts an encoded signature by touching
 its last character has the same problem.
 
-### 16. A verifier that checks only signatures accepts the wrong credential
+### 17. A verifier that checks only signatures accepts the wrong credential
 
 An early version of our reference verifier checked issuer signatures, disclosure digests and key
 binding — and accepted a credential of an unrelated type, because nothing evaluated the presentation
 definition it had itself sent. A valid signature proves someone authentic signed something; it does
 not prove the holder satisfies what was asked. The same gap is worth checking for in any verifier.
 
-### 17. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
+### 18. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
 
 `toJwk({secretKey: true})` returns the 64-byte libsodium private key (seed ‖ public key) as JWK `d`.
 RFC 8037 §2 defines `d` as the 32-byte seed alone, and Node rejects the longer value with
@@ -359,6 +408,7 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | 10 | `mosip/inji-verify` | blocker — shipped schema does not match shipped image |
 | 11 | `mosip/inji-verify` | documentation only — the request object itself is conformant |
 | 12 | `mosip/inji-verify` | triage note for findings 7 and 8 |
-| 17 | `@digitalbazaar/ed25519-multikey` | spec deviation |
+| 13 | `mosip/mimoto` | documentation — Inji Web is not a general OpenID4VCI wallet |
+| 18 | `@digitalbazaar/ed25519-multikey` | spec deviation |
 
-Findings 13–16 are ours and are already fixed in this repository.
+Findings 14–17 are ours and are already fixed in this repository.

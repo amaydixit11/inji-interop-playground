@@ -141,6 +141,11 @@ export class Run {
       // read this credential is distinguished from one that cannot complete the
       // exchange.
       if (this.participants.verifier.verifyCredentialDirectly && held.raw !== null) {
+        // Widened to cover this check only. By this point the credential is
+        // already deliberately broken, so a verifier rejecting it here is the
+        // intended result — but issuance itself failing is not, which is why
+        // the window opens now rather than at the start of the step.
+        if (this.config.tamper !== 'none') this.ctx.expectFailuresIn('issue');
         await this.participants.verifier.verifyCredentialDirectly(this.ctx, held);
       }
 
@@ -218,6 +223,22 @@ export class Run {
           attributedTo: role,
         });
         this.ctx.fail(`${participant.label} does not support the ${format} format.`, role);
+      }
+    }
+
+    for (const [role, participant] of [
+      ['issuer', issuer.manifest],
+      ['wallet', wallet.manifest],
+      ['verifier', verifier.manifest],
+    ] as const) {
+      for (const [index, constraint] of (participant.constraints ?? []).entries()) {
+        this.ctx.check({
+          id: `preflight.${role}.constraint-${index}`,
+          title: `${participant.label} pairing constraint`,
+          status: 'warn',
+          spec: 'Playground preflight',
+          detail: constraint,
+        });
       }
     }
 

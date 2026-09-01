@@ -249,6 +249,12 @@ Four of the sixteen are defects in *this* project that only a real counterparty 
 a proof header carrying two key identifiers where OpenID4VCI permits exactly one, which our own
 issuer had been happily accepting.
 
+One finding changed what got built: **Inji Web cannot be paired with an arbitrary issuer.** Its
+Mimoto backend takes a pre-registered `issuer_id` rather than a credential offer, and requires an
+authorization code — so it is a wallet for a curated set of issuers, not a general OpenID4VCI wallet.
+No Mimoto adapter was written, because one could only exercise the pre-registered path behind an
+interactive login. The constraint is declared on the participant and shown before a run instead.
+
 Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
 [Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
 [Inji Verify](docs/INTEROPERABILITY-inji-verify.md).

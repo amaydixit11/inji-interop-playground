@@ -34,6 +34,7 @@ export class HandheldWallet implements WalletAdapter {
       kind: Participant['kind'];
       /** Base URL of a companion web wallet, when there is one to open. */
       launchUrl?: string;
+      constraints?: string[];
     },
   ) {
     this.manifest = {
@@ -46,6 +47,7 @@ export class HandheldWallet implements WalletAdapter {
       formats: ['ldp_vc', 'vc+sd-jwt', 'mso_mdoc'],
       specs: ['openid4vci-draft-13', 'openid4vp-draft-21', 'openid4vp-draft-23'],
       interactive: true,
+      constraints: variant.constraints,
       config: variant.launchUrl
         ? [{ key: 'launchUrl', label: 'Wallet URL', value: variant.launchUrl, required: false }]
         : [],

@@ -123,6 +123,14 @@ export interface Participant {
   config: ParticipantConfigField[];
   /** Set when the participant cannot currently be used, with the reason why. */
   unavailable?: string;
+  /**
+   * Structural limits on what this participant can be paired with.
+   *
+   * Surfaced before a run rather than discovered during one: some
+   * implementations only work with counterparties they were configured for in
+   * advance, and finding that out from a failed run wastes everyone's time.
+   */
+  constraints?: string[];
 }
 
 export interface ParticipantConfigField {
