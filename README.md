@@ -113,6 +113,25 @@ rather than letting you start a run that cannot work.
 
 ---
 
+## What a run varies
+
+Six independent dimensions, each of which changes what is actually on the wire:
+
+| Dimension | Options |
+| --- | --- |
+| **Credential format** | `ldp_vc` · `vc+sd-jwt` · `dc+sd-jwt` · `mso_mdoc` |
+| **Proof suite** (JSON-LD) | `Ed25519Signature2020` · `Ed25519Signature2018` · `RsaSignature2018` |
+| **OpenID4VCI revision** | draft 11 · draft 12 · draft 13 · 1.0 |
+| **Presentation flow** | cross-device (QR, polled) · same-device (redirect + one-time response code) |
+| **Holder binding** | JWT key-binding proof · none |
+| **Fault injected** | see below |
+
+The revisions and suites are dimensions rather than settings because they are where interoperability
+actually breaks: draft 11–13 and 1.0 disagree about where the credential sits in the response and
+whether `format` is echoed, and a verifier that advertises three proof suites may only implement one.
+Each is asserted against the shape its own revision defines rather than the wallet accepting whatever
+turns up.
+
 ## Fault injection
 
 Fault injection turns the playground from a demo into a test. Select a fault and the run **passes**
@@ -125,6 +144,8 @@ only if the verifier responds correctly:
 | Present a credential of the wrong type | rejected — fails the presentation definition |
 | Strip the holder binding proof | rejected, or flagged as unbound |
 | Replay a stale nonce | rejected |
+| Revoke the credential after issuing it | rejected on status, with the signature still intact |
+| Redeem the same-device response code twice | second redemption refused |
 
 A verifier that *accepts* a deliberately corrupted credential is the one failure a tampered run
 reports, and it is attributed to the verifier.
@@ -195,6 +216,10 @@ the run.
 **Interoperability matrix** — every recorded run, filterable, exportable as Markdown for a report or
 a GitHub issue.
 
+**Dashboard** — pass rate and latency by format, fault, issuer and verifier; median time per phase;
+and the checks that fail or warn most often, with deliberately provoked failures excluded so real
+problems are not buried under tests that are working.
+
 ---
 
 ## Architecture
@@ -256,8 +281,14 @@ No Mimoto adapter was written, because one could only exercise the pre-registere
 interactive login. The constraint is declared on the participant and shown before a run instead.
 
 Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
+[suites × revisions](docs/INTEROPERABILITY-suites-revisions.md) ·
+[flow modes](docs/INTEROPERABILITY-flow-modes.md) ·
 [Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
 [Inji Verify](docs/INTEROPERABILITY-inji-verify.md).
+
+Four of the findings are drafted as ready-to-file upstream issues in
+[`docs/upstream-issues/`](docs/upstream-issues/). **None has been filed** — they should be checked
+against the latest release first, since all were found on pinned versions.
 
 ## Running the matrix from CI
 
