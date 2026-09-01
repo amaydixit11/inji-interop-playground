@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Participant, RunConfig, RunRecord, Scenario } from '@interop/shared';
 import { api } from './api.js';
 import { download, runReport } from './report.js';
+import { useBatch } from './hooks/useBatch.js';
 import { useRun } from './hooks/useRun.js';
 import { ChecksPanel } from './components/ChecksPanel.js';
 import { Compare } from './components/Compare.js';
@@ -41,7 +42,9 @@ export function App() {
   const [activeScenario, setActiveScenario] = useState<Scenario>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
-  const busy = run?.status === 'running' || run?.status === 'awaiting-user';
+  const refreshHistoryRef = useRef<() => void>(() => undefined);
+  const batch = useBatch(() => refreshHistoryRef.current());
+  const busy = run?.status === 'running' || run?.status === 'awaiting-user' || batch.running;
 
   useEffect(() => {
     api
@@ -58,6 +61,7 @@ export function App() {
   }, []);
 
   useEffect(refreshHistory, [refreshHistory]);
+  refreshHistoryRef.current = refreshHistory;
 
   // The completed record is only written once the run finishes, so the matrix
   // is refreshed on that transition rather than polled.
@@ -173,6 +177,10 @@ export function App() {
           <div className="flex h-full min-h-0 flex-col gap-3">
             <Scenarios
               participants={participants}
+              batch={batch.entries}
+              batchRunning={batch.running}
+              onRunAll={() => void batch.start()}
+              onCancelAll={batch.cancel}
               disabled={busy}
               onRun={(scenarioConfig, scenario) => {
                 setConfig(scenarioConfig);

@@ -29,6 +29,10 @@ Eleven scenarios, each phrased as a question the run answers — *Does the verif
 credential?*, *Is a revoked credential still accepted?*, *What happens against real Inji Certify?* —
 with what to expect stated up front, including the two that are supposed to fail.
 
+**Run all** executes every unattended scenario in sequence and reports how many outcomes differed
+from what the scenario predicted. Not how many passed: two of them are supposed to fail, and a batch
+where everything passes would mean the runs that find real defects had stopped finding them.
+
 Or with Docker:
 
 ```bash
