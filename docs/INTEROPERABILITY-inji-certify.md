@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-01T13:19:54.165Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-01T15:28:27.168Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.

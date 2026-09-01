@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-01T15:23:22.509Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-01T15:28:03.587Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -11,55 +11,136 @@ exchanges captured.
 | --- | --- |
 | Issuer | Reference Issuer (OpenID4VCI) (`reference-issuer`, mock) |
 | Wallet | Reference Wallet (headless) (`reference-wallet`, mock) |
-| Verifier | Inji Verify (`inji-verify`, inji) |
-| Runs | 1 |
-| Passed | 0 |
-| Failed | 1 |
+| Verifier | Reference Verifier (OpenID4VP) (`reference-verifier`, mock) |
+| Runs | 25 |
+| Passed | 25 |
+| Failed | 0 |
 | Traceability | full |
 
 ## Matrix
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 21 | 1 | 0 | 1 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 24 | 0 | 1 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 24 | 0 | 0 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 23 | 0 | 0 | 2 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 24 | 0 | 0 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 23 | 0 | 0 | 2 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 20 | 0 | 1 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 24 | 0 | 0 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 23 | 0 | 0 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 22 | 0 | 1 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
 
+## Fault detection
+
+| Format | Fault | Detected by |
+| --- | --- | --- |
+| `ldp_vc` | `break-signature` | Verifier accepts the issued credential on its own; Presentation and credential proofs verify |
+| `ldp_vc` | `expire-credential` | Verifier accepts the issued credential on its own |
+| `ldp_vc` | `wrong-type` | Presentation satisfies the presentation definition |
+| `ldp_vc` | `strip-holder-proof` | Presentation carries a holder proof |
+| `ldp_vc` | `replay-nonce` | Presentation and credential proofs verify; Holder echoed the verifier nonce |
+| `ldp_vc` | `revoke-credential` | Presentation and credential proofs verify; Credential has not been revoked |
+| `vc+sd-jwt` | `break-signature` | Issuer signature verifies |
+| `vc+sd-jwt` | `expire-credential` | **not detected** |
+| `vc+sd-jwt` | `wrong-type` | Presentation satisfies the presentation definition |
+| `vc+sd-jwt` | `strip-holder-proof` | Presentation includes a key binding JWT |
+| `vc+sd-jwt` | `replay-nonce` | Key binding JWT echoes the verifier nonce |
+| `dc+sd-jwt` | `break-signature` | Issuer signature verifies |
+| `dc+sd-jwt` | `expire-credential` | **not detected** |
+| `dc+sd-jwt` | `wrong-type` | Presentation satisfies the presentation definition |
+| `dc+sd-jwt` | `strip-holder-proof` | Presentation includes a key binding JWT |
+| `dc+sd-jwt` | `replay-nonce` | Key binding JWT echoes the verifier nonce |
+| `mso_mdoc` | `break-signature` | Issuer authentication verifies |
+| `mso_mdoc` | `expire-credential` | **not detected** |
+| `mso_mdoc` | `wrong-type` | Presentation satisfies the presentation definition |
+| `mso_mdoc` | `strip-holder-proof` | Document includes device authentication |
+| `mso_mdoc` | `replay-nonce` | Device authentication verifies against the session transcript |
+
 ## Findings
 
-- **Verifier accepts the issued credential on its own** — `fail`, 1 run(s). verify-service rejected the credential before any presentation was involved: ERR_SIGNATURE_VERIFICATION_FAILED — Exception during Verification: Error while doing verification of verifiable credential: foundation.identity.jsonld.JsonLDException: There was a problem encountered loading a remote context [code=LOADING_REMOTE_CONTEXT_FAILED].. Whatever happens in the OpenID4VP exchange, the credential itself cannot be read by this verifier.
-- **Authorization request parameters use the specified names** — `warn`, 1 run(s). The /vp-request response is a camelCase envelope (clientId, responseUri, presentationDefinition) rather than the specified client_id, response_uri and presentation_definition. This affects only a caller wiring a wallet against that API directly — the request object served at the request_uri does use the specified names, so the normal cross-device path is unaffected.
+- **Wallet discloses only the requested claims** — `warn`, 12 run(s). The request did not constrain individual claims, so all 5 were disclosed. A verifier asking for limit_disclosure should also name the fields it needs.
+- **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
+- **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-31T15:27:55.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-08-31T15:27:58.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-08-31T15:28:01.572Z.
+- **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised
 
-23 distinct assertions across this run set.
+49 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
-| Authorization request parameters use the specified names | OpenID4VP §5 |
 | Authorization server advertises the pre-authorized code grant | OpenID4VCI §3.5, RFC 8414 |
 | Credential carries a credential subject | W3C VC Data Model §4.4 |
+| Credential has not been revoked | OpenID4VP §7 / credential format specification |
+| Credential is within its validity window | OpenID4VP §7 / credential format specification |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Device authentication verifies against the session transcript | OpenID4VP §7 / credential format specification |
+| DeviceResponse binds to this request | ISO/IEC 18013-5 §9.1.3, ISO/IEC 18013-7 Annex B |
+| DeviceResponse reports success status | OpenID4VP §7 / credential format specification |
+| Disclosed elements match the signed digests | OpenID4VP §7 / credential format specification |
+| Disclosures match the issuer-signed digests | OpenID4VP §7 / credential format specification |
+| Document includes device authentication | OpenID4VP §7 / credential format specification |
+| Document is within its validity window | OpenID4VP §7 / credential format specification |
+| Document type matches the signed MobileSecurityObject | OpenID4VP §7 / credential format specification |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
+| Holder echoed the verifier nonce | OpenID4VP §7 / credential format specification |
 | Issued credential is in the requested format | OpenID4VCI §7.3 |
 | Issuer advertises the requested credential format | OpenID4VCI §11.2.3 |
+| Issuer authentication verifies | OpenID4VP §7 / credential format specification |
+| Issuer signature verifies | OpenID4VP §7 / credential format specification |
 | Issuer supplied a nonce for the holder proof | OpenID4VCI §7.2 (c_nonce) / §8 (Nonce Endpoint) |
+| Key binding JWT covers the presented disclosures | OpenID4VP §7 / credential format specification |
+| Key binding JWT echoes the verifier nonce | OpenID4VP §7 / credential format specification |
+| Key binding JWT is addressed to this verifier | OpenID4VP §7 / credential format specification |
+| Key binding JWT is signed by the confirmed holder key | OpenID4VP §7 / credential format specification |
 | Metadata advertises a credential endpoint | OpenID4VCI §11.2.3 |
 | Metadata uses the draft-13+ credential_configurations_supported shape | OpenID4VCI §11.2.3 |
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |
 | Offer names the credential issuer | OpenID4VCI §4.1.1 |
 | Offer uses credential_configuration_ids | OpenID4VCI §4.1.1 |
+| Presentation and credential proofs verify | OpenID4VP §7 / credential format specification |
+| Presentation carries a holder proof | OpenID4VP §7 / credential format specification |
+| Presentation includes a key binding JWT | OpenID4VP §7 / credential format specification |
+| Presentation satisfies the presentation definition | OpenID4VP §7 / credential format specification |
 | Proof JWT carries exactly one key identifier | OpenID4VCI §7.2.1 |
 | Proof verification method identifies a single key | W3C VC Data Integrity §2.2 |
-| Request object is a signed JWT | OpenID4VP §5.10, JAR (RFC 9101) |
-| Request object uses the specified parameter names | OpenID4VP §5 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
-| Verifier accepts the issued credential on its own | W3C VC Data Model / Inji Verify credential verification |
-| Verifier honoured the requested nonce | OpenID4VP §5 |
+| Verification succeeded | An untampered credential must verify. |
+| Verifier accepts the issued credential on its own | W3C VC Data Model |
+| Verifier correctly rejected the tampered credential (break-signature) | A tampered credential must be rejected. |
+| Verifier correctly rejected the tampered credential (expire-credential) | An expired credential must be reported as expired, or at minimum rejected. |
+| Verifier correctly rejected the tampered credential (replay-nonce) | A tampered credential must be rejected. |
+| Verifier correctly rejected the tampered credential (revoke-credential) | A revoked credential must be rejected even though its signature is intact. |
+| Verifier correctly rejected the tampered credential (strip-holder-proof) | A tampered credential must be rejected. |
+| Verifier correctly rejected the tampered credential (wrong-type) | A tampered credential must be rejected. |
 | Verifier requested a supported response mode | OpenID4VP §6.2 |
+| Wallet discloses only the requested claims | OpenID4VP §7 / SD-JWT VC §5 |
+| Wallet presents an expired credential rather than blocking it | Playground wallet policy |
 
 ## Reproducing
 
