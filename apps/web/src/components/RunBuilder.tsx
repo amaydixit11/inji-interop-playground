@@ -5,9 +5,10 @@ import type {
   RunConfig,
   TamperMode,
 } from '@interop/shared';
-import type { ProofType, VciDraft } from '@interop/shared';
+import type { FlowMode, ProofType, VciDraft } from '@interop/shared';
 import {
   CREDENTIAL_FORMAT_LABELS,
+  FLOW_MODE_LABELS,
   ISSUABLE_PROOF_TYPES,
   PROOF_TYPE_LABELS,
   TAMPER_MODE_LABELS,
@@ -116,7 +117,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 xl:grid-cols-6">
         <Field label="Credential format" hint="Must be supported by all three participants">
           <select
             disabled={disabled}
@@ -180,6 +181,21 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             {(Object.keys(VCI_DRAFT_LABELS) as VciDraft[]).map((draft) => (
               <option key={draft} value={draft}>
                 {VCI_DRAFT_LABELS[draft]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Presentation flow" hint="How the wallet returns the presentation">
+          <select
+            disabled={disabled}
+            value={config.flowMode ?? 'cross-device'}
+            onChange={(event) => onChange({ ...config, flowMode: event.target.value as FlowMode })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(FLOW_MODE_LABELS) as FlowMode[]).map((mode) => (
+              <option key={mode} value={mode}>
+                {FLOW_MODE_LABELS[mode]}
               </option>
             ))}
           </select>

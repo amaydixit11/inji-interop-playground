@@ -186,7 +186,7 @@ export class ReferenceWallet implements WalletAdapter {
     });
     ctx.artifact({ label: 'presentation_submission', kind: 'json', value: submission });
 
-    await ctx.http({
+    const submitted = await ctx.http<{ redirect_uri?: string }>({
       label: 'Authorization Response (direct_post)',
       from: 'Wallet',
       to: 'Verifier',
@@ -196,6 +196,68 @@ export class ReferenceWallet implements WalletAdapter {
         presentation_submission: JSON.stringify(submission),
         state: request.state,
       },
+    });
+
+    if (ctx.config.flowMode === 'same-device') {
+      await this.followSameDeviceRedirect(ctx, submitted.body?.redirect_uri);
+    }
+  }
+
+  /**
+   * Completes the same-device return leg.
+   *
+   * In a same-device flow the wallet and the verifier's page are on one screen,
+   * so the verifier hands back a URL to return to instead of being polled. The
+   * one-time response code in that URL is what stops anyone who observes the
+   * redirect from reading the result; the wallet redeems it once, and the
+   * `replay-response-code` fault redeems it twice to check that the second
+   * attempt is refused.
+   */
+  private async followSameDeviceRedirect(ctx: RunContext, redirectUri: string | undefined): Promise<void> {
+    ctx.expect(Boolean(redirectUri), {
+      id: 'vp.same-device.redirect',
+      title: 'Verifier returns a redirect_uri for the same-device flow',
+      spec: 'OpenID4VP §7.2 (response_uri with redirect)',
+      pass: `The direct_post response carried a redirect_uri, so the wallet can hand control back.`,
+      fail: 'No redirect_uri in the direct_post response. On one device the user is left on the wallet with no way back to the verifier.',
+      attributedTo: 'verifier',
+    });
+    if (!redirectUri) return;
+
+    const first = await ctx.http<{ status?: string }>({
+      label: 'Follow Same-Device Redirect',
+      from: 'Wallet',
+      to: 'Verifier',
+      url: redirectUri,
+      allowNonOk: true,
+    });
+
+    ctx.expect(first.ok, {
+      id: 'vp.same-device.response-code',
+      title: 'Response code is redeemable',
+      spec: 'OpenID4VP §7.2',
+      pass: 'The response code was accepted on first use.',
+      fail: `Redeeming the response code returned HTTP ${first.status}.`,
+      attributedTo: 'verifier',
+    });
+
+    if (ctx.config.tamper !== 'replay-response-code') return;
+
+    const second = await ctx.http<unknown>({
+      label: 'Replay Same-Device Response Code',
+      from: 'Wallet',
+      to: 'Verifier',
+      url: redirectUri,
+      allowNonOk: true,
+    });
+
+    ctx.expect(!second.ok, {
+      id: 'vp.same-device.response-code-single-use',
+      title: 'Response code cannot be redeemed twice',
+      spec: 'OpenID4VP §7.2',
+      pass: `A second redemption was refused with HTTP ${second.status}, as it must be.`,
+      fail: 'The response code was accepted a second time. Anyone who observes the redirect can replay it and read the presentation result.',
+      attributedTo: 'verifier',
     });
   }
 

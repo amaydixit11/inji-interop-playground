@@ -28,6 +28,10 @@ interface VerificationSession {
     presentationSubmission?: unknown;
     receivedAt: number;
   };
+  /** Same-device only: one-time code the wallet returns through the redirect. */
+  responseCode?: string;
+  responseCodeUsed?: boolean;
+  sameDevice?: boolean;
   result?: PresentationVerification;
   error?: { error: string; description?: string };
 }
@@ -119,6 +123,7 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
       format,
       presentationDefinition: req.body?.presentationDefinition ?? buildPresentationDefinition(format),
       createdAt: Date.now(),
+      sameDevice: req.body?.sameDevice === true,
     };
 
     sessions.set(session.transactionId, session);
@@ -216,7 +221,48 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
       };
     }
 
+    // Same-device: the wallet is on the device the user is looking at, so the
+    // verifier hands back a URL to return to rather than expecting to be
+    // polled. The response code is what stops anyone who observes that
+    // redirect from reading the result themselves.
+    if (session.sameDevice) {
+      session.responseCode = randomBytes(24).toString('base64url');
+      session.responseCodeUsed = false;
+      res.json({
+        status: 'received',
+        transaction_id: session.transactionId,
+        redirect_uri: `${base()}/return?response_code=${session.responseCode}`,
+      });
+      return;
+    }
+
     res.json({ status: 'received', transaction_id: session.transactionId });
+  });
+
+  /**
+   * Redeems a same-device response code.
+   *
+   * Single use by design: a code that still works the second time turns the
+   * redirect into a replayable handle on somebody else's presentation.
+   */
+  router.get('/return', (req, res) => {
+    const code = req.query.response_code as string | undefined;
+    const session = [...sessions.values()].find((entry) => entry.responseCode && entry.responseCode === code);
+
+    if (!session) {
+      res.status(404).json({ error: 'invalid_request', error_description: 'Unknown response code' });
+      return;
+    }
+    if (session.responseCodeUsed) {
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'This response code has already been redeemed.',
+      });
+      return;
+    }
+
+    session.responseCodeUsed = true;
+    res.json({ status: 'complete', transaction_id: session.transactionId });
   });
 
   /**

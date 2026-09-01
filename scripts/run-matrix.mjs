@@ -41,6 +41,11 @@ const FAULT_FORMATS = {
   'revoke-credential': ['ldp_vc'],
 };
 
+/** Faults that only exist in one presentation flow. */
+const FAULT_FLOW_MODES = {
+  'replay-response-code': ['same-device'],
+};
+
 const formats = args.formats ? args.formats.split(',') : DEFAULT_FORMATS;
 const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
 // Proof suites and protocol revisions are extra dimensions rather than part of
@@ -48,6 +53,7 @@ const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
 // independently of the fault modes.
 const proofTypes = args.proofTypes ? args.proofTypes.split(',') : ['Ed25519Signature2020'];
 const drafts = args.drafts ? args.drafts.split(',') : ['draft-13'];
+const flowModes = args.flowModes ? args.flowModes.split(',') : ['cross-device'];
 const issuerId = args.issuer ?? 'reference-issuer';
 const walletId = args.wallet ?? 'reference-wallet';
 const verifierId = args.verifier ?? 'reference-verifier';
@@ -76,19 +82,23 @@ console.log(`Formats:    ${supported.join(', ') || '(none)'}${skipped.length ? `
 console.log(`Faults:     ${faults.join(', ')}`);
 console.log(`Suites:     ${proofTypes.join(', ')}`);
 console.log(`Revisions:  ${drafts.join(', ')}`);
+console.log(`Flows:      ${flowModes.join(', ')}`);
 console.log('');
 
 const records = [];
 for (const format of supported) {
   for (const proofType of proofTypes) {
     for (const draft of drafts) {
+      for (const flowMode of flowModes) {
       for (const tamper of faults) {
         const allowed = FAULT_FORMATS[tamper];
         if (allowed && !allowed.includes(format)) continue;
+        const allowedFlows = FAULT_FLOW_MODES[tamper];
+        if (allowedFlows && !allowedFlows.includes(flowMode)) continue;
     process.stdout.write(
       `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
     );
-    const record = await runOne({ format, tamper, proofType, draft });
+    const record = await runOne({ format, tamper, proofType, draft, flowMode });
     records.push(record);
     const summary = record.summary ?? {};
     console.log(
@@ -99,6 +109,7 @@ for (const format of supported) {
     if (record.status !== 'passed' && record.summary?.failure) {
       console.log(`      ↳ ${record.summary.failure.message}`);
     }
+      }
       }
     }
   }
@@ -114,7 +125,7 @@ process.exit(failures.length === 0 ? 0 : 1);
 
 /* ------------------------------------------------------------------ */
 
-async function runOne({ format, tamper, proofType, draft }) {
+async function runOne({ format, tamper, proofType, draft, flowMode }) {
   const { runId } = await postJson(`${base}/api/runs`, {
     issuerId,
     walletId,
@@ -123,6 +134,7 @@ async function runOne({ format, tamper, proofType, draft }) {
     proofType,
     walletProofType: 'jwt',
     vciDraft: draft,
+    flowMode,
     tamper,
   });
 

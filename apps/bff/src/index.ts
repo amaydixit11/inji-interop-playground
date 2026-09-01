@@ -11,6 +11,7 @@ import { Run } from './core/engine.js';
 import { buildDocumentLoader, PLAYGROUND_CONTEXT, PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from './core/jsonld.js';
 import { getIssuerKey, getWalletKey } from './core/keys.js';
 import { Registry } from './core/registry.js';
+import { computeStats } from './core/stats.js';
 import { RunStore } from './core/store.js';
 import { createMockIssuer } from './services/mock-issuer.js';
 import { createMockVerifier } from './services/mock-verifier.js';
@@ -138,6 +139,11 @@ app.get('/api/participants', (_req, res) => {
 
 app.get('/api/runs', (_req, res) => {
   res.json({ runs: store.list() });
+});
+
+/** Aggregate view over the whole run history: success rates and latency. */
+app.get('/api/stats', (_req, res) => {
+  res.json(computeStats(store.list()));
 });
 
 app.get('/api/runs/:id', (req, res) => {

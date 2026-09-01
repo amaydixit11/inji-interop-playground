@@ -3,6 +3,7 @@ import type { Participant, RunConfig, RunRecord } from '@interop/shared';
 import { api } from './api.js';
 import { useRun } from './hooks/useRun.js';
 import { ChecksPanel } from './components/ChecksPanel.js';
+import { Dashboard } from './components/Dashboard.js';
 import { HistoryMatrix, toMarkdown } from './components/HistoryMatrix.js';
 import { ProtocolInspector } from './components/ProtocolInspector.js';
 import { RunBuilder } from './components/RunBuilder.js';
@@ -21,7 +22,7 @@ const DEFAULT_CONFIG: RunConfig = {
   tamper: 'none',
 };
 
-type View = 'live' | 'sequence' | 'history';
+type View = 'live' | 'sequence' | 'history' | 'dashboard';
 
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -101,7 +102,7 @@ export function App() {
         </div>
 
         <nav className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
-          {(['live', 'sequence', 'history'] as View[]).map((value) => (
+          {(['live', 'sequence', 'dashboard', 'history'] as View[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -123,7 +124,9 @@ export function App() {
       )}
 
       <main className="min-h-0 flex-1 overflow-auto p-3">
-        {view === 'history' ? (
+        {view === 'dashboard' ? (
+          <Dashboard runs={history} />
+        ) : view === 'history' ? (
           <div className="h-full">
             <HistoryMatrix
               runs={history}

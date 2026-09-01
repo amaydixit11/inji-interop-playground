@@ -143,6 +143,23 @@ export interface ParticipantConfigField {
   secret?: boolean;
 }
 
+/**
+ * How the wallet and verifier reach each other.
+ *
+ * Cross-device is the QR case: the verifier shows a code, a separate device
+ * scans it, and the verifier learns the outcome by polling. Same-device is a
+ * redirect on one device, where the wallet hands control back through a
+ * `redirect_uri` carrying a one-time response code. They fail differently —
+ * cross-device is bounded by QR capacity, same-device by redirect handling and
+ * response-code replay — so which one is under test has to be explicit.
+ */
+export type FlowMode = 'cross-device' | 'same-device';
+
+export const FLOW_MODE_LABELS: Record<FlowMode, string> = {
+  'cross-device': 'Cross-device (QR, verifier polls for the result)',
+  'same-device': 'Same-device (redirect back with a one-time response code)',
+};
+
 /** Deliberate corruption applied to a run to exercise negative paths. */
 export type TamperMode =
   | 'none'
@@ -157,7 +174,9 @@ export type TamperMode =
   /** Strip the holder binding proof from the presentation. */
   | 'strip-holder-proof'
   /** Revoke the credential after issuing it, via the issuer's status list. */
-  | 'revoke-credential';
+  | 'revoke-credential'
+  /** Redeem the same-device response code a second time. */
+  | 'replay-response-code';
 
 export const TAMPER_MODE_LABELS: Record<TamperMode, string> = {
   none: 'No tampering (happy path)',
@@ -167,6 +186,7 @@ export const TAMPER_MODE_LABELS: Record<TamperMode, string> = {
   'replay-nonce': 'Replay a stale nonce',
   'strip-holder-proof': 'Strip the holder binding proof',
   'revoke-credential': 'Revoke the credential after issuing it',
+  'replay-response-code': 'Redeem the same-device response code twice',
 };
 
 /** Everything needed to start a run. */
@@ -179,6 +199,8 @@ export interface RunConfig {
   walletProofType: WalletProofType;
   /** OpenID4VCI revision to speak; defaults to draft 13. */
   vciDraft?: VciDraft;
+  /** How the wallet returns the presentation; defaults to cross-device. */
+  flowMode?: FlowMode;
   tamper: TamperMode;
   /** Claims to put in the credential; defaults to a sample identity subject. */
   claims?: Record<string, unknown>;
@@ -300,15 +322,47 @@ export interface UserAction {
   expiresAt?: string;
 }
 
+/** Wall-clock time spent in each phase of a run. */
+export type StepTimings = Partial<Record<StepId, number>>;
+
 export interface RunSummary {
   checksPassed: number;
   checksFailed: number;
   checksWarned: number;
   /** Failures that were deliberately provoked, counted separately. */
   checksExpectedFailures: number;
+  /** Milliseconds spent in each phase, for latency reporting. */
+  stepDurations?: StepTimings;
   durationMs: number;
   /** Populated when the run failed, describing the first fatal problem. */
   failure?: { step: StepId; message: string; attributedTo?: Role };
+}
+
+/** Aggregate statistics over recorded runs. */
+export interface RunStats {
+  total: number;
+  passed: number;
+  failed: number;
+  /** Median and 95th percentile of total run duration, in milliseconds. */
+  durationP50: number;
+  durationP95: number;
+  /** Median duration of each phase, in milliseconds. */
+  stepMedians: StepTimings;
+  /** Success rate broken down by a dimension, for spotting what fails. */
+  byFormat: StatBucket[];
+  byIssuer: StatBucket[];
+  byVerifier: StatBucket[];
+  byFault: StatBucket[];
+  /** The checks that fail or warn most often across the whole history. */
+  topFindings: Array<{ title: string; status: CheckStatus; count: number; spec: string }>;
+}
+
+export interface StatBucket {
+  key: string;
+  total: number;
+  passed: number;
+  /** Median total duration for this bucket, in milliseconds. */
+  durationP50: number;
 }
 
 /** The persisted record of a completed run, and the row in the matrix report. */

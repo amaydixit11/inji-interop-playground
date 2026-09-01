@@ -58,7 +58,7 @@ export class ReferenceVerifier implements VerifierAdapter {
       from: 'Playground',
       to: 'Verifier',
       url: `${this.baseUrl(ctx)}/requests`,
-      json: { format: opts.format },
+      json: { format: opts.format, sameDevice: ctx.config.flowMode === 'same-device' },
     });
 
     const body = response.body;

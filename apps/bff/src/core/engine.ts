@@ -37,6 +37,14 @@ export function expectedVerdict(tamper: TamperMode): { verdict: VerificationOutc
         verdict: ['valid-but-expired', 'invalid'],
         rationale: 'An expired credential must be reported as expired, or at minimum rejected.',
       };
+    case 'replay-response-code':
+      // The presentation itself is untouched, so verification should still
+      // succeed; what is under test is whether the second redemption is
+      // refused, which its own check covers.
+      return {
+        verdict: ['valid'],
+        rationale: 'Replaying the response code must not affect the presentation verdict.',
+      };
     case 'revoke-credential':
       return {
         verdict: ['invalid', 'error'],
@@ -60,6 +68,9 @@ export class Run {
   readonly ctx: RunContext;
 
   private status: RunStatus = 'pending';
+  /** When each phase started, so its duration can be reported. */
+  private readonly stepStartedAt = new Map<StepId, number>();
+  private readonly stepDurations: Record<string, number> = {};
   private readonly steps: Record<StepId, StepStatus> = {
     discover: 'pending',
     offer: 'pending',
@@ -78,11 +89,34 @@ export class Run {
       this.id,
       config,
       (event) => {
-        if (event.type === 'step.status') this.steps[event.step] = event.status;
+        if (event.type === 'step.status') {
+          this.steps[event.step] = event.status;
+          this.recordStepTiming(event.step, event.status);
+        }
         this.emit(event);
       },
       resolveUrl,
     );
+  }
+
+  /**
+   * Times each phase from `running` to whatever ends it.
+   *
+   * Measured here rather than summed from exchange durations, because the time
+   * a phase actually takes includes waiting on a human to scan a QR code and
+   * polling a verifier that has not answered yet — which is exactly the latency
+   * worth knowing about.
+   */
+  private recordStepTiming(step: StepId, status: StepStatus): void {
+    if (status === 'running') {
+      this.stepStartedAt.set(step, Date.now());
+      return;
+    }
+    const startedAt = this.stepStartedAt.get(step);
+    if (startedAt !== undefined && status !== 'awaiting-user') {
+      this.stepDurations[step] = Date.now() - startedAt;
+      this.stepStartedAt.delete(step);
+    }
   }
 
   get runStatus(): RunStatus {
@@ -117,10 +151,14 @@ export class Run {
     try {
       this.preflight();
 
-      if (this.config.tamper !== 'none') {
-        // From here the credential is deliberately broken, so checks failing
-        // during presentation and verification are the intended result. They
-        // are still reported; they just do not condemn the run.
+      // From here the credential is deliberately broken, so checks failing
+      // during presentation and verification are the intended result. They are
+      // still reported; they just do not condemn the run.
+      //
+      // `replay-response-code` is excluded: it leaves the credential intact and
+      // targets the verifier's replay protection, so a failure there is a real
+      // defect rather than the expected consequence of a fault.
+      if (this.config.tamper !== 'none' && this.config.tamper !== 'replay-response-code') {
         this.ctx.expectFailuresIn('present', 'verify');
       }
 
@@ -182,6 +220,7 @@ export class Run {
       checksWarned: this.ctx.checks.filter((c) => c.status === 'warn').length,
       checksExpectedFailures: this.ctx.checks.filter((c) => c.status === 'fail' && c.expected).length,
       durationMs: Date.now() - this.startedAt.getTime(),
+      stepDurations: { ...this.stepDurations },
       failure,
     };
 
@@ -240,6 +279,18 @@ export class Run {
           detail: constraint,
         });
       }
+    }
+
+    if (this.config.tamper === 'replay-response-code' && this.config.flowMode !== 'same-device') {
+      this.ctx.check({
+        id: 'preflight.tamper.flow-mode',
+        title: 'Response-code replay requires the same-device flow',
+        status: 'fail',
+        spec: 'OpenID4VP §7.2',
+        detail:
+          'A response code only exists in the same-device flow. In cross-device there is nothing to replay, because the verifier learns the outcome by polling rather than through a redirect.',
+      });
+      this.ctx.fail('The replay-response-code fault requires flowMode "same-device".');
     }
 
     if (this.config.tamper === 'revoke-credential' && format !== 'ldp_vc') {
