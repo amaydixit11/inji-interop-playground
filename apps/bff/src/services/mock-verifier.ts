@@ -36,6 +36,8 @@ export interface MockVerifierDeps {
   publicUrl: string;
   basePath: string;
   documentLoader: () => DocumentLoader;
+  /** Maps a published URL onto one this process can dial. */
+  resolveUrl?: (url: string) => string;
 }
 
 /** Builds a Presentation Exchange definition constraining to our test type. */
@@ -204,6 +206,7 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
         audience: session.clientId,
         presentationDefinition: session.presentationDefinition,
         responseUri: `${base()}/response`,
+        resolveUrl: deps.resolveUrl,
         documentLoader: deps.documentLoader(),
       });
     } catch (error) {

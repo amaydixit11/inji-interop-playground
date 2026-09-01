@@ -147,7 +147,9 @@ export type TamperMode =
   /** Echo a nonce that does not match the one the verifier issued. */
   | 'replay-nonce'
   /** Strip the holder binding proof from the presentation. */
-  | 'strip-holder-proof';
+  | 'strip-holder-proof'
+  /** Revoke the credential after issuing it, via the issuer's status list. */
+  | 'revoke-credential';
 
 export const TAMPER_MODE_LABELS: Record<TamperMode, string> = {
   none: 'No tampering (happy path)',
@@ -156,6 +158,7 @@ export const TAMPER_MODE_LABELS: Record<TamperMode, string> = {
   'wrong-type': 'Present a credential of the wrong type',
   'replay-nonce': 'Replay a stale nonce',
   'strip-holder-proof': 'Strip the holder binding proof',
+  'revoke-credential': 'Revoke the credential after issuing it',
 };
 
 /** Everything needed to start a run. */

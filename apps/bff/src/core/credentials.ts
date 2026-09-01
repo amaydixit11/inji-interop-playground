@@ -9,6 +9,10 @@ import type { DocumentLoader } from './jsonld.js';
 import { PLAYGROUND_CONTEXT_PATH } from './jsonld.js';
 import { issueMdoc, MDL_DOCTYPE } from './mdoc.js';
 import { issueSdJwt } from './sdjwt.js';
+import { checkCredentialStatus } from './statuslist.js';
+
+/** Context defining the StatusList2021 terms, for VC 1.1 credentials. */
+export const STATUS_LIST_CONTEXT = 'https://w3id.org/vc/status-list/2021/v1';
 
 export const CREDENTIAL_TYPE = 'InteropTestCredential';
 export const VCT = 'https://inji-interop-playground.dev/vct/InteropTestCredential';
@@ -29,6 +33,8 @@ export interface MintOptions {
   issuerKey: IssuerKey;
   publicUrl: string;
   documentLoader: DocumentLoader;
+  /** Revocation entry to embed, for formats that carry one. */
+  status?: { id: string; statusListCredential: string; statusListIndex: string };
   /** Holder public key, bound into the credential where the format supports it. */
   holderJwk?: JWK;
   holderDid?: string;
@@ -90,6 +96,7 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
     '@context': [
       'https://www.w3.org/2018/credentials/v1',
       new URL(PLAYGROUND_CONTEXT_PATH, options.publicUrl).toString(),
+      ...(options.status ? [STATUS_LIST_CONTEXT] : []),
       ...(suiteContext ? [suiteContext] : []),
     ],
     id: `urn:uuid:${randomUUID()}`,
@@ -101,6 +108,20 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
       ...(options.holderDid ? { id: options.holderDid } : {}),
       ...options.claims,
     },
+    ...(options.status
+      ? {
+          credentialStatus: {
+            id: options.status.id,
+            // StatusList2021 rather than BitstringStatusList: the latter is
+            // defined by the VC 2.0 context, and these credentials are VC 1.1.
+            // Mixing the two produces a term the processor cannot expand.
+            type: 'StatusList2021Entry',
+            statusPurpose: 'revocation',
+            statusListIndex: options.status.statusListIndex,
+            statusListCredential: options.status.statusListCredential,
+          },
+        }
+      : {}),
   };
 
   const suite = createIssuanceSuite(options.proofType, options.issuerKey);
@@ -274,10 +295,12 @@ export async function verifyJsonLdCredential(
   let verified = false;
 
   try {
+    const status = await checkCredentialStatus(credential);
     const result = await vc.verifyCredential({
       credential,
       suite: verificationSuites(),
       documentLoader,
+      checkStatus: async () => ({ verified: !status.revoked }),
     });
     verified = result.verified;
     if (!result.verified) {
@@ -293,4 +316,42 @@ export async function verifyJsonLdCredential(
   const expired = typeof expiryValue === 'string' && new Date(expiryValue).getTime() < Date.now();
 
   return { verified, expired, errors };
+}
+
+/**
+ * Signs the issuer's revocation list as a Verifiable Credential.
+ *
+ * The list is itself a credential so that a verifier can establish it really
+ * came from the issuer, rather than trusting whatever the URL happened to
+ * return — otherwise anyone who can answer that request can un-revoke.
+ */
+export async function signStatusListCredential(options: {
+  id: string;
+  issuerKey: IssuerKey;
+  encodedList: string;
+  documentLoader: DocumentLoader;
+}): Promise<Record<string, unknown>> {
+  const credential = {
+    '@context': [
+      'https://www.w3.org/2018/credentials/v1',
+      STATUS_LIST_CONTEXT,
+      'https://w3id.org/security/suites/ed25519-2020/v1',
+    ],
+    id: options.id,
+    type: ['VerifiableCredential', 'StatusList2021Credential'],
+    issuer: options.issuerKey.did,
+    issuanceDate: new Date().toISOString(),
+    credentialSubject: {
+      id: `${options.id}#list`,
+      type: 'StatusList2021',
+      statusPurpose: 'revocation',
+      encodedList: options.encodedList,
+    },
+  };
+
+  return (await vc.issue({
+    credential,
+    suite: createIssuanceSuite('Ed25519Signature2020', options.issuerKey),
+    documentLoader: options.documentLoader,
+  })) as Record<string, unknown>;
 }

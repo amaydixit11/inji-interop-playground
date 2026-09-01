@@ -6,6 +6,8 @@ import type { CredentialFormat, ProofType, TamperMode } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import { mintCredential, CREDENTIAL_TYPE, VCT, DEFAULT_CLAIMS } from '../core/credentials.js';
 import { MDL_DOCTYPE } from '../core/mdoc.js';
+import { DEFAULT_STATUS_LIST_LENGTH, StatusList } from '../core/statuslist.js';
+import { signStatusListCredential } from '../core/credentials.js';
 import { PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from '../core/jsonld.js';
 import type { IssuerKey } from '../core/keys.js';
 
@@ -115,8 +117,16 @@ export function configurationIdForFormat(format: CredentialFormat): string {
   }
 }
 
+export const STATUS_LIST_ID = 'revocation-1';
+
 export function createMockIssuer(deps: MockIssuerDeps): Router {
   const router = Router();
+
+  // One revocation list for every credential this issuer mints. Indices are
+  // handed out sequentially; a real issuer would allocate them from a database
+  // and shard across several lists.
+  const statusList = new StatusList(DEFAULT_STATUS_LIST_LENGTH);
+  let nextStatusIndex = 0;
   const offers = new Map<string, PendingOffer>();
   const tokensByCode = new Map<string, PendingOffer>();
   const tokens = new Map<string, IssuedToken>();
@@ -191,6 +201,37 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       offer_deeplink: `openid-credential-offer://?credential_offer=${encodeURIComponent(JSON.stringify(offerObject))}`,
       offer_by_reference: `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(`${base()}/credential-offer/${offer.id}`)}`,
     });
+  });
+
+  /**
+   * The revocation list, published as an ordinary signed Verifiable Credential.
+   *
+   * Served with no-store because a verifier caching it would keep honouring a
+   * credential the issuer has already revoked.
+   */
+  router.get('/status-list/:id', async (req, res) => {
+    try {
+      const credential = await signStatusListCredential({
+        id: `${base()}/status-list/${req.params.id}`,
+        issuerKey: await deps.issuerKey(),
+        encodedList: statusList.encode(),
+        documentLoader: deps.documentLoader(),
+      });
+      res.set('cache-control', 'no-store').type('application/ld+json').json(credential);
+    } catch (error) {
+      res.status(500).json({ error: 'status_list_unavailable', error_description: String(error) });
+    }
+  });
+
+  /** Playground-internal: flips a credential's revocation bit. */
+  router.post('/status-list/:id/revoke', (req, res) => {
+    const index = Number(req.body?.index);
+    if (!Number.isInteger(index)) {
+      res.status(400).json({ error: 'invalid_request', error_description: 'index must be an integer' });
+      return;
+    }
+    statusList.set(index, true);
+    res.json({ status: 'revoked', index });
   });
 
   router.get('/credential-offer/:id', (req, res) => {
@@ -312,10 +353,21 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
     }
 
     try {
+      // Allocated per issuance so each credential can be revoked individually.
+      const statusIndex = nextStatusIndex++;
+
       const minted = await mintCredential({
         format: token.offer.format,
         proofType: token.offer.proofType,
         claims: token.offer.claims,
+        status:
+          token.offer.format === 'ldp_vc'
+            ? {
+                id: `${base()}/status-list/${STATUS_LIST_ID}#${statusIndex}`,
+                statusListCredential: `${base()}/status-list/${STATUS_LIST_ID}`,
+                statusListIndex: String(statusIndex),
+              }
+            : undefined,
         issuerKey: await deps.issuerKey(),
         publicUrl: deps.publicUrl,
         documentLoader: deps.documentLoader(),
@@ -326,6 +378,12 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
 
       // Access tokens are single use at the credential endpoint.
       tokens.delete(token.accessToken);
+
+      // Revoked immediately after issuing, so the verifier meets a credential
+      // that is cryptographically perfect and no longer valid.
+      if (token.offer.tamper === 'revoke-credential') {
+        statusList.set(statusIndex, true);
+      }
 
       const body: Record<string, unknown> = {
         c_nonce: randomBytes(16).toString('base64url'),

@@ -1,4 +1,5 @@
 import * as vc from '@digitalbazaar/vc';
+import { checkCredentialStatus } from './statuslist.js';
 import { verificationSuites } from './suites.js';
 import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
 import type { PresentationDefinition } from '@interop/shared';
@@ -16,6 +17,8 @@ export interface PresentationCheck {
   detail: string;
   /** A failure that only affects freshness, not authenticity. */
   expiryRelated?: boolean;
+  /** Reported but never fatal: an inconclusive result, not a negative one. */
+  warnOnly?: boolean;
 }
 
 export interface PresentationVerification {
@@ -37,6 +40,8 @@ export interface VerifyPresentationOptions {
   presentationDefinition?: PresentationDefinition;
   /** Needed to rebuild an mdoc session transcript; defaults to the audience. */
   responseUri?: string;
+  /** Maps a published URL onto one this process can dial. */
+  resolveUrl?: (url: string) => string;
   documentLoader: DocumentLoader;
 }
 
@@ -163,6 +168,15 @@ async function verifyJsonLdPresentation(
     (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object',
   );
 
+  // Resolved before signature verification because the library refuses to
+  // report a credential carrying `credentialStatus` as verified unless it is
+  // given a way to check that status — a sound default, since a signature alone
+  // says nothing about whether the credential is still in force. Fetched once
+  // and reused for both the library's callback and the report.
+  const status = credentialsForTiming[0]
+    ? await checkCredentialStatus(credentialsForTiming[0], options.resolveUrl)
+    : undefined;
+
   // Proofs are evaluated at a moment when the credential was still within its
   // validity window. The library's verify path enforces `expirationDate` as
   // part of credential checking, which would report an expired-but-authentic
@@ -180,6 +194,7 @@ async function verifyJsonLdPresentation(
     challenge: options.nonce,
     unsignedPresentation: !hasProof,
     ...(evaluationTime ? { now: evaluationTime } : {}),
+    checkStatus: async () => ({ verified: !(status?.revoked ?? false) }),
   });
 
   const errors = collectErrors(result);
@@ -226,6 +241,19 @@ async function verifyJsonLdPresentation(
   });
 
   checks.push(constraintCheck(options.presentationDefinition, credentials[0] as Record<string, unknown>));
+
+  if (status) {
+    checks.push({
+      id: 'vc.status',
+      title: 'Credential has not been revoked',
+      // "Not checked" is reported as a warning rather than a pass: a verifier
+      // that cannot reach the status list does not know the credential is good,
+      // and treating unknown as valid is how revocation stops working.
+      ok: status.checked ? !status.revoked : true,
+      detail: status.detail,
+      warnOnly: !status.checked,
+    });
+  }
 
   return { verdict: decideVerdict(checks), checks, claims, decoded: presentation };
 }
@@ -371,7 +399,7 @@ async function verifySdJwtPresentation(
  * response to a forged one (reject the holder).
  */
 function decideVerdict(checks: PresentationCheck[]): 'valid' | 'invalid' | 'valid-but-expired' {
-  const failures = checks.filter((c) => !c.ok);
+  const failures = checks.filter((c) => !c.ok && !c.warnOnly);
   if (failures.length === 0) return 'valid';
   if (failures.every((c) => c.expiryRelated)) return 'valid-but-expired';
   return 'invalid';

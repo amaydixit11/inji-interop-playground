@@ -28,7 +28,18 @@ const DEFAULT_FAULTS = [
   'wrong-type',
   'strip-holder-proof',
   'replay-nonce',
+  'revoke-credential',
 ];
+
+/**
+ * Faults that only make sense for some formats.
+ *
+ * Running one against a format that cannot express it would report a
+ * configuration limit as a test failure, which is noise rather than signal.
+ */
+const FAULT_FORMATS = {
+  'revoke-credential': ['ldp_vc'],
+};
 
 const formats = args.formats ? args.formats.split(',') : DEFAULT_FORMATS;
 const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
@@ -72,6 +83,8 @@ for (const format of supported) {
   for (const proofType of proofTypes) {
     for (const draft of drafts) {
       for (const tamper of faults) {
+        const allowed = FAULT_FORMATS[tamper];
+        if (allowed && !allowed.includes(format)) continue;
     process.stdout.write(
       `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
     );

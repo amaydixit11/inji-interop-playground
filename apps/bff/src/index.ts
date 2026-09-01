@@ -108,6 +108,7 @@ app.use('/mock-verifier', createMockVerifier({
   publicUrl: config.publicUrl,
   basePath: '/mock-verifier',
   documentLoader: () => documentLoader,
+  resolveUrl: dialInternally,
 }));
 
 /* ----------------------------- Identity docs ------------------------------ */

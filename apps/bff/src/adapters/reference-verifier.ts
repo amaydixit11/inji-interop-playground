@@ -84,7 +84,14 @@ export class ReferenceVerifier implements VerifierAdapter {
         const response = await ctx.http<{
           status: string;
           verdict?: VerificationOutcome['verdict'];
-          checks?: Array<{ id: string; title: string; ok: boolean; detail: string; expiryRelated?: boolean }>;
+          checks?: Array<{
+            id: string;
+            title: string;
+            ok: boolean;
+            detail: string;
+            expiryRelated?: boolean;
+            warnOnly?: boolean;
+          }>;
           claims?: Record<string, unknown>;
           error?: string;
           error_description?: string;
@@ -116,7 +123,7 @@ export class ReferenceVerifier implements VerifierAdapter {
       ctx.check({
         id: `verifier.${check.id}`,
         title: check.title,
-        status: check.ok ? 'pass' : check.expiryRelated ? 'warn' : 'fail',
+        status: check.ok ? (check.warnOnly ? 'warn' : 'pass') : check.expiryRelated || check.warnOnly ? 'warn' : 'fail',
         spec: 'OpenID4VP §7 / credential format specification',
         detail: check.detail,
         attributedTo: check.ok ? undefined : 'wallet',

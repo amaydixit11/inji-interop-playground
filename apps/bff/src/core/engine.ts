@@ -37,6 +37,11 @@ export function expectedVerdict(tamper: TamperMode): { verdict: VerificationOutc
         verdict: ['valid-but-expired', 'invalid'],
         rationale: 'An expired credential must be reported as expired, or at minimum rejected.',
       };
+    case 'revoke-credential':
+      return {
+        verdict: ['invalid', 'error'],
+        rationale: 'A revoked credential must be rejected even though its signature is intact.',
+      };
     case 'break-signature':
     case 'wrong-type':
     case 'replay-nonce':
@@ -206,6 +211,22 @@ export class Run {
         });
         this.ctx.fail(`${participant.label} does not support the ${format} format.`, role);
       }
+    }
+
+    if (this.config.tamper === 'revoke-credential' && format !== 'ldp_vc') {
+      // Revocation is modelled through the W3C status list, which only the
+      // JSON-LD credential carries. SD-JWT VC and mdoc have their own status
+      // mechanisms (Token Status List, and the mdoc status field) that this
+      // playground does not implement yet, and silently passing the run would
+      // report an untested path as tested.
+      this.ctx.check({
+        id: 'preflight.tamper.status-support',
+        title: 'Revocation can be modelled for this credential format',
+        status: 'fail',
+        spec: 'W3C Bitstring Status List / StatusList2021',
+        detail: `Revocation is only wired up for ldp_vc, which carries a credentialStatus entry. ${format} uses a different status mechanism that this playground does not implement.`,
+      });
+      this.ctx.fail(`The revoke-credential fault is not applicable to ${format}.`);
     }
 
     if (this.config.tamper !== 'none' && wallet.manifest.traceability === 'endpoint-only') {
