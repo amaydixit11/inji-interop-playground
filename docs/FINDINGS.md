@@ -305,8 +305,9 @@ presentation flow.
 
 ## 13. Inji Web cannot be paired with an arbitrary issuer
 
-**Source-derived**, from `mosip/mimoto` — the backend Inji Web runs on. This is the finding with the
-most direct bearing on what a "pick any issuer, any wallet, any verifier" playground can actually do.
+**Observed**, against Mimoto 0.21.0 and Inji Web 0.16.0 running from `docker-compose.inji.yml`. This
+is the finding with the most direct bearing on what a "pick any issuer, any wallet, any verifier"
+playground can actually do.
 
 Mimoto's credential download is `POST /wallets/{walletId}/credentials`, and its request body is:
 
@@ -333,6 +334,18 @@ Three consequences follow, and none has a configuration workaround:
    interactive user login is unavoidable and the pre-authorized code grant — the one that makes
    unattended issuance possible — is not available.
 
+Confirmed against the running service. `GET /v1/mimoto/issuers` returns the registry and nothing
+else is on offer:
+
+```
+issuer_id=Farmer   protocol=OpenId4VCI  client_id=wallet-demo
+issuer_id=MockMdl  protocol=OpenId4VCI  client_id=wallet-demo
+```
+
+Two issuers, both with a pre-registered `client_id`. Every wallet route
+(`POST /v1/mimoto/wallets` and below) returns `401` without a session, and no path accepting a
+credential offer exists to try.
+
 So Inji Web is a wallet *for a curated set of issuers*, not a general OpenID4VCI wallet. It cannot
 be the holder in a run against the reference issuer, an external issuer, or any Certify deployment
 not already listed in its configuration.
@@ -346,6 +359,13 @@ The playground therefore declares the constraint on the participant itself and s
 run rather than failing partway through. **No Mimoto adapter was built**: one could only ever
 exercise the pre-registered path, behind an interactive login, which is the case the playground is
 least useful for.
+
+A second obstacle sits in front of even the pre-registered path: `certs/oidckeystore.p12` is, in the
+upstream README's words, "to be obtained during onboarding of mimoto to esignet". Standing Mimoto up
+locally therefore requires onboarding it as an OIDC client to an eSignet deployment. The playground
+generates a self-signed keystore so the service boots and its API can be inspected — which is how
+the registry above was read — but that key is registered with no authorization server, so a
+credential download would stop at the token exchange regardless.
 
 Scope: this is a finding about Mimoto and Inji Web. The Inji Wallet mobile app was not inspected and
 may well consume credential offers directly; nothing here should be read as a claim about it.

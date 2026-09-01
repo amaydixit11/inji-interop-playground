@@ -11,6 +11,8 @@
 #   Certify (OpenID4VCI)   http://localhost:8091      issuer identifier / .well-known
 #   Certify API            http://localhost:8091/v1/certify
 #   Verify (OpenID4VP)     http://localhost:8010/v1/verify
+#   Mimoto (wallet BFF)    http://localhost:8098/v1/mimoto
+#   Inji Web               http://localhost:3004
 #
 # Point the playground at them with CERTIFY_BASE_URL and VERIFY_BASE_URL, or
 # override per run in the UI.
@@ -24,6 +26,7 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - ./docker/inji/certify_init.sql:/docker-entrypoint-initdb.d/certify_init.sql:ro
+      - ./docker/inji/mimoto_init.sql:/docker-entrypoint-initdb.d/mimoto_init.sql:ro
     ports:
       - '5433:5432'
     networks:
@@ -111,6 +114,85 @@ services:
     networks: [inji]
     depends_on: [certify]
 
+  # Mimoto's OIDC client keystore.
+  #
+  # Upstream expects `certs/oidckeystore.p12`, obtained by onboarding Mimoto as
+  # an OIDC client to an eSignet instance. A self-signed one is generated here
+  # so the service boots and can be inspected; it is NOT registered with any
+  # authorization server, so credential download stops at the token exchange.
+  # See docs/FINDINGS.md finding 13.
+  mimoto-keystore:
+    image: eclipse-temurin:21-jre-alpine
+    command:
+      - sh
+      - -c
+      - >
+        test -f /certs/oidckeystore.p12 ||
+        keytool -genkeypair -alias mimoto-dev -keyalg RSA -keysize 2048 -validity 3650
+        -storetype PKCS12 -keystore /certs/oidckeystore.p12
+        -storepass "$${OIDC_P12_PASSWORD}" -keypass "$${OIDC_P12_PASSWORD}"
+        -dname "CN=mimoto-dev,OU=playground,O=inji-interop-playground,C=IN"
+    environment:
+      OIDC_P12_PASSWORD: ${OIDC_P12_PASSWORD:-xy4gh6swa2i}
+    volumes:
+      - mimoto-certs:/certs
+    networks: [inji]
+
+  mimoto:
+    image: injistack/mimoto:0.21.0
+    platform: linux/amd64
+    user: root
+    environment:
+      container_user: mosip
+      active_profile_env: default
+      SPRING_CONFIG_NAME: mimoto
+      SPRING_CONFIG_LOCATION: /home/mosip/
+      SPRING_CLOUD_BOOTSTRAP_LOCATION: /home/mosip/mimoto-bootstrap.properties
+      oidc_p12_password: ${OIDC_P12_PASSWORD:-xy4gh6swa2i}
+      WALLET_BINDING_PARTNER_API_KEY: dummywalletbindingpartnerapikey
+      SPRING_DATASOURCE_URL: jdbc:postgresql://certify-db:5432/inji_mimoto
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      GOOGLE_OAUTH_CLIENT_ID: clientId
+      GOOGLE_OAUTH_CLIENT_SECRET: clientSecret
+    volumes:
+      - ./docker/inji/config/mimoto-default.properties:/home/mosip/mimoto-default.properties:ro
+      - ./docker/inji/config/mimoto-bootstrap.properties:/home/mosip/mimoto-bootstrap.properties:ro
+      - ./docker/inji/config/mimoto-issuers-config.json:/home/mosip/mimoto-issuers-config.json:ro
+      - ./docker/inji/config/mimoto-trusted-verifiers.json:/home/mosip/mimoto-trusted-verifiers.json:ro
+      - mimoto-certs:/home/mosip/certs
+    ports:
+      # 8098 on the host: 8099 is often already taken, and the container port is
+      # fixed by mimoto-bootstrap.properties.
+      - '8098:8099'
+    networks:
+      inji:
+        # Inji Web's vendored nginx config proxies to the upstream host
+        # `mimoto-service`. Aliasing keeps that file byte-identical to upstream.
+        aliases: [mimoto-service]
+    depends_on:
+      certify-db:
+        condition: service_healthy
+      mimoto-keystore:
+        condition: service_completed_successfully
+
+  inji-web:
+    image: injistack/inji-web:0.16.0
+    platform: linux/amd64
+    environment:
+      DEFAULT_LANG: en
+      MIMOTO_URL: http://localhost:8098/v1/mimoto
+    volumes:
+      - ./docker/inji/config/mimoto-default.properties:/home/mosip/mimoto-default.properties:ro
+      - ./docker/inji/config/mimoto-issuers-config.json:/home/mosip/mimoto-issuers-config.json:ro
+      - ./docker/inji/config/mimoto-trusted-verifiers.json:/home/mosip/mimoto-trusted-verifiers.json:ro
+      - ./docker/inji/config/credential-template.html:/home/mosip/credential-template.html:ro
+      - ./docker/inji/inji-web-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - '3004:3004'
+    networks: [inji]
+    depends_on: [mimoto]
+
   verify-db:
     image: postgres:13
     platform: linux/amd64
@@ -161,3 +243,4 @@ networks:
 
 volumes:
   certify-keys:
+  mimoto-certs:
