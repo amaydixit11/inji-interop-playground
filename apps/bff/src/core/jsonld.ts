@@ -63,10 +63,54 @@ export function buildDocumentLoader({ publicUrl, statics }: LoaderOptions): Docu
       const result = await base(url);
       return { document: result.document, documentUrl: result.documentUrl ?? url };
     } catch (error) {
-      if (!url.startsWith('did:web:')) throw error;
-      return { document: await resolveDidWeb(url, cache), documentUrl: url };
+      if (url.startsWith('did:web:')) {
+        return { document: await resolveDidWeb(url, cache), documentUrl: url };
+      }
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return { document: await resolveRemoteContext(url, cache), documentUrl: url };
+      }
+      throw error;
     }
   };
+}
+
+/**
+ * Fetches a context the bundled set does not carry.
+ *
+ * Remote fetching is deliberate rather than incidental: the playground asserts
+ * that an issuer's `@context` entries actually dereference, and an allowlist
+ * would make that check report on its own contents instead of on reality. The
+ * result is cached, and anything that is not a JSON-LD context document is
+ * rejected — a URL that returns an HTML page is exactly the defect being
+ * looked for.
+ */
+async function resolveRemoteContext(url: string, cache: Map<string, unknown>): Promise<unknown> {
+  const cached = cache.get(url);
+  if (cached) return cached;
+
+  const response = await fetch(url, { headers: { accept: 'application/ld+json, application/json' } });
+  if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
+
+  const contentType = response.headers.get('content-type') ?? '';
+  const body = await response.text();
+
+  if (!contentType.includes('json')) {
+    throw new Error(`${url} returned ${contentType || 'an unknown content type'}, not a JSON-LD context`);
+  }
+
+  let document: unknown;
+  try {
+    document = JSON.parse(body);
+  } catch {
+    throw new Error(`${url} did not return parseable JSON`);
+  }
+
+  if (!document || typeof document !== 'object' || !('@context' in document)) {
+    throw new Error(`${url} returned JSON with no @context member`);
+  }
+
+  cache.set(url, document);
+  return document;
 }
 
 async function resolveDidWeb(url: string, cache: Map<string, unknown>): Promise<unknown> {

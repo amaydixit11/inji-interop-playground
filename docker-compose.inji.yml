@@ -1,0 +1,163 @@
+# The real Inji modules, for testing the playground against actual
+# implementations rather than only against its own reference ones.
+#
+#   docker compose -f docker-compose.inji.yml up -d
+#
+# Configuration is vendored from the upstream `mosip/inji-certify` and
+# `mosip/inji-verify` compose setups under docker/inji/, so this brings up the
+# same stack those projects document rather than a reinterpretation of it.
+#
+# Once healthy:
+#   Certify (OpenID4VCI)   http://localhost:8091      issuer identifier / .well-known
+#   Certify API            http://localhost:8091/v1/certify
+#   Verify (OpenID4VP)     http://localhost:8010/v1/verify
+#
+# Point the playground at them with CERTIFY_BASE_URL and VERIFY_BASE_URL, or
+# override per run in the UI.
+
+services:
+  certify-db:
+    image: postgres:15
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./docker/inji/certify_init.sql:/docker-entrypoint-initdb.d/certify_init.sql:ro
+    ports:
+      - '5433:5432'
+    networks:
+      inji:
+        # The vendored certify-default.properties hardcodes `database` as the
+        # datasource host. Aliasing rather than editing keeps that file
+        # byte-identical to upstream, so it stays easy to re-vendor.
+        aliases: [database]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  certify:
+    image: injistack/inji-certify-with-plugins:0.14.0
+    platform: linux/amd64
+    user: root
+    environment:
+      container_user: mosip
+      active_profile_env: 'default, csvdp-farmer'
+      SPRING_CONFIG_NAME: certify
+      SPRING_CONFIG_LOCATION: /home/mosip/config/
+      enable_certify_artifactory: 'false'
+      download_hsm_client: 'false'
+      # The issuer identifier Certify puts in its own metadata and offers. It
+      # must be resolvable from wherever the playground runs, so it points at
+      # the published nginx port rather than an in-network hostname.
+      mosip_certify_domain_url: http://localhost:8091
+      # Overrides `mosip.certify.cache.names` from the vendored
+      # certify-default.properties, which omits `credentialOfferCache`. Without
+      # it `POST /pre-authorized-data` fails with "credentialOfferCache not
+      # available" and the pre-authorized code flow cannot be used at all.
+      # See docs/FINDINGS.md.
+      MOSIP_CERTIFY_CACHE_NAMES: userinfo,vcissuance,certificatedatacache,credentialConfig,renderTemplate,jwks,preAuthCodeCache,asMetadataCache,credentialOfferCache
+      # Makes Certify its own authorization server.
+      #
+      # The shipped config points `mosip.certify.authorization.url` at a remote
+      # eSignet, which is right for the authorization code flow but leaves the
+      # pre-authorized code flow unusable: Certify mints those tokens itself
+      # with `iss = authorization.url`, while the credential endpoint validates
+      # against `authorization.url + /v1/esignet` using the remote's JWKS. The
+      # two can never agree, so every credential request returns 401.
+      #
+      # certify-default.properties carries exactly this fix at lines 221-224,
+      # commented out. See docs/FINDINGS.md.
+      MOSIP_CERTIFY_AUTHORIZATION_URL: http://localhost:8091
+      MOSIP_CERTIFY_AUTHN_ISSUER_URI: http://localhost:8091
+      # Resolved from inside the container, where 8090 is Certify itself.
+      MOSIP_CERTIFY_AUTHN_JWK_SET_URI: http://localhost:8090/v1/certify/.well-known/jwks.json
+      # Takes credential claims straight from the pre-authorized token.
+      #
+      # The csvdp-farmer profile ships `plugin-mode=DataProvider`, which looks
+      # the subject up in a CSV by the token's `sub`. The pre-authorized code
+      # flow puts the *claims JSON* in `sub` rather than an identifier, so the
+      # lookup can never succeed and every credential request fails with
+      # ERROR_FETCHING_IDENTITY_DATA. The two features are mutually exclusive as
+      # shipped. See docs/FINDINGS.md.
+      MOSIP_CERTIFY_PLUGIN_MODE: VCIssuance
+    volumes:
+      - ./docker/inji/config/certify-default.properties:/home/mosip/config/certify-default.properties:ro
+      - ./docker/inji/config/certify-csvdp-farmer.properties:/home/mosip/config/certify-csvdp-farmer.properties:ro
+      - ./docker/inji/config/farmer_identity_data.csv:/home/mosip/config/farmer_identity_data.csv:ro
+      - ./docker/inji/config/vp_request_config.json:/home/mosip/config/vp_request_config.json:ro
+      - certify-keys:/home/mosip/CERTIFY_PKCS12
+    ports:
+      - '8090:8090'
+    networks: [inji]
+    depends_on:
+      certify-db:
+        condition: service_healthy
+
+  # Serves `/.well-known/openid-credential-issuer` at the origin, which is where
+  # OpenID4VCI says it belongs; Certify itself serves it under /v1/certify.
+  certify-nginx:
+    image: nginx:stable
+    volumes:
+      - ./docker/inji/certify-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/inji/config/mimoto-issuers-config.json:/config/server/mimoto-issuers-config.json:ro
+      - ./docker/inji/config/mimoto-trusted-verifiers.json:/config/server/mimoto-trusted-verifiers.json:ro
+      - ./docker/inji/config/credential-template.html:/config/server/credential-template.html:ro
+      - ./docker/inji/config/vp_request_config.json:/config/server/vp_request_config.json:ro
+    ports:
+      - '8091:80'
+    networks: [inji]
+    depends_on: [certify]
+
+  verify-db:
+    image: postgres:13
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inji_verify
+    volumes:
+      - ./docker/inji/db-init:/docker-entrypoint-initdb.d:ro
+    networks: [inji]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  verify-service:
+    image: injistack/inji-verify-service:0.18.2
+    platform: linux/amd64
+    user: root
+    environment:
+      active_profile_env: default
+      DATABASE_HOST: verify-db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: inji_verify
+      DATABASE_SCHEMA: verify
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      # Long polling on /vp-request/{id}/status; the adapter's read timeout is
+      # set above this so a poll returns rather than being cut off.
+      INJI_VP_REQUEST_LONG_POLLING_TIMEOUT: 25000
+      INJI_VP_SUBMISSION_BASE_URL: http://localhost:8010/v1/verify
+      INJI_DID_VERIFY_URI: did:web:localhost%3A8010:v1:verify
+      INJI_DID_VERIFY_PUBLIC_KEY_URI: did:web:localhost%3A8010:v1:verify#key-0
+      INJI_KEYSTORE_FILE_PASS: mosip
+      INJI_VERIFY_REDIRECT_URI: http://localhost:8010
+      INJI_VERIFY_RESPONSE_CODE_EXPIRY_TIME_IN_MINS: 5
+      INJI_VERIFY_CLAIMS_WITH_META_DATA: _sd,_sd_alg,iss,cnf,sub,aud,exp,nbf,iat,cti
+    ports:
+      - '8010:8080'
+    networks: [inji]
+    depends_on:
+      verify-db:
+        condition: service_healthy
+
+networks:
+  inji:
+
+volumes:
+  certify-keys:

@@ -388,5 +388,26 @@ async function verifyHolderProof(
     }
   }
 
-  return { jwk, did: kid?.split('#')[0] };
+  // A `did:jwk` carries the key in the identifier itself, so holder binding
+  // still works when the wallet chose a DID reference over a bare `jwk`.
+  const resolved = jwk ?? decodeDidJwk(kid);
+  if (!resolved) {
+    return {
+      error: 'invalid_proof',
+      description: `Proof header carries kid "${String(kid)}", whose key cannot be resolved without a DID lookup this issuer does not perform.`,
+    };
+  }
+
+  return { jwk: resolved, did: kid?.split('#')[0] };
+}
+
+/** Extracts the embedded public key from a `did:jwk` identifier. */
+function decodeDidJwk(kid: string | undefined): JWK | undefined {
+  if (!kid?.startsWith('did:jwk:')) return undefined;
+  const encoded = kid.slice('did:jwk:'.length).split('#')[0];
+  try {
+    return JSON.parse(Buffer.from(encoded ?? '', 'base64url').toString('utf8')) as JWK;
+  } catch {
+    return undefined;
+  }
 }

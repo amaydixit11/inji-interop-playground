@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as vc from '@digitalbazaar/vc';
 import jsigs from 'jsonld-signatures';
 import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
-import { SignJWT } from 'jose';
+import { SignJWT, type JWK } from 'jose';
 import type { Participant, PresentationSubmission } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
@@ -128,7 +128,7 @@ export class ReferenceWallet implements WalletAdapter {
     });
 
     // --- Credential request ----------------------------------------------
-    const proofJwt = await this.buildProofJwt(walletKey, endpoints.credentialIssuer, cNonce);
+    const proofJwt = await this.buildProofJwt(ctx, walletKey, endpoints.credentialIssuer, endpoints, cNonce);
     ctx.artifact({ label: 'Holder key binding proof (decoded)', kind: 'jwt', value: proofJwt });
 
     const credentialRequest = this.buildCredentialRequest(endpoints, opts, proofJwt);
@@ -208,21 +208,61 @@ export class ReferenceWallet implements WalletAdapter {
     });
   }
 
-  /** Builds an `openid4vci-proof+jwt` proving control of the holder key. */
-  private async buildProofJwt(walletKey: WalletKey, audience: string, nonce?: string): Promise<string> {
+  /**
+   * Builds an `openid4vci-proof+jwt` proving control of the holder key.
+   *
+   * The header carries exactly one key identifier. OpenID4VCI §7.2.1 requires
+   * that — supplying both `jwk` and `kid` is a protocol violation, and real
+   * issuers reject it outright rather than picking one. Which one to send is
+   * chosen from the binding methods the issuer advertises, because an issuer
+   * that only supports `did:jwk` cannot use a bare `jwk` header and vice versa.
+   */
+  private async buildProofJwt(
+    ctx: RunContext,
+    walletKey: WalletKey,
+    audience: string,
+    endpoints: IssuerEndpoints,
+    nonce?: string,
+  ): Promise<string> {
+    const configuration = endpoints.metadata.credential_configurations_supported?.[endpoints.configurationId];
+    const bindingMethods = configuration?.cryptographic_binding_methods_supported ?? [];
+
+    let keyHeader: { jwk: JWK } | { kid: string };
+    let chosen: string;
+
+    // Preference order matters. A bare `jwk` is self-contained: the issuer can
+    // bind the key into the credential without resolving anything, which is
+    // what an SD-JWT `cnf` claim needs. A DID reference is used only when the
+    // issuer does not accept a raw key, and `did:jwk` before other methods
+    // because it too carries the key rather than requiring a lookup.
+    if (bindingMethods.length === 0 || bindingMethods.includes('jwk')) {
+      keyHeader = { jwk: walletKey.publicJwk };
+      chosen = 'jwk';
+    } else if (bindingMethods.includes('did:jwk')) {
+      keyHeader = { kid: didJwk(walletKey.publicJwk) };
+      chosen = 'did:jwk';
+    } else {
+      keyHeader = { kid: walletKey.kid };
+      chosen = walletKey.kid.split('#')[0]?.split(':').slice(0, 2).join(':') ?? 'did';
+    }
+
+    ctx.check({
+      id: 'vci.proof.key-identifier',
+      title: 'Proof JWT carries exactly one key identifier',
+      status: 'pass',
+      spec: 'OpenID4VCI §7.2.1',
+      detail:
+        bindingMethods.length > 0
+          ? `Issuer advertises ${bindingMethods.join(', ')}; the proof uses ${chosen}.`
+          : `Issuer advertises no cryptographic_binding_methods_supported; the proof uses ${chosen}.`,
+    });
+
     return new SignJWT({
       aud: audience,
       iat: Math.floor(Date.now() / 1000),
       ...(nonce ? { nonce } : {}),
     })
-      .setProtectedHeader({
-        alg: walletKey.alg,
-        typ: 'openid4vci-proof+jwt',
-        // Both are supplied: `jwk` lets an issuer verify without resolving
-        // anything, `kid` lets one that prefers DID resolution do that instead.
-        jwk: walletKey.publicJwk,
-        kid: walletKey.kid,
-      })
+      .setProtectedHeader({ alg: walletKey.alg, typ: 'openid4vci-proof+jwt', ...keyHeader })
       .sign(walletKey.privateKey);
   }
 
@@ -275,6 +315,91 @@ export class ReferenceWallet implements WalletAdapter {
     return { format: 'ldp_vc', raw: parsed, decoded: parsed, holderKeyId: walletKey.suiteKid };
   }
 
+  /**
+   * Checks an issued JSON-LD credential for the things that make one
+   * unverifiable elsewhere, before trying to present it.
+   *
+   * These are the failures that turn into "it worked against our own verifier
+   * but nobody else can read it": a context that does not dereference, an
+   * issuer nobody can resolve, a verification method that is not a key. Each is
+   * reported separately so a failure names the specific defect rather than
+   * surfacing as one opaque canonicalisation error.
+   */
+  private async inspectJsonLdCredential(ctx: RunContext, credential: Record<string, unknown>): Promise<void> {
+    const loader = this.deps.documentLoader();
+    const contexts = toArray(credential['@context']).filter((entry): entry is string => typeof entry === 'string');
+    const unresolvable: string[] = [];
+
+    for (const url of contexts) {
+      try {
+        const { document } = await loader(url);
+        if (!document || typeof document !== 'object' || !('@context' in (document as object))) {
+          unresolvable.push(`${url} (resolved, but is not a JSON-LD context document)`);
+        }
+      } catch (error) {
+        unresolvable.push(`${url} (${error instanceof Error ? error.message : String(error)})`);
+      }
+    }
+
+    ctx.expect(unresolvable.length === 0, {
+      id: 'vc.context.dereferenceable',
+      title: 'Every @context entry resolves to a JSON-LD context',
+      spec: 'W3C VC Data Model §4.1, JSON-LD 1.1 §3.1',
+      pass: `All ${contexts.length} context(s) resolved.`,
+      fail: `Could not use: ${unresolvable.join('; ')}. A credential whose context does not dereference cannot be canonicalised, so its proof cannot be verified by anyone.`,
+      attributedTo: 'issuer',
+    });
+
+    const issuer = typeof credential.issuer === 'string' ? credential.issuer : (credential.issuer as { id?: string })?.id;
+    if (issuer) {
+      const placeholder = /^did:example:/.test(issuer);
+      ctx.check({
+        id: 'vc.issuer.resolvable',
+        title: 'Credential issuer is a resolvable identifier',
+        status: placeholder ? 'fail' : 'pass',
+        spec: 'W3C VC Data Model §4.5',
+        detail: placeholder
+          ? `The issuer is "${issuer}", a placeholder from the did:example method. No verifier can resolve it to a key, so the credential cannot be verified outside the system that made it.`
+          : `Issuer is ${issuer}.`,
+        attributedTo: placeholder ? 'issuer' : undefined,
+      });
+    }
+
+    const proof = (Array.isArray(credential.proof) ? credential.proof[0] : credential.proof) as
+      | Record<string, unknown>
+      | undefined;
+    if (proof) {
+      const method = String(proof.verificationMethod ?? '');
+      // A verification method identifies one key. A JWKS endpoint is a set of
+      // them, so it leaves the verifier no way to know which one signed.
+      const looksLikeKeySet = /jwks(\.json)?$/i.test(method);
+      ctx.check({
+        id: 'vc.proof.verification-method',
+        title: 'Proof verification method identifies a single key',
+        status: looksLikeKeySet || !method ? 'fail' : 'pass',
+        spec: 'W3C VC Data Integrity §2.2',
+        detail: !method
+          ? 'The proof carries no verificationMethod.'
+          : looksLikeKeySet
+            ? `verificationMethod is "${method}", which is a JWKS endpoint rather than a single key. A verifier cannot tell which key in the set produced the proof.`
+            : `verificationMethod is ${method}.`,
+        attributedTo: looksLikeKeySet || !method ? 'issuer' : undefined,
+      });
+    }
+
+    const types = toArray(credential.type).filter((entry): entry is string => typeof entry === 'string');
+    ctx.check({
+      id: 'vc.subject.populated',
+      title: 'Credential carries a credential subject',
+      status: credential.credentialSubject ? 'pass' : 'fail',
+      spec: 'W3C VC Data Model §4.4',
+      detail: credential.credentialSubject
+        ? `Subject present; type is ${types.join(', ')}.`
+        : `credentialSubject is null or absent, so the credential asserts nothing about anyone. Type is ${types.join(', ')}.`,
+      attributedTo: credential.credentialSubject ? undefined : 'issuer',
+    });
+  }
+
   private async buildJsonLdPresentation(
     ctx: RunContext,
     request: PresentationRequest,
@@ -282,6 +407,7 @@ export class ReferenceWallet implements WalletAdapter {
     walletKey: WalletKey,
   ): Promise<{ vpToken: unknown; submission: PresentationSubmission }> {
     const credential = held.raw as Record<string, unknown>;
+    await this.inspectJsonLdCredential(ctx, credential);
 
     // Built directly rather than through `vc.createPresentation`, which
     // validates every embedded credential in verify mode and so refuses to wrap
@@ -359,10 +485,20 @@ export class ReferenceWallet implements WalletAdapter {
             domain: request.authorizationRequest.client_id,
           });
     } catch (error) {
-      ctx.fail(
-        `Could not sign the Verifiable Presentation: ${error instanceof Error ? error.message : String(error)}`,
-        'wallet',
-      );
+      // Almost always the credential's own fault: a context that will not
+      // dereference, or a term that will not expand, makes the credential
+      // impossible to canonicalise and therefore impossible to embed in a
+      // signed presentation. Reporting that and presenting unsigned is more
+      // useful than aborting, because the verifier still gets to weigh in.
+      ctx.check({
+        id: 'vp.signing',
+        title: 'Holder can sign a presentation containing this credential',
+        status: 'fail',
+        spec: 'W3C VC Data Integrity / JSON-LD 1.1',
+        detail: `${error instanceof Error ? error.message : String(error)} The presentation is being sent unsigned so the verifier's handling can still be observed.`,
+        attributedTo: 'issuer',
+      });
+      return { vpToken: presentation, submission: buildSubmission(request, 'ldp_vp', 'ldp_vc') };
     }
 
     return { vpToken: signed, submission: buildSubmission(request, 'ldp_vp', 'ldp_vc') };
@@ -467,4 +603,9 @@ function requestedClaimNames(request: PresentationRequest): string[] {
 function toArray(value: unknown): unknown[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+/** `did:jwk` per the DID JWK method: base64url of the JSON public key. */
+function didJwk(jwk: JWK): string {
+  return `did:jwk:${Buffer.from(JSON.stringify(jwk)).toString('base64url')}`;
 }

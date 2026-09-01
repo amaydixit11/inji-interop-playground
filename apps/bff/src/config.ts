@@ -27,9 +27,9 @@ export function loadConfig(): AppConfig {
     port,
     publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, ''),
     internalUrl: `http://127.0.0.1:${port}`,
-    certifyBaseUrl: process.env.CERTIFY_BASE_URL ?? 'http://localhost:8090/v1/certify',
+    certifyBaseUrl: process.env.CERTIFY_BASE_URL ?? 'http://localhost:8091',
     certifyConfigurationId: process.env.CERTIFY_CREDENTIAL_CONFIG_ID ?? '',
-    verifyBaseUrl: process.env.VERIFY_BASE_URL ?? 'http://localhost:8000/v1/verify',
+    verifyBaseUrl: process.env.VERIFY_BASE_URL ?? 'http://localhost:8010/v1/verify',
     injiWebUrl: process.env.INJI_WEB_URL ?? 'https://injiweb.collab.mosip.net',
   };
 }
