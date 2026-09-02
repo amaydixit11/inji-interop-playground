@@ -67,6 +67,7 @@ const flowModes = args.flowModes ? args.flowModes.split(',') : ['cross-device'];
 const vcVersions = args.vcVersions ? args.vcVersions.split(',') : ['1.1'];
 const keyRefs = args.keyRefs ? args.keyRefs.split(',') : ['did'];
 const queryLanguages = args.queryLanguages ? args.queryLanguages.split(',') : ['presentation-exchange'];
+const grantTypes = args.grantTypes ? args.grantTypes.split(',') : ['pre-authorized_code'];
 const baselinePath = args.baseline;
 const saveBaselinePath = args['save-baseline'];
 const failOnRegression = 'fail-on-regression' in args;
@@ -102,6 +103,7 @@ console.log(`Flows:      ${flowModes.join(', ')}`);
 console.log(`Data model: ${vcVersions.join(', ')}`);
 console.log(`Issuer key: ${keyRefs.join(', ')}`);
 console.log(`Request:    ${queryLanguages.join(', ')}`);
+console.log(`Grant:      ${grantTypes.join(', ')}`);
 console.log('');
 
 const records = [];
@@ -112,6 +114,7 @@ for (const format of supported) {
       for (const vcVersion of vcVersions) {
       for (const issuerKeyReference of keyRefs) {
       for (const queryLanguage of queryLanguages) {
+      for (const grantType of grantTypes) {
       for (const tamper of faults) {
         // The issuer key reference only exists for SD-JWT credentials.
         if (issuerKeyReference !== 'did' && !format.endsWith('sd-jwt')) continue;
@@ -125,7 +128,7 @@ for (const format of supported) {
       `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
     );
     const record = await runOne({
-      format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage,
+      format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage, grantType,
     });
     records.push(record);
     const summary = record.summary ?? {};
@@ -137,6 +140,7 @@ for (const format of supported) {
     if (record.status !== 'passed' && record.summary?.failure) {
       console.log(`      ↳ ${record.summary.failure.message}`);
     }
+      }
       }
       }
       }
@@ -183,7 +187,7 @@ process.exit(failures.length === 0 ? 0 : 1);
 /* ------------------------------------------------------------------ */
 
 async function runOne({
-  format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage,
+  format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage, grantType,
 }) {
   const { runId } = await postJson(`${base}/api/runs`, {
     issuerId,
@@ -197,6 +201,7 @@ async function runOne({
     vcVersion,
     issuerKeyReference,
     queryLanguage,
+    grantType,
     tamper,
   });
 
@@ -244,6 +249,7 @@ function runKey(record) {
     c.vcVersion ?? '1.1',
     c.issuerKeyReference ?? 'did',
     c.queryLanguage ?? 'presentation-exchange',
+    c.grantType ?? 'pre-authorized_code',
     c.tamper,
   ].join(' | ');
 }

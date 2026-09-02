@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as vc from '@digitalbazaar/vc';
 import jsigs from 'jsonld-signatures';
 import { Ed25519Signature2020 } from '@digitalbazaar/ed25519-signature-2020';
+import { createHash, randomBytes } from 'node:crypto';
 import { SignJWT, type JWK } from 'jose';
 import type { Participant, PresentationSubmission, VciDraft } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
@@ -66,32 +67,48 @@ export class ReferenceWallet implements WalletAdapter {
     opts: IssueOptions,
   ): Promise<HeldCredential> {
     const walletKey = await this.deps.walletKey();
-    const grant = offer.offer.grants?.[PRE_AUTHORIZED_CODE_GRANT];
+    // Which grant to walk is decided by what the offer advertises, not by the
+    // run configuration: an offer is the issuer telling the wallet how to
+    // proceed, and a wallet that ignored it would be testing its own opinion.
+    const preAuth = offer.offer.grants?.[PRE_AUTHORIZED_CODE_GRANT];
+    const authCode = offer.offer.grants?.authorization_code;
 
-    if (!grant?.['pre-authorized_code']) {
-      ctx.fail(
-        'The credential offer carries no pre-authorized code. The reference wallet only implements the pre-authorized code grant, because the authorization code grant needs an interactive login.',
-        'issuer',
-      );
+    ctx.check({
+      id: 'vci.offer.grant-advertised',
+      title: 'Offer advertises a grant the wallet can complete',
+      status: preAuth?.['pre-authorized_code'] || authCode ? 'pass' : 'fail',
+      spec: 'OpenID4VCI §4.1.1',
+      detail: preAuth?.['pre-authorized_code']
+        ? 'Offer carries a pre-authorized code, so issuance needs no interactive login.'
+        : authCode
+          ? `Offer carries the authorization code grant with issuer_state "${authCode.issuer_state}", so the wallet must obtain an authorization code first.`
+          : 'Offer advertises neither grant, so the wallet cannot proceed.',
+      attributedTo: preAuth?.['pre-authorized_code'] || authCode ? undefined : 'issuer',
+    });
+
+    if (!preAuth?.['pre-authorized_code'] && !authCode) {
+      ctx.fail('The credential offer advertises no grant this wallet can complete.', 'issuer');
     }
 
     // --- Token request ---------------------------------------------------
-    const tokenResponse = await ctx.http<{
-      access_token?: string;
-      token_type?: string;
-      c_nonce?: string;
-      expires_in?: number;
-    }>({
-      label: 'Token Request (pre-authorized_code)',
-      from: 'Wallet',
-      to: 'Issuer',
-      url: endpoints.tokenEndpoint,
-      form: {
-        grant_type: PRE_AUTHORIZED_CODE_GRANT,
-        'pre-authorized_code': grant['pre-authorized_code'],
-        ...(offer.txCode ? { tx_code: offer.txCode } : {}),
-      },
-    });
+    const tokenResponse = authCode
+      ? await this.runAuthorizationCodeGrant(ctx, endpoints, authCode)
+      : await ctx.http<{
+          access_token?: string;
+          token_type?: string;
+          c_nonce?: string;
+          expires_in?: number;
+        }>({
+          label: 'Token Request (pre-authorized_code)',
+          from: 'Wallet',
+          to: 'Issuer',
+          url: endpoints.tokenEndpoint,
+          form: {
+            grant_type: PRE_AUTHORIZED_CODE_GRANT,
+            'pre-authorized_code': preAuth?.['pre-authorized_code'] as string,
+            ...(offer.txCode ? { tx_code: offer.txCode } : {}),
+          },
+        });
 
     const accessToken = tokenResponse.body.access_token;
     if (!accessToken) {
@@ -289,6 +306,129 @@ export class ReferenceWallet implements WalletAdapter {
       fail: 'The response code was accepted a second time. Anyone who observes the redirect can replay it and read the presentation result.',
       attributedTo: 'verifier',
     });
+  }
+
+  /**
+   * Walks the authorization code grant, with PKCE.
+   *
+   * Three exchanges rather than one: an authorization request, a redirect
+   * carrying the code, and the token request that binds the code to the PKCE
+   * verifier. Each is a place two implementations can disagree, which is why
+   * the grant is worth testing separately from the pre-authorized shortcut.
+   */
+  private async runAuthorizationCodeGrant(
+    ctx: RunContext,
+    endpoints: IssuerEndpoints,
+    grant: { issuer_state?: string; authorization_server?: string },
+  ): Promise<{ body: { access_token?: string; token_type?: string; c_nonce?: string } }> {
+    const authorizationEndpoint =
+      endpoints.authorizationEndpoint ?? `${endpoints.credentialIssuer.replace(/\/$/, '')}/authorize`;
+
+    // A fresh verifier per attempt. Reusing one across runs would let a code
+    // captured from an earlier exchange be redeemed with a known verifier,
+    // which is the whole thing PKCE prevents.
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier, 'ascii').digest('base64url');
+    const state = randomBytes(12).toString('base64url');
+    const redirectUri = 'openid4vci://playground/callback';
+
+    const authorizationUrl = `${authorizationEndpoint}?${new URLSearchParams({
+      response_type: 'code',
+      client_id: 'inji-interop-playground',
+      redirect_uri: redirectUri,
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+      ...(grant.issuer_state ? { issuer_state: grant.issuer_state } : {}),
+    }).toString()}`;
+
+    const authorization = await ctx.http<unknown>({
+      label: 'Authorization Request (authorization_code)',
+      from: 'Wallet',
+      to: 'Issuer',
+      url: authorizationUrl,
+      // Following it automatically would consume the code the redirect carries.
+      manualRedirect: true,
+      allowNonOk: true,
+    });
+
+    const location = authorization.headers.location ?? authorization.headers.Location;
+    ctx.expect(Boolean(location), {
+      id: 'vci.authorize.redirect',
+      title: 'Authorization endpoint redirects with an authorization code',
+      spec: 'OpenID4VCI §3.4, RFC 6749 §4.1.2',
+      pass: 'The authorization endpoint answered with a redirect.',
+      fail: `Expected a 3xx with a Location header; got HTTP ${authorization.status}. A wallet has nothing to follow.`,
+      attributedTo: 'issuer',
+    });
+    if (!location) ctx.fail('The authorization endpoint did not redirect.', 'issuer');
+
+    const returned = new URL(location);
+    const code = returned.searchParams.get('code');
+    const returnedState = returned.searchParams.get('state');
+
+    ctx.expect(returnedState === state, {
+      id: 'vci.authorize.state',
+      title: 'Authorization response echoes the state parameter',
+      spec: 'RFC 6749 §4.1.2, §10.12',
+      pass: 'The state was returned unchanged, so the response can be tied to this request.',
+      fail: `Sent state "${state}" but the redirect carried "${String(returnedState)}". Without it a wallet cannot tell which of its requests this answers, which is the CSRF case state exists for.`,
+      attributedTo: 'issuer',
+    });
+
+    if (!code) ctx.fail('The authorization redirect carried no code.', 'issuer');
+    ctx.artifact({ label: 'Authorization redirect', kind: 'text', value: location });
+
+    const tokenResponse = await ctx.http<{ access_token?: string; token_type?: string; c_nonce?: string }>({
+      label: 'Token Request (authorization_code)',
+      from: 'Wallet',
+      to: 'Issuer',
+      url: endpoints.tokenEndpoint,
+      form: {
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        client_id: 'inji-interop-playground',
+        code_verifier: codeVerifier,
+      },
+    });
+
+    // Redeeming the same code twice must fail. An issuer that allows it has the
+    // grant without the protection the single-use rule provides.
+    const replay = await ctx.http<unknown>({
+      label: 'Replay Authorization Code',
+      from: 'Wallet',
+      to: 'Issuer',
+      url: endpoints.tokenEndpoint,
+      form: {
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        client_id: 'inji-interop-playground',
+        code_verifier: codeVerifier,
+      },
+      allowNonOk: true,
+    });
+
+    ctx.expect(!replay.ok, {
+      id: 'vci.authorize.code-single-use',
+      title: 'Authorization code cannot be redeemed twice',
+      spec: 'RFC 6749 §4.1.2',
+      pass: `A second redemption was refused with HTTP ${replay.status}, as it must be.`,
+      fail: 'The authorization code was accepted a second time. Anyone who intercepts it can obtain their own credential.',
+      attributedTo: 'issuer',
+    });
+
+    ctx.check({
+      id: 'vci.authorize.consent',
+      title: 'User consent was obtained',
+      status: 'warn',
+      spec: 'OpenID4VCI §3.4',
+      detail:
+        'The reference issuer grants immediately so the grant can be exercised unattended. The interop surface under test is the request parameters, the redirect and the PKCE binding; a real deployment shows a login and a consent screen here, and that part is not tested.',
+    });
+
+    return tokenResponse;
   }
 
   /**

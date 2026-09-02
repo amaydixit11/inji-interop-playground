@@ -44,6 +44,13 @@ export interface TracedRequest {
   accept?: string;
   /** Treat a non-2xx as a normal outcome rather than a run failure. */
   allowNonOk?: boolean;
+  /**
+   * Leave a redirect unfollowed so the caller can inspect `Location`.
+   *
+   * The authorization code arrives in a redirect, and following it
+   * automatically would consume the very thing the flow is delivering.
+   */
+  manualRedirect?: boolean;
   timeoutMs?: number;
 }
 
@@ -292,7 +299,13 @@ export class RunContext {
     const target = this.resolveUrl(req.url);
 
     try {
-      const response = await fetch(target, { method, headers, body, signal: controller.signal });
+      const response = await fetch(target, {
+        method,
+        headers,
+        body,
+        signal: controller.signal,
+        ...(req.manualRedirect ? { redirect: 'manual' as const } : {}),
+      });
       const raw = await response.text();
       const contentType = response.headers.get('content-type') ?? '';
       const parsed = contentType.includes('json') ? safeParseJson(raw) : raw;
@@ -303,7 +316,11 @@ export class RunContext {
       exchange.durationMs = Date.now() - startedAtMs;
       this.record(exchange);
 
-      if (!response.ok && !req.allowNonOk) {
+      // A 3xx is the expected outcome when redirects are being handled by the
+      // caller, so it must not be treated as a failure.
+      const redirected = req.manualRedirect && response.status >= 300 && response.status < 400;
+
+      if (!response.ok && !redirected && !req.allowNonOk) {
         this.fail(`${req.label} failed: HTTP ${response.status} from ${req.to} — ${truncate(raw, 400)}`);
       }
 

@@ -63,12 +63,14 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
 
     const configurationId = this.selectConfiguration(ctx, metadata, opts.format);
     const tokenEndpoint = await this.resolveTokenEndpoint(ctx, base, metadata);
+    const authorizationEndpoint = ctx.state.get('vci.authorization_endpoint') as string | undefined;
     await this.checkIssuerIdentityDocuments(ctx, base);
 
     return {
       credentialIssuer: metadata.credential_issuer ?? base,
       credentialEndpoint: metadata.credential_endpoint ?? `${base}/credential`,
       tokenEndpoint,
+      authorizationEndpoint,
       nonceEndpoint: metadata.nonce_endpoint,
       jwksUri: `${base}/.well-known/jwks.json`,
       didDocumentUrl: `${base}/.well-known/did.json`,
@@ -124,13 +126,23 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
   ): Promise<string> {
     const authorizationServer = metadata.authorization_servers?.[0] ?? base;
 
-    const response = await ctx.http<{ token_endpoint?: string; grant_types_supported?: string[] }>({
+    const response = await ctx.http<{
+      token_endpoint?: string;
+      authorization_endpoint?: string;
+      grant_types_supported?: string[];
+    }>({
       label: 'Authorization Server Metadata Discovery',
       from: 'Playground',
       to: 'Authorization Server',
       url: `${authorizationServer.replace(/\/$/, '')}/.well-known/oauth-authorization-server`,
       allowNonOk: true,
     });
+
+    // Stashed rather than returned, because the base class resolves only the
+    // token endpoint and subclasses override this method for their own reasons.
+    if (response.body?.authorization_endpoint) {
+      ctx.state.set('vci.authorization_endpoint', response.body.authorization_endpoint);
+    }
 
     if (response.ok && response.body?.token_endpoint) {
       const supportsPreAuth = response.body.grant_types_supported?.includes(PRE_AUTHORIZED_CODE_GRANT);
@@ -326,15 +338,34 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
       });
     }
 
+    // Which grant the offer *should* carry depends on what the run asked for.
+    // Asserting a pre-authorized code unconditionally would fail every
+    // authorization-code run for doing exactly what it was told to.
+    const wantsAuthorizationCode = ctx.config.grantType === 'authorization_code';
     const grant = offer.grants?.[PRE_AUTHORIZED_CODE_GRANT];
-    ctx.expect(Boolean(grant?.['pre-authorized_code']), {
-      id: 'vci.offer.pre-authorized-code',
-      title: 'Offer carries a pre-authorized code',
-      spec: 'OpenID4VCI §4.1.1',
-      pass: 'A pre-authorized code is present, so issuance can proceed without an interactive login.',
-      fail: 'No pre-authorized code in the offer. Only the authorization code grant is available, which needs a human to log in.',
-      attributedTo: 'issuer',
-    });
+    const authorizationGrant = offer.grants?.authorization_code;
+
+    if (wantsAuthorizationCode) {
+      ctx.expect(Boolean(authorizationGrant), {
+        id: 'vci.offer.authorization-code',
+        title: 'Offer carries the authorization code grant',
+        spec: 'OpenID4VCI §4.1.1',
+        pass: `The offer advertises the authorization code grant${
+          authorizationGrant?.issuer_state ? ' with an issuer_state tying it to this offer' : ''
+        }.`,
+        fail: 'The run asked for the authorization code grant but the offer does not advertise it.',
+        attributedTo: 'issuer',
+      });
+    } else {
+      ctx.expect(Boolean(grant?.['pre-authorized_code']), {
+        id: 'vci.offer.pre-authorized-code',
+        title: 'Offer carries a pre-authorized code',
+        spec: 'OpenID4VCI §4.1.1',
+        pass: 'A pre-authorized code is present, so issuance can proceed without an interactive login.',
+        fail: 'No pre-authorized code in the offer. Only the authorization code grant is available, which needs a human to log in.',
+        attributedTo: 'issuer',
+      });
+    }
 
     if (grant && 'user_pin_required' in grant) {
       ctx.check({

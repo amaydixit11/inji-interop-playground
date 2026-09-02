@@ -1,9 +1,16 @@
-import { randomUUID, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import type { JWK } from 'jose';
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type KeyLike } from 'jose';
-import type { CredentialFormat, IssuerKeyReference, ProofType, TamperMode, VcVersion } from '@interop/shared';
-import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
+import type {
+  CredentialFormat,
+  GrantType,
+  IssuerKeyReference,
+  ProofType,
+  TamperMode,
+  VcVersion,
+} from '@interop/shared';
+import { AUTHORIZATION_CODE_GRANT, PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import { mintCredential, CREDENTIAL_TYPE, VCT, DEFAULT_CLAIMS } from '../core/credentials.js';
 import { MDL_DOCTYPE } from '../core/mdoc.js';
 import { DEFAULT_STATUS_LIST_LENGTH, StatusList } from '../core/statuslist.js';
@@ -36,6 +43,8 @@ interface PendingOffer {
   vcVersion: VcVersion;
   /** How an SD-JWT names its issuer key. */
   issuerKeyReference: IssuerKeyReference;
+  /** Which grant this offer advertises. */
+  grantType: GrantType;
   /** Deliberate corruption to apply when this offer is redeemed. */
   tamper: TamperMode;
   txCode?: string;
@@ -48,6 +57,18 @@ interface IssuedToken {
   cNonce: string;
   offer: PendingOffer;
   expiresAt: number;
+}
+
+/** An authorization request awaiting the code exchange. */
+interface PendingAuthorization {
+  code: string;
+  offer: PendingOffer;
+  redirectUri: string;
+  /** PKCE challenge; the verifier of it must hash to this. */
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
+  createdAt: number;
+  used: boolean;
 }
 
 export interface MockIssuerDeps {
@@ -134,6 +155,7 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
   let reusedStatusIndices = false;
   const offers = new Map<string, PendingOffer>();
   const tokensByCode = new Map<string, PendingOffer>();
+  const authorizations = new Map<string, PendingAuthorization>();
   const tokens = new Map<string, IssuedToken>();
   const issuedNonces = new Set<string>();
 
@@ -154,10 +176,64 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
     res.json({
       issuer: base(),
       token_endpoint: `${base()}/token`,
+      authorization_endpoint: `${base()}/authorize`,
       jwks_uri: `${base()}/.well-known/jwks.json`,
-      grant_types_supported: [PRE_AUTHORIZED_CODE_GRANT],
+      grant_types_supported: [PRE_AUTHORIZED_CODE_GRANT, AUTHORIZATION_CODE_GRANT],
+      code_challenge_methods_supported: ['S256'],
+      response_types_supported: ['code'],
       'pre-authorized_grant_anonymous_access_supported': true,
     });
+  });
+
+  /**
+   * Authorization endpoint.
+   *
+   * A real deployment shows a login and a consent screen here. This one grants
+   * immediately, so the grant can be exercised unattended — the interop surface
+   * being tested is the request parameters, the redirect and the PKCE binding,
+   * none of which depends on who is looking at the screen. The run records that
+   * consent was automatic so nobody reads it as a tested login.
+   */
+  router.get('/authorize', (req, res) => {
+    const offerId = req.query.issuer_state as string | undefined;
+    const redirectUri = req.query.redirect_uri as string | undefined;
+    const responseType = req.query.response_type as string | undefined;
+    const state = req.query.state as string | undefined;
+
+    const offer = offerId ? offers.get(offerId) : undefined;
+    if (!offer) {
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'issuer_state does not identify a pending credential offer',
+      });
+      return;
+    }
+    if (responseType !== 'code') {
+      res.status(400).json({ error: 'unsupported_response_type', error_description: 'Only "code" is supported' });
+      return;
+    }
+    if (!redirectUri) {
+      res.status(400).json({ error: 'invalid_request', error_description: 'redirect_uri is required' });
+      return;
+    }
+
+    const authorization: PendingAuthorization = {
+      code: randomBytes(24).toString('base64url'),
+      offer,
+      redirectUri,
+      codeChallenge: req.query.code_challenge as string | undefined,
+      codeChallengeMethod: req.query.code_challenge_method as string | undefined,
+      createdAt: Date.now(),
+      used: false,
+    };
+    authorizations.set(authorization.code, authorization);
+
+    // A redirect, as the specification requires — not a JSON body. A wallet
+    // following the redirect is the behaviour under test.
+    const target = new URL(redirectUri);
+    target.searchParams.set('code', authorization.code);
+    if (state) target.searchParams.set('state', state);
+    res.redirect(302, target.toString());
   });
 
   router.get('/.well-known/jwks.json', async (_req, res) => {
@@ -197,6 +273,7 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       proofType: (req.body?.proofType as ProofType) ?? 'Ed25519Signature2020',
       vcVersion: (req.body?.vcVersion as VcVersion) ?? '1.1',
       issuerKeyReference: (req.body?.issuerKeyReference as IssuerKeyReference) ?? 'did',
+      grantType: (req.body?.grantType as GrantType) ?? 'pre-authorized_code',
       tamper: (req.body?.tamper as TamperMode) ?? 'none',
       txCode: req.body?.txCode,
       createdAt: Date.now(),
@@ -279,31 +356,13 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
 
   router.post('/token', (req, res) => {
     const grantType = req.body?.grant_type;
-    if (grantType !== PRE_AUTHORIZED_CODE_GRANT) {
-      res.status(400).json({
-        error: 'unsupported_grant_type',
-        error_description: `Only ${PRE_AUTHORIZED_CODE_GRANT} is supported`,
-      });
-      return;
-    }
+    const offer =
+      grantType === AUTHORIZATION_CODE_GRANT
+        ? redeemAuthorizationCode(req, res)
+        : redeemPreAuthorizedCode(req, res);
 
-    const code = req.body?.['pre-authorized_code'];
-    const offer = code ? tokensByCode.get(code) : undefined;
-    if (!offer) {
-      res.status(400).json({ error: 'invalid_grant', error_description: 'Unknown or already-redeemed pre-authorized code' });
-      return;
-    }
-    if (Date.now() - offer.createdAt > offer.expiresIn * 1000) {
-      res.status(400).json({ error: 'invalid_grant', error_description: 'Pre-authorized code has expired' });
-      return;
-    }
-    if (offer.txCode && req.body?.tx_code !== offer.txCode) {
-      res.status(400).json({ error: 'invalid_grant', error_description: 'tx_code does not match' });
-      return;
-    }
-
-    // Single use: a replayed pre-authorized code must not yield a second token.
-    tokensByCode.delete(code);
+    // The helpers answer the response themselves on failure.
+    if (!offer) return;
 
     const issued: IssuedToken = {
       accessToken: randomBytes(32).toString('base64url'),
@@ -325,6 +384,101 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       ],
     });
   });
+
+  /** Pre-authorized code: single use, short-lived, optionally PIN-bound. */
+  function redeemPreAuthorizedCode(
+    req: { body?: Record<string, string> },
+    res: { status(code: number): { json(body: unknown): void } },
+  ): PendingOffer | undefined {
+    const grantType = req.body?.grant_type;
+    if (grantType !== PRE_AUTHORIZED_CODE_GRANT) {
+      res.status(400).json({
+        error: 'unsupported_grant_type',
+        error_description: `Supported grants: ${PRE_AUTHORIZED_CODE_GRANT}, ${AUTHORIZATION_CODE_GRANT}`,
+      });
+      return undefined;
+    }
+
+    const code = req.body?.['pre-authorized_code'];
+    const offer = code ? tokensByCode.get(code) : undefined;
+    if (!offer) {
+      res
+        .status(400)
+        .json({ error: 'invalid_grant', error_description: 'Unknown or already-redeemed pre-authorized code' });
+      return undefined;
+    }
+    if (Date.now() - offer.createdAt > offer.expiresIn * 1000) {
+      res.status(400).json({ error: 'invalid_grant', error_description: 'Pre-authorized code has expired' });
+      return undefined;
+    }
+    if (offer.txCode && req.body?.tx_code !== offer.txCode) {
+      res.status(400).json({ error: 'invalid_grant', error_description: 'tx_code does not match' });
+      return undefined;
+    }
+
+    // Single use: a replayed pre-authorized code must not yield a second token.
+    if (code) tokensByCode.delete(code);
+    return offer;
+  }
+
+  /**
+   * Authorization code: single use, and bound to the PKCE challenge.
+   *
+   * The PKCE check is the point of the grant. Without it an intercepted
+   * authorization code can be redeemed by whoever intercepted it, which is
+   * precisely the attack PKCE exists to stop — so a verifier that does not
+   * enforce it has the grant without its protection.
+   */
+  function redeemAuthorizationCode(
+    req: { body?: Record<string, string> },
+    res: { status(code: number): { json(body: unknown): void } },
+  ): PendingOffer | undefined {
+    const code = req.body?.code;
+    const authorization = code ? authorizations.get(code) : undefined;
+
+    if (!authorization) {
+      res.status(400).json({ error: 'invalid_grant', error_description: 'Unknown authorization code' });
+      return undefined;
+    }
+    if (authorization.used) {
+      res.status(400).json({ error: 'invalid_grant', error_description: 'Authorization code has already been redeemed' });
+      return undefined;
+    }
+    if (Date.now() - authorization.createdAt > 600_000) {
+      res.status(400).json({ error: 'invalid_grant', error_description: 'Authorization code has expired' });
+      return undefined;
+    }
+    if (req.body?.redirect_uri && req.body.redirect_uri !== authorization.redirectUri) {
+      res.status(400).json({
+        error: 'invalid_grant',
+        error_description: 'redirect_uri does not match the one the code was issued for',
+      });
+      return undefined;
+    }
+
+    if (authorization.codeChallenge) {
+      const verifier = req.body?.code_verifier;
+      if (!verifier) {
+        res.status(400).json({ error: 'invalid_grant', error_description: 'code_verifier is required for this code' });
+        return undefined;
+      }
+      const expected =
+        authorization.codeChallengeMethod === 'plain'
+          ? verifier
+          : createHash('sha256').update(verifier, 'ascii').digest('base64url');
+
+      if (expected !== authorization.codeChallenge) {
+        res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'code_verifier does not match the code_challenge',
+        });
+        return undefined;
+      }
+    }
+
+    authorization.used = true;
+    return authorization.offer;
+  }
 
   router.post('/nonce', (_req, res) => {
     const nonce = randomBytes(16).toString('base64url');
@@ -464,18 +618,37 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
   return router;
 }
 
+/**
+ * Builds the offer.
+ *
+ * Only the grant the run selected is advertised. An offer carrying both would
+ * be realistic, but it would also let a wallet quietly use the other one — and
+ * then the run would not be testing what it claims to.
+ */
 function buildOffer(offer: PendingOffer, issuer: string): Record<string, unknown> {
+  const grants =
+    offer.grantType === 'authorization_code'
+      ? {
+          authorization_code: {
+            // Ties the authorization request back to this offer, so the issuer
+            // knows which credential the user is consenting to.
+            issuer_state: offer.id,
+            authorization_server: issuer,
+          },
+        }
+      : {
+          [PRE_AUTHORIZED_CODE_GRANT]: {
+            'pre-authorized_code': offer.preAuthorizedCode,
+            ...(offer.txCode
+              ? { tx_code: { input_mode: 'numeric', length: offer.txCode.length, description: 'Transaction code' } }
+              : {}),
+          },
+        };
+
   return {
     credential_issuer: issuer,
     credential_configuration_ids: [offer.configurationId],
-    grants: {
-      [PRE_AUTHORIZED_CODE_GRANT]: {
-        'pre-authorized_code': offer.preAuthorizedCode,
-        ...(offer.txCode
-          ? { tx_code: { input_mode: 'numeric', length: offer.txCode.length, description: 'Transaction code' } }
-          : {}),
-      },
-    },
+    grants,
   };
 }
 

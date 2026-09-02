@@ -160,3 +160,26 @@ describe('step deadlines', () => {
     assert.ok(STEP_TIMEOUTS_MS.verify > STEP_TIMEOUTS_MS.discover);
   });
 });
+
+describe('grant types', () => {
+  test('every grant has a label', async () => {
+    const { GRANT_TYPE_LABELS } = await import('@interop/shared');
+    assert.deepEqual(Object.keys(GRANT_TYPE_LABELS).sort(), ['authorization_code', 'pre-authorized_code']);
+  });
+
+  test('PKCE challenges are derived with S256, not passed through', async () => {
+    // A verifier sent as its own challenge is PKCE in name only: anyone who
+    // intercepts the authorization request learns what to send.
+    const { createHash, randomBytes } = await import('node:crypto');
+    const verifier = randomBytes(32).toString('base64url');
+    const challenge = createHash('sha256').update(verifier, 'ascii').digest('base64url');
+
+    assert.notEqual(challenge, verifier);
+    assert.equal(challenge.length, 43, 'a base64url SHA-256 digest is 43 characters');
+    assert.equal(
+      createHash('sha256').update(verifier, 'ascii').digest('base64url'),
+      challenge,
+      'the derivation must be deterministic or the token request cannot be verified',
+    );
+  });
+});

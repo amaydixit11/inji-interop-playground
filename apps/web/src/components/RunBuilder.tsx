@@ -7,6 +7,7 @@ import type {
 } from '@interop/shared';
 import type {
   FlowMode,
+  GrantType,
   IssuerKeyReference,
   ProofType,
   QueryLanguage,
@@ -23,6 +24,7 @@ import {
   VC_VERSION_LABELS,
   ISSUER_KEY_REFERENCE_LABELS,
   QUERY_LANGUAGE_LABELS,
+  GRANT_TYPE_LABELS,
 } from '@interop/shared';
 import { Badge, kindTone, TraceabilityBadge } from './primitives.js';
 
@@ -209,6 +211,21 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             {(Object.keys(VCI_DRAFT_LABELS) as VciDraft[]).map((draft) => (
               <option key={draft} value={draft}>
                 {VCI_DRAFT_LABELS[draft]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Issuance grant" hint="How the wallet obtains its access token">
+          <select
+            disabled={disabled}
+            value={config.grantType ?? 'pre-authorized_code'}
+            onChange={(event) => onChange({ ...config, grantType: event.target.value as GrantType })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(GRANT_TYPE_LABELS) as GrantType[]).map((grant) => (
+              <option key={grant} value={grant}>
+                {GRANT_TYPE_LABELS[grant]}
               </option>
             ))}
           </select>

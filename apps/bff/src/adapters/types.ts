@@ -14,6 +14,8 @@ export interface IssuerEndpoints {
   credentialIssuer: string;
   credentialEndpoint: string;
   tokenEndpoint: string;
+  /** Present when the issuer supports the authorization code grant. */
+  authorizationEndpoint?: string;
   nonceEndpoint?: string;
   jwksUri?: string;
   didDocumentUrl?: string;

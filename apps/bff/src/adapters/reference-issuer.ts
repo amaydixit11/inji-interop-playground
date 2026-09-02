@@ -65,6 +65,7 @@ export class ReferenceIssuer extends BaseOid4vciIssuer {
         proofType: opts.proofType,
         vcVersion: ctx.config.vcVersion ?? '1.1',
         issuerKeyReference: ctx.config.issuerKeyReference ?? 'did',
+        grantType: ctx.config.grantType ?? 'pre-authorized_code',
         claims: opts.claims,
         tamper: ctx.config.tamper,
       },

@@ -11,6 +11,8 @@
 export const PRE_AUTHORIZED_CODE_GRANT =
   'urn:ietf:params:oauth:grant-type:pre-authorized_code';
 
+export const AUTHORIZATION_CODE_GRANT = 'authorization_code';
+
 export interface CredentialOffer {
   credential_issuer: string;
   /** Draft 13 onwards. Earlier drafts used the `credentials` array. */

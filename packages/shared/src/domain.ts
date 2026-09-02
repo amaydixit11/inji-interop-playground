@@ -207,6 +207,23 @@ export const FLOW_MODE_LABELS: Record<FlowMode, string> = {
 };
 
 /**
+ * Which OpenID4VCI grant the wallet uses to obtain the credential.
+ *
+ * Every run so far used the pre-authorized code, because it is the only grant
+ * that needs no human — which is what makes unattended testing possible, and
+ * also means the flow most real deployments actually use went untested. The
+ * authorization code grant adds an authorization request, a redirect, a user
+ * consent step and PKCE, each of which is a place for two implementations to
+ * disagree.
+ */
+export type GrantType = 'pre-authorized_code' | 'authorization_code';
+
+export const GRANT_TYPE_LABELS: Record<GrantType, string> = {
+  'pre-authorized_code': 'Pre-authorized code (no login)',
+  authorization_code: 'Authorization code with PKCE (consent step)',
+};
+
+/**
  * How a verifier states what it wants.
  *
  * OpenID4VP 1.0 replaces Presentation Exchange with DCQL, and the two are not
@@ -270,6 +287,8 @@ export interface RunConfig {
   issuerKeyReference?: IssuerKeyReference;
   /** How the verifier states its request; defaults to Presentation Exchange. */
   queryLanguage?: QueryLanguage;
+  /** Which OpenID4VCI grant to use; defaults to the pre-authorized code. */
+  grantType?: GrantType;
   /**
    * Stop after this phase and treat the run as complete.
    *
