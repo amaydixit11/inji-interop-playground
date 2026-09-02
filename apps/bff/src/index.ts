@@ -218,6 +218,51 @@ app.post('/api/runs/:id/abort', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+/* --------------------------- verify-service proxy ------------------------- */
+
+/**
+ * Same-origin passthrough to the configured verify-service.
+ *
+ * MOSIP's own React SDK is a component library meant to be embedded in someone
+ * else's relying-party page, but verify-service sends no CORS headers and
+ * answers preflight with 403 — so a browser cannot call it from anywhere except
+ * a page served from its own origin. A same-origin proxy is the workaround any
+ * integrator ends up writing, so the playground writes it once and says so.
+ *
+ * Deliberately fixed to the configured target rather than taking a URL: an open
+ * forwarder reachable from a browser is a liability, and nothing here needs one.
+ */
+app.use('/proxy/verify', async (req, res) => {
+  const target = new URL(`.${req.url}`, `${config.verifyBaseUrl.replace(/\/$/, '')}/`).toString();
+
+  try {
+    const upstream = await fetch(target, {
+      method: req.method,
+      headers: {
+        ...(req.header('content-type') ? { 'content-type': req.header('content-type') as string } : {}),
+        ...(req.header('accept') ? { accept: req.header('accept') as string } : {}),
+        // Forwarded so the cookie-correlated session API keeps working.
+        ...(req.header('cookie') ? { cookie: req.header('cookie') as string } : {}),
+      },
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body ?? {}),
+    });
+
+    const body = await upstream.text();
+    const setCookie = upstream.headers.get('set-cookie');
+    if (setCookie) res.setHeader('set-cookie', setCookie);
+
+    res
+      .status(upstream.status)
+      .type(upstream.headers.get('content-type') ?? 'application/json')
+      .send(body);
+  } catch (error) {
+    res.status(502).json({
+      error: 'upstream_unreachable',
+      error_description: `Could not reach ${target}: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+});
+
 /* ------------------------------ Static UI -------------------------------- */
 
 // In production the built UI is served by this same process, so the playground

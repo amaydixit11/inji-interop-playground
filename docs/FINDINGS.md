@@ -513,6 +513,126 @@ by-value form exists at all is that it is the easier one to build.
 
 ---
 
+## 16. Confirmed on MOSIP's own public sandbox
+
+**Observed.** Everything above was found against a local Docker deployment, which leaves open the
+question of whether it was self-inflicted. It was not. Auditing the metadata of
+`https://injicertify-mock.collab.mosip.net` — MOSIP's own hosted Collab Certify, which nobody here
+configured — reproduces finding 4 exactly:
+
+| Document | At the issuer identifier | Under `/v1/certify` |
+| --- | --- | --- |
+| `openid-credential-issuer` | 200 | 200 |
+| `oauth-authorization-server` | **404** | 200 |
+| `jwks.json` | **404** | 200 |
+| `did.json` | 200, well-formed | — |
+
+So the routing gap is how Certify is deployed, not how it was deployed *here*.
+
+Two differences from the local instance, both worth recording:
+
+- **Collab publishes a proper DID document**, with an `Ed25519VerificationKey2020` carrying a key.
+  The local instance publishes none, because `VCIssuance` plugin mode does not support it
+  (finding 4b). So key material *is* resolvable on Collab, and finding 4's impact there is limited to
+  the token endpoint.
+- **Collab advertises `MockVerifiableCredential_VCDM2.0`** — a W3C VC Data Model 2.0 configuration —
+  alongside the 1.1 one, and exposes a `nonce_endpoint`. Both are OpenID4VCI 1.0 era features and
+  ahead of the local 0.14.0 image.
+
+Issuance could not be exercised: Collab delegates authorization to eSignet
+(`grant_types_supported: ["authorization_code"]`) and its `/pre-authorized-data` returns an error
+envelope, so nothing can be issued without a person logging in. The playground therefore supports
+stopping a run after discovery, so a metadata audit is reported as a completed partial run rather
+than as a failure to issue.
+
+---
+
+## 17. Collab's DID document authorises the DID itself, not a key
+
+**Observed.** `https://injicertify-mock.collab.mosip.net/.well-known/did.json`:
+
+```json
+{
+  "id": "did:web:injicertify-mock.collab.mosip.net",
+  "verificationMethod": [
+    { "id": "did:web:injicertify-mock.collab.mosip.net#sLECdoF_na9Cdz3LCIXi8n_qdzmaFCy0wr5vIJ7CIJQ",
+      "type": "Ed25519VerificationKey2020", "publicKeyMultibase": "..." }
+  ],
+  "assertionMethod": ["did:web:injicertify-mock.collab.mosip.net"]
+}
+```
+
+`assertionMethod` names the **DID**, not the verification method id. DID Core §5.3.2 requires each
+entry to be an embedded verification method or a reference to one — which means an id carrying the
+fragment, here `#sLECdoF_…`.
+
+**Why it matters.** A Data Integrity verifier establishes that the key which made a proof is
+authorised for the `assertionMethod` purpose. Dereferencing this entry returns the DID document
+rather than a key, so there is nothing to compare the proof's `verificationMethod` against. Whether
+that fails open or closed depends on the implementation — which is the worst kind of ambiguity to
+leave inside a trust decision.
+
+The playground checks this (`vci.issuer.assertion-method`) and it passes against a correctly formed
+document, so the check is not simply strict.
+
+**Suggested fix:** `"assertionMethod": ["did:web:injicertify-mock.collab.mosip.net#sLECdoF_…"]`.
+
+---
+
+## 18. MOSIP's own verification SDK cannot reach verify-service from another origin
+
+**Observed.** `@injistack/react-inji-verify-sdk` is a React component library, explicitly intended to
+be embedded in a relying party's own page. Mounted in this playground and pointed at verify-service:
+
+```
+OPTIONS http://localhost:8010/v1/verify/v2/vp-session-request → 403
+TypeError: Failed to fetch
+```
+
+verify-service sends no `Access-Control-*` headers at all and answers the preflight with `403`. A
+browser therefore cannot call it from any page except one served from its own origin — which is the
+one situation where you would not need a component library.
+
+Every integrator embedding this SDK has to put a same-origin proxy in front of verify-service. The
+playground now ships one (`/proxy/verify`, fixed to the configured target rather than taking a URL,
+because an open forwarder reachable from a browser is a liability). It works, and it should not be
+necessary.
+
+**Suggested fix:** configurable CORS on verify-service, or documentation stating plainly that the SDK
+requires a proxy and why.
+
+---
+
+## 19. The current SDK and the released verify-service are on opposite sides of a version boundary
+
+**Observed**, and the more consequential half of finding 18.
+
+`@mosip/react-inji-verify-sdk` — the package the problem statement names — is **deprecated**, with a
+community advisory directing users to `@injistack/react-inji-verify-sdk`. Following that advice
+breaks against the current release:
+
+| SDK | Endpoint it calls | On verify-service 0.18.2 |
+| --- | --- | --- |
+| `@mosip/…@0.16.0` (deprecated) | `/vp-request`, `/vc-verification` | both exist |
+| `@injistack/…@1.0.0-dev.2` (current) | `/v2/vp-session-request` | **404** |
+
+With CORS worked around by the proxy, the SDK's request reaches verify-service and comes back
+`404 Not Found`. Confirmed independently: `/v2/vp-session-request`, `/v2/vp-request` and
+`/v2/vp-session-results` are all absent from 0.18.2, while the v1 paths the deprecated SDK uses are
+present.
+
+In fairness, `1.0.0-dev.2` is a prerelease and is presumably built against an unreleased
+verify-service. The problem is the combination a reader is steered into: the named package is
+deprecated, the replacement is a prerelease requiring an API the current release does not expose, and
+nothing states which pairs of versions actually work together — which is finding 14 again, from the
+other direction.
+
+**Suggested fix:** a compatibility statement in the SDK README naming the verify-service versions
+each release targets. The playground keeps the current SDK and shows the 404, so the boundary is
+visible rather than mysterious.
+
+---
+
 ## What works, and is worth saying so
 
 A findings list that only records defects gives a misleading impression of a project. Three things
@@ -534,21 +654,21 @@ were tested specifically because they might have been wrong, and were not:
 Included because they are the ones only a real counterparty could have surfaced, and because a
 report that lists only other people's defects is not a credible one.
 
-### 16. The reference wallet sent two key identifiers in a proof
+### 20. The reference wallet sent two key identifiers in a proof
 
 Certify rejected our proof with `invalid_proof: Error encountered during proof jwt parsing`. Our
 wallet was setting both `jwk` and `kid` in the `openid4vci-proof+jwt` header. OpenID4VCI §7.2.1
 requires **exactly one**. Our own issuer accepted it, so the bug was invisible until a second
 implementation saw it.
 
-### 17. Preferring a DID reference over a raw key broke SD-JWT holder binding
+### 21. Preferring a DID reference over a raw key broke SD-JWT holder binding
 
 Once fixed, our wallet chose `kid` whenever the issuer advertised any DID method. An SD-JWT issuer
 needs a raw key to place in `cnf`, so credentials went out unbound and Inji Verify correctly
 rejected them with `ERR_INVALID_CNF: Missing 'cnf' in SD-JWT payload`. The wallet now prefers a bare
 `jwk`, falling back to `did:jwk`.
 
-### 18. Corrupting the last base64url character may not corrupt anything
+### 22. Corrupting the last base64url character may not corrupt anything
 
 An Ed25519 signature is 64 bytes, or 86 base64url characters, of which the last carries 4
 significant bits and 2 unused. Changing it can decode to the same bytes, leaving the signature
@@ -556,14 +676,14 @@ valid. Our first fault-injection implementation did exactly this, and the `break
 passed while testing nothing. Any negative-path suite that corrupts an encoded signature by touching
 its last character has the same problem.
 
-### 19. A verifier that checks only signatures accepts the wrong credential
+### 23. A verifier that checks only signatures accepts the wrong credential
 
 An early version of our reference verifier checked issuer signatures, disclosure digests and key
 binding — and accepted a credential of an unrelated type, because nothing evaluated the presentation
 definition it had itself sent. A valid signature proves someone authentic signed something; it does
 not prove the holder satisfies what was asked. The same gap is worth checking for in any verifier.
 
-### 20. Reading a result from the wrong field name looks exactly like the other party being broken
+### 24. Reading a result from the wrong field name looks exactly like the other party being broken
 
 Our Inji Verify adapter derived its verdict from `verificationStatus`, which the v2 result does not
 carry. Every successful verification was therefore read as `UNKNOWN` and counted as a failure — and
@@ -579,7 +699,7 @@ correctly, and there is no external signal when one does not. The mitigation now
 credential verification, which cross-checks the same credential through a second endpoint — that is
 how the discrepancy surfaced.
 
-### 21. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
+### 25. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
 
 `toJwk({secretKey: true})` returns the 64-byte libsodium private key (seed ‖ public key) as JWK `d`.
 RFC 8037 §2 defines `d` as the 32-byte seed alone, and Node rejects the longer value with
@@ -605,6 +725,10 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | 13 | `mosip/mimoto` | documentation — Inji Web is not a general OpenID4VCI wallet |
 | 14 | `mosip/inji-certify`, `mosip/inji-verify` | no build version is discoverable; blocks regression attribution |
 | 15 | integrator guidance | by-value OpenID4VP requests do not scan; use `request_uri` |
-| 21 | `@digitalbazaar/ed25519-multikey` | spec deviation |
+| 16 | `mosip/inji-certify` | finding 4 confirmed on the public Collab deployment |
+| 17 | `mosip/inji-certify` | Collab DID document authorises the DID, not a key |
+| 18 | `mosip/inji-verify` | no CORS, so the official SDK needs a proxy |
+| 19 | `inji-verify` SDK | current SDK prerelease requires a v2 API the release does not expose |
+| 25 | `@digitalbazaar/ed25519-multikey` | spec deviation |
 
-Findings 16–20 are ours and are already fixed in this repository.
+Findings 20–24 are ours and are already fixed in this repository.

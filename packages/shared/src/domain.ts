@@ -251,6 +251,15 @@ export interface RunConfig {
   vcVersion?: VcVersion;
   /** How an SD-JWT names its issuer key; defaults to the DID. */
   issuerKeyReference?: IssuerKeyReference;
+  /**
+   * Stop after this phase and treat the run as complete.
+   *
+   * For auditing a deployment the playground cannot drive end to end — an
+   * issuer behind an interactive login, say. Its metadata is still worth
+   * checking, and a metadata audit that reports itself as a failed run because
+   * it never issued anything is telling you about the wrong thing.
+   */
+  stopAfter?: StepId;
   tamper: TamperMode;
   /** Claims to put in the credential; defaults to a sample identity subject. */
   claims?: Record<string, unknown>;

@@ -7,6 +7,7 @@ import { useRun } from './hooks/useRun.js';
 import { ChecksPanel } from './components/ChecksPanel.js';
 import { Compare } from './components/Compare.js';
 import { Dashboard } from './components/Dashboard.js';
+import { OfficialSdk } from './components/OfficialSdk.js';
 import { HistoryMatrix, toMarkdown } from './components/HistoryMatrix.js';
 import { ProtocolInspector } from './components/ProtocolInspector.js';
 import { RunBuilder } from './components/RunBuilder.js';
@@ -27,7 +28,7 @@ const DEFAULT_CONFIG: RunConfig = {
   tamper: 'none',
 };
 
-type View = 'live' | 'story' | 'sequence' | 'dashboard' | 'compare' | 'history';
+type View = 'live' | 'story' | 'sequence' | 'dashboard' | 'compare' | 'history' | 'sdk';
 
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -141,7 +142,7 @@ export function App() {
         </button>
 
         <nav className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
-          {(['live', 'story', 'sequence', 'dashboard', 'compare', 'history'] as View[]).map((value) => (
+          {(['live', 'story', 'sequence', 'dashboard', 'compare', 'sdk', 'history'] as View[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -179,6 +180,13 @@ export function App() {
               assuming you know the protocols.
             </div>
           )
+        ) : view === 'sdk' ? (
+          <OfficialSdk
+            verifyServiceUrl={
+              participants.find((participant) => participant.id === 'inji-verify')?.config.find((field) => field.key === 'baseUrl')
+                ?.value ?? 'http://localhost:8010/v1/verify'
+            }
+          />
         ) : view === 'compare' ? (
           <Compare runs={history} />
         ) : view === 'history' ? (

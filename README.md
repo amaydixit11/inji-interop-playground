@@ -238,6 +238,11 @@ the run.
 **Interoperability matrix** — every recorded run, filterable, exportable as Markdown for a report or
 a GitHub issue.
 
+**Verify with MOSIP's own SDK** — a view that mounts `@injistack/react-inji-verify-sdk` and points it
+at verify-service, so a result comes from their client and their service with nothing of this project
+in between. Every other finding depends on our adapter reading verify-service correctly, and
+[finding 24](docs/FINDINGS.md) records what happened when it did not.
+
 **Export this run** — any finished run as a self-contained Markdown report: configuration, every
 assertion with the clause it cites, and the exchanges that produced them. Written to be pasted into
 a bug report by someone who was not watching.

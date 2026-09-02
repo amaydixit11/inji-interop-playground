@@ -221,9 +221,62 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
       attributedTo: resolvable ? undefined : 'issuer',
     });
 
+    if (did.ok && didMethods > 0) this.checkAssertionMethods(ctx, did.body);
     if (!resolvable) await this.probeAlternateKeyLocation(ctx, base);
     if (did.ok && didMethods > 0) ctx.artifact({ label: 'Issuer DID document', kind: 'json', value: did.body });
     if (jwks.ok && jwkCount > 0) ctx.artifact({ label: 'Issuer JWKS', kind: 'json', value: jwks.body });
+  }
+
+  /**
+   * Checks that `assertionMethod` names verification methods, not the DID.
+   *
+   * DID Core requires each entry to be an embedded verification method or a
+   * reference to one — which means an id carrying a fragment. An entry that is
+   * the bare DID dereferences to the document itself rather than to a key, so a
+   * verifier establishing that a proof's key is authorised for assertions has
+   * nothing to compare against. It fails open or closed depending on the
+   * implementation, which is the worst kind of ambiguity to leave in a trust
+   * decision.
+   */
+  protected checkAssertionMethods(ctx: RunContext, document: Record<string, unknown>): void {
+    const entries = Array.isArray(document.assertionMethod) ? document.assertionMethod : [];
+    if (entries.length === 0) {
+      ctx.check({
+        id: 'vci.issuer.assertion-method',
+        title: 'DID document authorises a key for assertions',
+        status: 'warn',
+        spec: 'DID Core §5.3.2',
+        detail:
+          'The DID document lists no assertionMethod. A verifier checking that the proof key is authorised to make assertions has nothing to check against.',
+        attributedTo: 'issuer',
+      });
+      return;
+    }
+
+    const ids = new Set(
+      (Array.isArray(document.verificationMethod) ? document.verificationMethod : [])
+        .map((method) => (method && typeof method === 'object' ? (method as Record<string, unknown>).id : undefined))
+        .filter((id): id is string => typeof id === 'string'),
+    );
+
+    const unresolvable = entries.filter((entry) => {
+      if (entry && typeof entry === 'object') return false; // embedded, fine
+      return typeof entry !== 'string' || !ids.has(entry);
+    });
+
+    ctx.check({
+      id: 'vci.issuer.assertion-method',
+      title: 'assertionMethod entries reference a verification method',
+      status: unresolvable.length === 0 ? 'pass' : 'fail',
+      spec: 'DID Core §5.3.2',
+      detail:
+        unresolvable.length === 0
+          ? `All ${entries.length} assertionMethod entr(y/ies) resolve to a verification method in the document.`
+          : `${unresolvable.map((entry) => `"${String(entry)}"`).join(', ')} ${
+              unresolvable.length === 1 ? 'is' : 'are'
+            } not the id of any verification method in this document. Verification method ids present: ${[...ids].join(', ') || '(none)'}. An entry that is the bare DID dereferences to the document rather than to a key.`,
+      attributedTo: unresolvable.length === 0 ? undefined : 'issuer',
+    });
   }
 
   /**

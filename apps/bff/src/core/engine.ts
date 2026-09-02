@@ -12,11 +12,19 @@ import type {
   StepStatus,
   TamperMode,
 } from '@interop/shared';
+import { STEP_LABELS } from '@interop/shared';
 import { RunContext, RunFailure, type EventSink } from './context.js';
 import { buildNarrative } from './narrative.js';
 import { resolveVersions } from './versions.js';
 import { DEFAULT_CLAIMS } from './credentials.js';
-import type { IssuerAdapter, VerificationOutcome, VerifierAdapter, WalletAdapter } from '../adapters/types.js';
+import type {
+  HeldCredential,
+  IssuerAdapter,
+  PresentationRequest,
+  VerificationOutcome,
+  VerifierAdapter,
+  WalletAdapter,
+} from '../adapters/types.js';
 
 export interface RunParticipants {
   issuer: IssuerAdapter;
@@ -182,11 +190,13 @@ export class Run {
       this.ctx.setStep('discover', 'running');
       const endpoints = await this.participants.issuer.discover(this.ctx, issueOptions);
       this.ctx.setStep('discover', 'passed');
+      if (this.stopHere('discover')) return this.finish(versions);
 
       this.ctx.setStep('offer', 'running');
       const offer = await this.participants.issuer.createOffer(this.ctx, endpoints, issueOptions);
       this.ctx.artifact({ label: 'Credential offer URI', kind: 'qr', value: offer.offerUri });
       this.ctx.setStep('offer', 'passed');
+      if (this.stopHere('offer')) return this.finish(versions);
 
       this.ctx.setStep('issue', 'running');
       held = await this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions);
@@ -205,6 +215,7 @@ export class Run {
       }
 
       this.ctx.setStep('issue', 'passed');
+      if (this.stopHere('issue')) return this.finish(versions, held);
 
       this.ctx.setStep('present', 'running');
       request = await this.participants.verifier.createRequest(this.ctx, presentOptions);
@@ -230,6 +241,20 @@ export class Run {
       }
     }
 
+    return this.finish(versions, held, request, outcome, failure);
+  }
+
+  /**
+   * Builds the summary and record, whether the run completed all five phases or
+   * stopped early. Shared so a partial run is reported to the same standard.
+   */
+  private finish(
+    versions: ParticipantVersion[],
+    held?: HeldCredential,
+    request?: PresentationRequest,
+    outcome?: VerificationOutcome,
+    failure?: RunSummary['failure'],
+  ): RunRecord {
     const genuineFailures = this.ctx.checks.filter((c) => c.status === 'fail' && !c.expected);
     const summary: RunSummary = {
       checksPassed: this.ctx.checks.filter((c) => c.status === 'pass').length,
@@ -257,6 +282,29 @@ export class Run {
     });
 
     return this.toRecord(summary, buildNarrative({ held, request, outcome, checks: this.ctx.checks }), versions);
+  }
+
+  /**
+   * Whether the run was asked to stop here.
+   *
+   * Steps after the stopping point are marked skipped rather than left pending,
+   * so a reader can tell a deliberate stop from a run that died quietly.
+   */
+  private stopHere(step: StepId): boolean {
+    if (this.config.stopAfter !== step) return false;
+
+    for (const remaining of STEP_ORDER.slice(STEP_ORDER.indexOf(step) + 1)) {
+      this.ctx.setStep(remaining, 'skipped');
+    }
+    this.ctx.check({
+      id: 'run.stopped-early',
+      title: `Run stopped after "${STEP_LABELS[step]}" as requested`,
+      status: 'pass',
+      spec: 'Playground configuration',
+      detail:
+        'A partial run by design. The phases that did run were checked in full; the later ones were not attempted, so this result says nothing about them.',
+    });
+    return true;
   }
 
   /** Rejects combinations that cannot work, before any network traffic. */

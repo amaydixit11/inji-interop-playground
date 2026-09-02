@@ -181,6 +181,36 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: 'collab-audit',
+    title: 'Is the public MOSIP Collab sandbox conformant?',
+    question:
+      "Audit the metadata of MOSIP's own hosted Certify — discovery only, since issuance there needs an interactive eSignet login.",
+    expect:
+      'Fails on metadata conformance, and independently confirms the local findings: the authorization server metadata and JWKS are both absent from the credential issuer identifier. Needs internet access, not the local stack.',
+    duration: 'seconds',
+    requires: [],
+    order: 12,
+    config: {
+      issuerId: 'inji-certify',
+      walletId: 'reference-wallet',
+      verifierId: 'reference-verifier',
+      format: 'ldp_vc',
+      // Discovery only: Collab's Certify delegates authorization to eSignet and
+      // exposes no working pre-authorized code grant, so nothing can be issued
+      // without a person logging in. The metadata is still worth checking.
+      stopAfter: 'discover',
+      tamper: 'none',
+      overrides: {
+        'inji-certify': {
+          baseUrl: 'https://injicertify-mock.collab.mosip.net',
+          apiBaseUrl: 'https://injicertify-mock.collab.mosip.net/v1/certify',
+          credentialConfigurationId: 'MockVerifiableCredential',
+          version: 'collab',
+        },
+      },
+    },
+  },
+  {
     id: 'phone-wallet',
     title: 'Does it work with a real phone wallet?',
     question: 'Show a QR code, scan it with Inji Wallet, and let the phone talk to the issuer directly.',
@@ -188,7 +218,7 @@ export const SCENARIOS: Scenario[] = [
       'Needs a phone, and PUBLIC_URL set to something it can reach. The run is marked endpoint-only: the wallet’s own traffic is not captured, so it is weaker evidence than the others.',
     duration: 'needs-a-phone',
     requires: [],
-    order: 12,
+    order: 13,
     config: {
       issuerId: 'reference-issuer',
       walletId: 'inji-wallet',

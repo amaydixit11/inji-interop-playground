@@ -10,6 +10,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': BFF,
+      '/proxy': BFF,
       '/ws': { target: BFF, ws: true },
     },
   },
