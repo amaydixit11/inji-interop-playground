@@ -75,39 +75,11 @@ never be supplied.
 **Suggested fix:** document that the pre-authorized code flow requires `plugin-mode=VCIssuance`, and
 reject the combination at startup rather than at the first credential request.
 
-## 4. Most `.well-known` documents are not served at the credential issuer identifier
+## 4. Discovery and key material are not served at the issuer identifier
 
-With Certify configured as its own authorization server, `credential_issuer` is `http://localhost:8091`:
-
-| Document | At the issuer identifier | Under `/v1/certify` |
-| --- | --- | --- |
-| `openid-credential-issuer` | 200 | 200 |
-| `oauth-authorization-server` | **404** | 200 |
-| `jwks.json` | **404** | 200 |
-
-`certify-nginx.conf` proxies only `openid-credential-issuer` and `did.json` to the origin. RFC 8414
-and RFC 7517 place their documents at the issuer identifier, so conformant discovery finds neither
-the token endpoint nor the issuer's keys — even though both exist one path segment away.
-
-**Impact:** a verifier resolving the issuer's key from the credential issuer identifier gets nothing,
-so it cannot verify a credential from an issuer it was not separately configured with.
-
-**Suggested fix:** add `oauth-authorization-server` and `jwks.json` to the nginx locations.
-
-## 4b. `/.well-known/did.json` returns HTTP 200 with an error body
-
-```
-GET http://localhost:8091/.well-known/did.json   → HTTP 200
-
-{"response":null,"errors":[{"errorCode":"unsupported_in_current_plugin_mode"}]}
-```
-
-An error returned as `200` is treated as the document by any client that checks the status code, and
-by caching layers. It should be a `4xx` or `501`.
-
-Separately: no DID document is available in `VCIssuance` plugin mode at all. Combined with issue 6
-below — credentials in that mode are issued by `did:example:123456789` — the issuer publishes no
-resolvable identity and its credentials name an unresolvable one.
+Split into its own report: see `certify-wellknown-routing.md`. It reproduces on the public Collab
+deployment as well as locally, so it is a property of how Certify is deployed rather than of this
+setup.
 
 ## 6. The mock issuance plugin emits a structurally unverifiable credential
 

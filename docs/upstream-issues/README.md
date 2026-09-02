@@ -10,9 +10,11 @@ Mimoto 0.21.0) and may already be fixed on `develop`.
 | File | Repository | Severity |
 | --- | --- | --- |
 | `certify-preauth-blockers.md` | `mosip/inji-certify` | blocker — pre-authorized code flow unusable as shipped |
+| `certify-wellknown-routing.md` | `mosip/inji-certify` | conformance — reproduced on the public Collab deployment |
 | `verify-didweb-port.md` | `mosip/inji-verify` | blocker for any non-default-port deployment |
 | `verify-db-schema.md` | `mosip/inji-verify` | blocker — shipped schema does not match shipped image |
-| `verify-context-and-x5c.md` | `mosip/inji-verify` | interoperability limits |
+| `verify-context-and-x5c.md` | `mosip/inji-verify` | four interoperability limits, one confirmed by controlled comparison |
+| `version-and-sdk-alignment.md` | Certify, Verify, the SDK | nothing states which versions work together, and two do not |
 
 The findings not drafted here are either documentation points, notes about this playground's own
 code, or a third-party library issue — see [`../FINDINGS.md`](../FINDINGS.md).

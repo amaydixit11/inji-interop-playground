@@ -348,8 +348,9 @@ Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
 [Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
 [Inji Verify](docs/INTEROPERABILITY-inji-verify.md).
 
-Four of the findings are drafted as ready-to-file upstream issues in
-[`docs/upstream-issues/`](docs/upstream-issues/). **None has been filed** — they should be checked
+The findings are drafted as ready-to-file upstream issues in
+[`docs/upstream-issues/`](docs/upstream-issues/) — six reports, each written to stand on its own so a
+maintainer need not read this repository to act on it. **None has been filed**: they should be checked
 against the latest release first, since all were found on pinned versions.
 
 ## If you are changing one of these services
