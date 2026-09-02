@@ -41,8 +41,15 @@ export class InjiVerifyVerifier implements VerifierAdapter {
           key: 'baseUrl',
           label: 'verify-service base URL',
           value: defaults.baseUrl,
-          placeholder: 'http://localhost:8000/v1/verify',
+          placeholder: 'http://localhost:8010/v1/verify',
           required: true,
+        },
+        {
+          key: 'resultMode',
+          label: 'Result API (transaction | session)',
+          value: 'transaction',
+          placeholder: 'transaction',
+          required: false,
         },
       ],
     };
@@ -54,6 +61,70 @@ export class InjiVerifyVerifier implements VerifierAdapter {
       this.manifest.config.find((f) => f.key === 'baseUrl')?.value ??
       ''
     ).replace(/\/$/, '');
+  }
+
+  /**
+   * Surfaces each sub-check verify-service reports, for either result API.
+   *
+   * Shared so the two APIs are held to the same scrutiny — a path that reports
+   * fewer checks looks cleaner without being cleaner, which is the worst
+   * possible outcome for a conformance tool.
+   */
+  private reportCredentialResults(
+    ctx: RunContext,
+    credentialResults: Array<{
+      allChecksSuccessful?: boolean;
+      schemaAndSignatureCheck?: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } };
+      expiryCheck?: { valid?: boolean } | null;
+      statusCheck?: unknown[];
+      holderProofCheck?: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } } | null;
+    }>,
+  ): void {
+    for (const [index, entry] of credentialResults.entries()) {
+      const prefix = credentialResults.length > 1 ? `credential ${index + 1}: ` : '';
+
+      report(ctx, `verifier.inji.signature-${index}`, `${prefix}Signature and schema`, entry.schemaAndSignatureCheck);
+      report(ctx, `verifier.inji.holder-proof-${index}`, `${prefix}Holder proof`, entry.holderProofCheck);
+
+      if (entry.expiryCheck) {
+        ctx.check({
+          id: `verifier.inji.expiry-${index}`,
+          title: `Inji Verify: ${prefix}Within validity period`,
+          status: entry.expiryCheck.valid ? 'pass' : 'warn',
+          spec: 'Inji Verify credential verification',
+          detail: entry.expiryCheck.valid
+            ? 'Inji Verify found the credential in date.'
+            : 'Inji Verify reports the credential as expired.',
+        });
+      }
+
+      // An empty status list is not the same as a clean one: verify-service
+      // logs that status checking is unsupported for some formats and returns
+      // nothing, which reads identically to "checked, and fine".
+      const statusChecks = entry.statusCheck ?? [];
+      ctx.check({
+        id: `verifier.inji.status-${index}`,
+        title: `Inji Verify: ${prefix}Revocation status was checked`,
+        status: statusChecks.length > 0 ? 'pass' : 'warn',
+        spec: 'W3C Bitstring Status List / IETF Token Status List',
+        detail:
+          statusChecks.length > 0
+            ? `verify-service ran ${statusChecks.length} status check(s).`
+            : 'verify-service returned an empty status list. Its log reports status checking as unsupported for this credential format, so a revoked credential would be accepted.',
+        attributedTo: statusChecks.length > 0 ? undefined : 'verifier',
+      });
+    }
+  }
+  /**
+   * Which of verify-service's two result APIs to use.
+   *
+   * `transaction` correlates by an id the caller passes; `session` correlates by
+   * an httpOnly cookie the service sets, for a verifier whose result is read by
+   * the same browser that started the request. They are separate code paths on
+   * the service side, so exercising only one leaves the other untested.
+   */
+  private resultMode(ctx: RunContext): 'transaction' | 'session' {
+    return ctx.config.overrides?.[this.manifest.id]?.resultMode === 'session' ? 'session' : 'transaction';
   }
 
   async createRequest(ctx: RunContext, opts: PresentOptions): Promise<PresentationRequest> {
@@ -77,10 +148,12 @@ export class InjiVerifyVerifier implements VerifierAdapter {
         presentationDefinitionUri?: string;
       };
     }>({
-      label: 'Create VP Request (Inji Verify)',
+      label: `Create VP Request (Inji Verify, ${this.resultMode(ctx)})`,
       from: 'Playground',
       to: 'Inji Verify',
-      url: `${base}/vp-request`,
+      // The session variant sets an httpOnly cookie carrying the transaction id
+      // instead of returning it for the caller to hold.
+      url: this.resultMode(ctx) === 'session' ? `${base}/vp-session-request` : `${base}/vp-request`,
       json: {
         clientId: `${base}/vp-submission/direct-post`,
         transactionId,
@@ -89,6 +162,12 @@ export class InjiVerifyVerifier implements VerifierAdapter {
         acceptVPWithoutHolderProof: false,
       },
     });
+
+    const setCookie = response.exchange.responseHeaders?.['set-cookie'];
+    if (setCookie) {
+      // Only the name=value pair travels back; attributes are for the browser.
+      ctx.state.set('inji-verify.cookie', String(setCookie).split(';')[0]);
+    }
 
     const details = response.body.authorizationDetails;
     if (!details) {
@@ -294,6 +373,90 @@ export class InjiVerifyVerifier implements VerifierAdapter {
     }
   }
 
+  /**
+   * Reads the result through the cookie-correlated session API.
+   *
+   * The cookie is captured from the create call and replayed here, which is
+   * what a browser would do. Checking it is worthwhile: an httpOnly cookie is
+   * the only thing standing between a result and anyone who can guess a
+   * transaction id, so whether it is actually required is a security property
+   * rather than a detail.
+   */
+  private async fetchSessionResult(
+    ctx: RunContext,
+    base: string,
+    request: PresentationRequest,
+  ): Promise<VerificationOutcome> {
+    const cookie = ctx.state.get('inji-verify.cookie') as string | undefined;
+
+    ctx.expect(Boolean(cookie), {
+      id: 'vp.session.cookie-set',
+      title: 'Session request set a correlation cookie',
+      spec: 'Inji Verify /vp-session-request',
+      pass: 'The create call returned a Set-Cookie header, so a browser could correlate the result without holding an id.',
+      fail: 'No cookie was set, so the session result API has nothing to correlate on.',
+      attributedTo: 'verifier',
+    });
+
+    // Asked for without the cookie first: if that succeeds, the cookie is
+    // decoration and anyone who can guess a transaction id can read the result.
+    const unauthenticated = await ctx.http<unknown>({
+      label: 'Fetch Session Result (no cookie)',
+      from: 'Playground',
+      to: 'Inji Verify',
+      url: `${base}/vp-session-results`,
+      json: { skipStatusChecks: false, includeClaims: true },
+      allowNonOk: true,
+    });
+
+    ctx.expect(!unauthenticated.ok, {
+      id: 'vp.session.cookie-required',
+      title: 'Session result cannot be read without the cookie',
+      spec: 'Inji Verify /vp-session-results',
+      pass: `Refused with HTTP ${unauthenticated.status} when the cookie was absent, as it must be.`,
+      fail: 'The result was returned without the session cookie. Anyone able to reach the endpoint can read somebody else\u2019s presentation result.',
+      attributedTo: 'verifier',
+    });
+
+    const result = await ctx.http<{
+      transactionId?: string;
+      allChecksSuccessful?: boolean;
+      credentialResults?: Array<Record<string, unknown>>;
+    }>({
+      label: 'Fetch Session Result',
+      from: 'Playground',
+      to: 'Inji Verify',
+      url: `${base}/vp-session-results`,
+      headers: cookie ? { cookie } : {},
+      json: { skipStatusChecks: false, includeClaims: true },
+      allowNonOk: true,
+    });
+
+    ctx.artifact({ label: 'Inji Verify session result', kind: 'json', value: result.body });
+
+    if (!result.ok) {
+      return {
+        verdict: 'error',
+        raw: result.body,
+        message: `The session result API returned HTTP ${result.status}.`,
+      };
+    }
+
+    const raw = result.body.credentialResults ?? [];
+    this.reportCredentialResults(ctx, raw as never);
+
+    const credentialResults = raw.map((entry) => ({
+      status: entry.allChecksSuccessful ? 'SUCCESS' : 'FAILED',
+      claims: (entry.claims as Record<string, unknown>) ?? undefined,
+    }));
+
+    return {
+      verdict: result.body.allChecksSuccessful ? 'valid' : credentialResults.length > 0 ? 'invalid' : 'error',
+      raw: result.body,
+      credentialResults,
+    };
+  }
+
   async awaitResult(ctx: RunContext, request: PresentationRequest): Promise<VerificationOutcome> {
     const base = this.baseUrl(ctx);
 
@@ -319,6 +482,8 @@ export class InjiVerifyVerifier implements VerifierAdapter {
       ctx.fail('Inji Verify never reported the presentation as submitted.', 'verifier');
     }
 
+    if (this.resultMode(ctx) === 'session') return this.fetchSessionResult(ctx, base, request);
+
     const result = await ctx.http<{
       transactionId: string;
       allChecksSuccessful?: boolean;
@@ -342,41 +507,7 @@ export class InjiVerifyVerifier implements VerifierAdapter {
 
     const credentialResults = result.body.credentialResults ?? [];
 
-    // Each sub-check is surfaced separately rather than collapsed into the
-    // verdict. verify-service reports them individually, and which ones it did
-    // *not* run is as informative as the ones that passed.
-    for (const [index, entry] of credentialResults.entries()) {
-      const prefix = credentialResults.length > 1 ? `credential ${index + 1}: ` : '';
-
-      report(ctx, `verifier.inji.signature-${index}`, `${prefix}Signature and schema`, entry.schemaAndSignatureCheck);
-      report(ctx, `verifier.inji.holder-proof-${index}`, `${prefix}Holder proof`, entry.holderProofCheck);
-
-      if (entry.expiryCheck) {
-        ctx.check({
-          id: `verifier.inji.expiry-${index}`,
-          title: `${prefix}Within validity period`,
-          status: entry.expiryCheck.valid ? 'pass' : 'warn',
-          spec: 'Inji Verify credential verification',
-          detail: entry.expiryCheck.valid ? 'Inji Verify found the credential in date.' : 'Inji Verify reports the credential as expired.',
-        });
-      }
-
-      // An empty status list is not the same as a clean one: verify-service
-      // logs that status checking is unsupported for some formats and returns
-      // nothing, which reads identically to "checked, and fine".
-      const statusChecks = entry.statusCheck ?? [];
-      ctx.check({
-        id: `verifier.inji.status-${index}`,
-        title: `${prefix}Revocation status was checked`,
-        status: statusChecks.length > 0 ? 'pass' : 'warn',
-        spec: 'W3C Bitstring Status List / IETF Token Status List',
-        detail:
-          statusChecks.length > 0
-            ? `verify-service ran ${statusChecks.length} status check(s).`
-            : 'verify-service returned an empty status list. Its log reports status checking as unsupported for this credential format, so a revoked credential would be accepted.',
-        attributedTo: statusChecks.length > 0 ? undefined : 'verifier',
-      });
-    }
+    this.reportCredentialResults(ctx, credentialResults);
 
     const verdict = deriveVerdict(result.body.allChecksSuccessful, credentialResults);
 

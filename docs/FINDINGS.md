@@ -454,6 +454,22 @@ may well consume credential offers directly; nothing here should be read as a cl
 
 ---
 
+## What works, and is worth saying so
+
+A findings list that only records defects gives a misleading impression of a project. Three things
+were tested specifically because they might have been wrong, and were not:
+
+- **The OpenID4VP request object is conformant.** Signed, and using the specified parameter names —
+  see finding 11, which began as a defect and ended as a documentation note.
+- **`/vp-session-results` requires its cookie.** Requesting a result without the session cookie is
+  refused with `401`. That httpOnly cookie is the only thing between a presentation result and
+  anyone who can reach the endpoint, so it was worth checking rather than assuming; both result APIs
+  now run through the playground and report the same set of sub-checks.
+- **With `x5c`, an SD-JWT VC verifies through Inji Verify end to end** — signature, holder proof and
+  validity period all valid. See finding 8.
+
+---
+
 ## Findings against our own code
 
 Included because they are the ones only a real counterparty could have surfaced, and because a

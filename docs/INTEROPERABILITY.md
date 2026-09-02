@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T08:01:43.049Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T08:07:25.454Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -84,9 +84,9 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 - **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
 - **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:01:33.000Z.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:01:37.000Z.
-- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T08:01:41.033Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:07:16.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:07:19.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T08:07:23.431Z.
 - **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised

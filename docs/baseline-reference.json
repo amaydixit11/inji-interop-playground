@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-02T08:01:43.047Z",
+  "recordedAt": "2026-09-02T08:07:25.450Z",
   "runs": [
     {
       "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | none",
