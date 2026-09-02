@@ -1,0 +1,73 @@
+# Unit tests and a full reference interoperability matrix on every push.
+#
+# The matrix runs against the playground's own reference implementations, which
+# need no external services — so this is a genuine end-to-end check of issuance,
+# presentation and verification across every format, suite and fault mode, not
+# just a type check.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # The built artifact rather than the dev watcher: this is what a Docker
+      # image runs, so it is what the matrix should exercise.
+      - name: Start the playground
+        run: |
+          node apps/bff/dist/index.js > bff.log 2>&1 &
+          # The reference participants are in-process, so readiness is the only
+          # thing to wait for; a fixed sleep would either flake or waste time.
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:8787/api/health; then exit 0; fi
+            sleep 2
+          done
+          echo "BFF did not become healthy"; cat bff.log; exit 1
+
+      - name: Reference interoperability matrix
+        run: node scripts/run-matrix.mjs --out reference-matrix.md
+
+      # Compared rather than merely counted: the absolute pass count says little
+      # once a deployment has known open defects, whereas a regression against a
+      # recorded baseline is always actionable.
+      - name: Check for regressions against the committed baseline
+        run: |
+          node scripts/run-matrix.mjs \
+            --baseline docs/baseline-reference.json \
+            --fail-on-regression \
+            --out regression-report.md
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interoperability-reports
+          path: |
+            reference-matrix.md
+            regression-report.md
+            bff.log

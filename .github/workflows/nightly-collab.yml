@@ -1,0 +1,82 @@
+# Nightly conformance audit of the public MOSIP Collab sandbox.
+#
+# Collab is a real deployment that nobody here configured, which is what makes it
+# worth watching: a finding that reproduces there is a property of the software
+# rather than of one local setup. It needs no credentials, so this runs without
+# secrets.
+#
+# Discovery only. Collab delegates authorization to eSignet and exposes no
+# working pre-authorized code grant, so issuance cannot complete without a person
+# logging in — and a metadata audit that reported itself as a failed run because
+# it never issued anything would be measuring the wrong thing.
+name: Nightly Collab audit
+
+on:
+  schedule:
+    # 02:00 UTC. Nothing here is time-sensitive; the point is to notice the day
+    # a Collab deployment changes.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start the playground
+        run: |
+          node apps/bff/dist/index.js > bff.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:8787/api/health; then exit 0; fi
+            sleep 2
+          done
+          echo "BFF did not become healthy"; cat bff.log; exit 1
+
+      - name: Audit Collab Certify metadata
+        id: audit
+        # Expected to report findings, so a non-zero exit is not a broken job.
+        # The artifact is the output; failing the run would only hide it.
+        continue-on-error: true
+        run: |
+          node scripts/run-matrix.mjs \
+            --issuer inji-certify \
+            --formats ldp_vc \
+            --faults none \
+            --out collab-audit.md
+        env:
+          CERTIFY_BASE_URL: https://injicertify-mock.collab.mosip.net
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo '## Collab conformance audit'
+            echo
+            if [ -f collab-audit.md ]; then
+              sed -n '/^## Findings/,/^## Conformance/p' collab-audit.md | head -40
+            else
+              echo 'The audit produced no report — see the logs.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collab-audit
+          path: |
+            collab-audit.md
+            bff.log

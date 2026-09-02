@@ -381,12 +381,38 @@ passing, and no comparison of the surviving checks would ever reveal it. Reprodu
 while building this — two runs still said `PASS`, and only the baseline caught it.
 
 `docs/baseline-reference.json` is the reference implementations' current behaviour, committed, so a
-change to the playground's own engine can be checked the same way.
+change to the playground's own engine can be checked the same way. CI runs this gate on every push.
+
+One consequence of keying a baseline on assertion ids: **renaming a check reads as a regression**,
+because the old id stops being evaluated. That is the behaviour you want — a check that quietly
+stops running is the thing hardest to notice otherwise — so re-baseline deliberately after renaming
+one, rather than loosening the comparison.
 
 Every participant's endpoint can also be overridden per run from the UI, so you can point one run at
 your local build and the next at the Collab sandbox without restarting anything. Set a `version`
 override on a participant to label the run, since neither Certify nor verify-service will report its
 own build (finding 14) — the history and dashboard both filter on it.
+
+## Continuous integration
+
+Two workflows in `.github/workflows/`:
+
+**`ci.yml`** — on every push: typecheck, the 70 unit tests, a production build, then the **full
+reference interoperability matrix** against the built artifact rather than the dev watcher, followed
+by the regression gate against the committed baseline. The matrix is a real end-to-end run of
+issuance, presentation and verification across every format, suite and fault mode — not a type check
+wearing a hat — and it needs no external services, because the reference participants are hosted
+in-process.
+
+**`nightly-collab.yml`** — a nightly conformance audit of the public MOSIP Collab sandbox, which needs
+no credentials. Discovery only, for the reason in
+[finding 16](docs/FINDINGS.md): Collab delegates authorization to eSignet, so issuance there cannot
+complete without a person logging in. The job is expected to report findings, so it does not fail on
+them — the report is the output, and failing would only bury it. Findings land in the run summary and
+as an artifact.
+
+Collab is worth watching precisely because nobody here configured it: a finding that reproduces there
+is a property of the software rather than of one local setup.
 
 ## Running the matrix from CI
 

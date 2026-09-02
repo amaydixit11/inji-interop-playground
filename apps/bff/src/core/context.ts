@@ -172,8 +172,18 @@ export class RunContext {
   /** Reports whether a QR payload can actually be scanned. */
   private assessQr(label: string, payload: string): void {
     const assessment = assessQrPayload(payload);
+
+    // Keyed on the label as well as the step. Two QR payloads in one step would
+    // otherwise share a check id, and the baseline comparison indexes checks by
+    // id — so one would silently replace the other and a regression in it could
+    // never be seen.
+    const slug = label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
     this.check({
-      id: `qr.capacity.${this.currentStep}`,
+      id: `qr.capacity.${this.currentStep}.${slug}`,
       title: `${label} fits in a scannable QR code`,
       status:
         assessment.verdict === 'comfortable'
