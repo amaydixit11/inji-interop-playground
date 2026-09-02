@@ -8,6 +8,7 @@ import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
 import type { DocumentLoader } from '../core/jsonld.js';
 import type { WalletKey } from '../core/keys.js';
+import { requestedClaimNames as dcqlClaimNames } from '../core/dcql.js';
 import { presentMdoc } from '../core/mdoc.js';
 import { parseSdJwt, presentSdJwt } from '../core/sdjwt.js';
 import type {
@@ -190,18 +191,41 @@ export class ReferenceWallet implements WalletAdapter {
       kind: held.format === 'ldp_vc' ? 'json' : held.format === 'mso_mdoc' ? 'cbor' : 'sd-jwt',
       value: vpToken,
     });
-    ctx.artifact({ label: 'presentation_submission', kind: 'json', value: submission });
+    if (submission) ctx.artifact({ label: 'presentation_submission', kind: 'json', value: submission });
+
+    const dcql = request.authorizationRequest.dcql_query;
+    const serialised = typeof vpToken === 'string' ? vpToken : JSON.stringify(vpToken);
+
+    // OpenID4VP 1.0 makes `vp_token` a map keyed by DCQL query id, so a verifier
+    // can tell which presentation answers which part of its request.
+    // Presentation Exchange sends a single value plus a descriptor map instead.
+    const form: Record<string, string> = dcql
+      ? {
+          vp_token: JSON.stringify({ [dcql.credentials[0]?.id ?? 'credential']: serialised }),
+          state: request.state,
+        }
+      : {
+          vp_token: serialised,
+          presentation_submission: JSON.stringify(submission),
+          state: request.state,
+        };
+
+    ctx.check({
+      id: 'vp.response.envelope',
+      title: dcql ? 'Response uses the DCQL-keyed vp_token map' : 'Response carries a presentation submission',
+      status: 'pass',
+      spec: 'OpenID4VP 1.0 §8.1 / OpenID4VP draft 21 §6.1',
+      detail: dcql
+        ? `vp_token is an object keyed by query id ("${dcql.credentials[0]?.id}"), as OpenID4VP 1.0 requires.`
+        : 'vp_token is a single value accompanied by a presentation_submission descriptor map.',
+    });
 
     const submitted = await ctx.http<{ redirect_uri?: string }>({
       label: 'Authorization Response (direct_post)',
       from: 'Wallet',
       to: 'Verifier',
       url: request.responseUri,
-      form: {
-        vp_token: typeof vpToken === 'string' ? vpToken : JSON.stringify(vpToken),
-        presentation_submission: JSON.stringify(submission),
-        state: request.state,
-      },
+      form,
     });
 
     if (ctx.config.flowMode === 'same-device') {
@@ -568,7 +592,7 @@ export class ReferenceWallet implements WalletAdapter {
     request: PresentationRequest,
     held: HeldCredential,
     walletKey: WalletKey,
-  ): Promise<{ vpToken: unknown; submission: PresentationSubmission }> {
+  ): Promise<{ vpToken: unknown; submission?: PresentationSubmission }> {
     const credential = held.raw as Record<string, unknown>;
     await this.inspectJsonLdCredential(ctx, credential);
 
@@ -679,7 +703,7 @@ export class ReferenceWallet implements WalletAdapter {
     request: PresentationRequest,
     held: HeldCredential,
     walletKey: WalletKey,
-  ): Promise<{ vpToken: string; submission: PresentationSubmission }> {
+  ): Promise<{ vpToken: string; submission?: PresentationSubmission }> {
     const tamper = ctx.config.tamper;
 
     if (tamper === 'strip-holder-proof') {
@@ -716,7 +740,7 @@ export class ReferenceWallet implements WalletAdapter {
     held: HeldCredential,
     opts: PresentOptions,
     walletKey: WalletKey,
-  ): Promise<{ vpToken: string; submission: PresentationSubmission }> {
+  ): Promise<{ vpToken: string; submission?: PresentationSubmission }> {
     const parsed = parseSdJwt(held.raw as string);
     const requested = requestedClaimNames(request);
     const disclose = requested.length > 0 ? requested : parsed.disclosures.map((d) => d.name);
@@ -762,7 +786,11 @@ function buildSubmission(
   request: PresentationRequest,
   format: string,
   nestedFormat: string,
-): PresentationSubmission {
+): PresentationSubmission | undefined {
+  // DCQL has no presentation submission: the response is keyed by query id
+  // instead, so sending one would be meaningless rather than merely redundant.
+  if (request.authorizationRequest.dcql_query) return undefined;
+
   const definition = request.authorizationRequest.presentation_definition;
   const descriptorId = definition?.input_descriptors?.[0]?.id ?? 'unknown';
   const isEnvelope = format === 'ldp_vp';
@@ -784,10 +812,17 @@ function buildSubmission(
 }
 
 /**
- * Extracts the claim names a presentation definition asks for, so an SD-JWT
- * wallet can withhold everything else.
+ * Extracts the claim names the request asks for, so a wallet can withhold
+ * everything else.
+ *
+ * Reads whichever language the verifier used. A wallet that understood only one
+ * would over-disclose against the other — silently, because sending everything
+ * always satisfies a request.
  */
 function requestedClaimNames(request: PresentationRequest): string[] {
+  const dcql = request.authorizationRequest.dcql_query;
+  if (dcql) return dcqlClaimNames(dcql);
+
   const descriptors = request.authorizationRequest.presentation_definition?.input_descriptors ?? [];
   const names = new Set<string>();
 

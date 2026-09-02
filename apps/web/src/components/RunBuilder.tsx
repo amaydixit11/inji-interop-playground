@@ -5,7 +5,14 @@ import type {
   RunConfig,
   TamperMode,
 } from '@interop/shared';
-import type { FlowMode, IssuerKeyReference, ProofType, VciDraft, VcVersion } from '@interop/shared';
+import type {
+  FlowMode,
+  IssuerKeyReference,
+  ProofType,
+  QueryLanguage,
+  VciDraft,
+  VcVersion,
+} from '@interop/shared';
 import {
   CREDENTIAL_FORMAT_LABELS,
   FLOW_MODE_LABELS,
@@ -15,6 +22,7 @@ import {
   VCI_DRAFT_LABELS,
   VC_VERSION_LABELS,
   ISSUER_KEY_REFERENCE_LABELS,
+  QUERY_LANGUAGE_LABELS,
 } from '@interop/shared';
 import { Badge, kindTone, TraceabilityBadge } from './primitives.js';
 
@@ -201,6 +209,21 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             {(Object.keys(VCI_DRAFT_LABELS) as VciDraft[]).map((draft) => (
               <option key={draft} value={draft}>
                 {VCI_DRAFT_LABELS[draft]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Request language" hint="How the verifier states what it wants">
+          <select
+            disabled={disabled}
+            value={config.queryLanguage ?? 'presentation-exchange'}
+            onChange={(event) => onChange({ ...config, queryLanguage: event.target.value as QueryLanguage })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(QUERY_LANGUAGE_LABELS) as QueryLanguage[]).map((language) => (
+              <option key={language} value={language}>
+                {QUERY_LANGUAGE_LABELS[language]}
               </option>
             ))}
           </select>

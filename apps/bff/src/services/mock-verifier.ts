@@ -1,6 +1,7 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 import { Router } from 'express';
-import type { CredentialFormat, PresentationDefinition } from '@interop/shared';
+import type { CredentialFormat, DcqlQuery, PresentationDefinition } from '@interop/shared';
+import { buildDcqlQuery } from '../core/dcql.js';
 import type { DocumentLoader } from '../core/jsonld.js';
 import { verifyPresentation, type PresentationVerification } from '../core/presentation.js';
 import { CREDENTIAL_TYPE, VCT, verifyJsonLdCredential } from '../core/credentials.js';
@@ -22,6 +23,8 @@ interface VerificationSession {
   clientId: string;
   format: CredentialFormat;
   presentationDefinition: PresentationDefinition;
+  /** Set when the verifier stated its request as DCQL instead. */
+  dcqlQuery?: DcqlQuery;
   createdAt: number;
   submission?: {
     vpToken: string;
@@ -130,6 +133,7 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
       clientId: req.body?.clientId ?? `${base()}/response`,
       format,
       presentationDefinition: req.body?.presentationDefinition ?? buildPresentationDefinition(format),
+      dcqlQuery: req.body?.queryLanguage === 'dcql' ? buildDcqlQuery(format) : undefined,
       createdAt: Date.now(),
       sameDevice: req.body?.sameDevice === true,
     };
@@ -193,9 +197,20 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
       return;
     }
 
-    const vpToken = req.body?.vp_token as string | undefined;
-    if (!vpToken) {
+    const rawToken = req.body?.vp_token as string | undefined;
+    if (!rawToken) {
       res.status(400).json({ error: 'invalid_request', error_description: 'vp_token is required' });
+      return;
+    }
+
+    // Under DCQL the token is an object keyed by query id. Unwrapping here keeps
+    // the verification path indifferent to which language the request used.
+    const vpToken = session.dcqlQuery ? unwrapDcqlToken(rawToken, session.dcqlQuery) : rawToken;
+    if (!vpToken) {
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: `vp_token carried no entry for the DCQL query id "${session.dcqlQuery?.credentials[0]?.id}".`,
+      });
       return;
     }
 
@@ -217,7 +232,9 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
         vpToken,
         nonce: session.nonce,
         audience: session.clientId,
-        presentationDefinition: session.presentationDefinition,
+        presentationDefinition: session.dcqlQuery ? undefined : session.presentationDefinition,
+        dcqlQuery: session.dcqlQuery,
+        format: session.format,
         responseUri: `${base()}/response`,
         resolveUrl: deps.resolveUrl,
         documentLoader: deps.documentLoader(),
@@ -342,7 +359,11 @@ function buildAuthorizationRequest(session: VerificationSession, base: string): 
     response_uri: `${base}/response`,
     nonce: session.nonce,
     state: session.state,
-    presentation_definition: session.presentationDefinition,
+    // One or the other, never both: a request carrying each would leave the
+    // wallet to guess which the verifier will actually evaluate against.
+    ...(session.dcqlQuery
+      ? { dcql_query: session.dcqlQuery }
+      : { presentation_definition: session.presentationDefinition }),
     client_metadata: {
       client_name: 'Playground Reference Verifier',
       vp_formats: {
@@ -352,6 +373,31 @@ function buildAuthorizationRequest(session: VerificationSession, base: string): 
       },
     },
   };
+}
+
+/**
+ * Reads a presentation out of a DCQL-keyed `vp_token`.
+ *
+ * A bare string is accepted too: a wallet that answered a DCQL request in the
+ * Presentation Exchange shape is a finding worth surfacing at verification
+ * rather than a parse error at the door.
+ */
+function unwrapDcqlToken(raw: string, query: DcqlQuery): string | undefined {
+  const id = query.credentials[0]?.id;
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown> | unknown[];
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const entry = id ? (parsed as Record<string, unknown>)[id] : undefined;
+      const value = entry ?? Object.values(parsed)[0];
+      if (typeof value === 'string') return value;
+      if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+      if (value !== undefined) return JSON.stringify(value);
+    }
+  } catch {
+    // Not JSON, so it is a bare presentation.
+  }
+  return raw;
 }
 
 /** Flattens an authorization request into query parameters for by-value URIs. */

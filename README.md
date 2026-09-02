@@ -130,11 +130,20 @@ Six independent dimensions, each of which changes what is actually on the wire:
 | **Credential format** | `ldp_vc` · `vc+sd-jwt` · `dc+sd-jwt` · `mso_mdoc` |
 | **Proof suite** (JSON-LD) | `Ed25519Signature2020` · `Ed25519Signature2018` · `RsaSignature2018` |
 | **OpenID4VCI revision** | draft 11 · draft 12 · draft 13 · 1.0 |
+| **Request language** | Presentation Exchange (`presentation_definition`) · DCQL (`dcql_query`, OpenID4VP 1.0) |
 | **Presentation flow** | cross-device (QR, polled) · same-device (redirect + one-time response code) |
 | **W3C data model** | 1.1 (`issuanceDate`) · 2.0 (`validFrom`) |
 | **Issuer key reference** | `kid` / DID · `x5c` certificate chain |
 | **Holder binding** | JWT key-binding proof · none |
 | **Fault injected** | see below |
+
+DCQL is a dimension for the same reason the revisions are: OpenID4VP 1.0 replaces Presentation
+Exchange with it, and the two are not interchangeable. DCQL addresses claims by path segments rather
+than JSONPath, states type constraints per format rather than through a generic filter, and makes
+`vp_token` a map keyed by query id instead of a single value. A wallet built for one over-discloses
+against the other — silently, because sending everything always satisfies a request. This is not
+hypothetical: [finding 19](docs/FINDINGS.md) is MOSIP's own SDK requiring DCQL against a
+verify-service that does not speak it.
 
 The revisions and suites are dimensions rather than settings because they are where interoperability
 actually breaks: draft 11–13 and 1.0 disagree about where the credential sits in the response and

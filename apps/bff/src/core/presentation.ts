@@ -2,7 +2,8 @@ import * as vc from '@digitalbazaar/vc';
 import { checkCredentialStatus, checkTokenStatus } from './statuslist.js';
 import { verificationSuites } from './suites.js';
 import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
-import type { PresentationDefinition } from '@interop/shared';
+import type { CredentialFormat, DcqlQuery, PresentationDefinition } from '@interop/shared';
+import { evaluateDcql } from './dcql.js';
 import { evaluateConstraints } from './constraints.js';
 import type { DocumentLoader } from './jsonld.js';
 import { verifyMdocPresentation } from './mdoc.js';
@@ -38,6 +39,10 @@ export interface VerifyPresentationOptions {
   audience: string;
   /** What the verifier asked for; the presentation must actually satisfy it. */
   presentationDefinition?: PresentationDefinition;
+  /** Set when the request was stated as DCQL rather than Presentation Exchange. */
+  dcqlQuery?: DcqlQuery;
+  /** Needed to evaluate a DCQL query, whose constraints are format-specific. */
+  format?: CredentialFormat;
   /** Needed to rebuild an mdoc session transcript; defaults to the audience. */
   responseUri?: string;
   /** Maps a published URL onto one this process can dial. */
@@ -131,7 +136,9 @@ async function verifyMdoc(
 
   // Constraints are evaluated against the disclosed elements plus the document
   // type, so a request for one kind of document is not satisfied by another.
-  checks.push(constraintCheck(options.presentationDefinition, { docType: result.docType, ...result.claims }));
+  checks.push(
+    constraintCheck(options, { docType: result.docType, ...result.claims }, { docType: result.docType }),
+  );
 
   return { verdict: decideVerdict(checks), checks, claims: result.claims, decoded: result.decoded };
 }
@@ -240,7 +247,12 @@ async function verifyJsonLdPresentation(
     expiryRelated: true,
   });
 
-  checks.push(constraintCheck(options.presentationDefinition, credentials[0] as Record<string, unknown>));
+  const firstCredential = credentials[0] as Record<string, unknown> | undefined;
+  checks.push(
+    constraintCheck(options, firstCredential, {
+      types: (Array.isArray(firstCredential?.type) ? firstCredential?.type : []) as string[],
+    }),
+  );
 
   if (status) {
     checks.push({
@@ -419,7 +431,7 @@ async function verifySdJwtPresentation(
     expiryRelated: true,
   });
 
-  checks.push(constraintCheck(options.presentationDefinition, parsed.resolved));
+  checks.push(constraintCheck(options, parsed.resolved, { vct: parsed.payload.vct as string | undefined }));
 
   const { iss, iat, exp: _exp, cnf: _cnf, vct, ...rest } = parsed.resolved;
   return { verdict: decideVerdict(checks), checks, claims: rest, decoded: { ...parsed, vct }, };
@@ -445,19 +457,39 @@ function decideVerdict(checks: PresentationCheck[]): 'valid' | 'invalid' | 'vali
  * unsatisfied constraint means it is authentic but not what the verifier needs.
  */
 function constraintCheck(
-  definition: PresentationDefinition | undefined,
+  options: VerifyPresentationOptions,
   credential: Record<string, unknown> | undefined,
+  context?: { docType?: string; vct?: string; types?: string[] },
 ): PresentationCheck {
   if (!credential) {
     return {
       id: 'vp.constraints',
-      title: 'Presentation satisfies the presentation definition',
+      title: 'Presentation satisfies the request',
       ok: false,
       detail: 'The presentation contained no credential to evaluate.',
     };
   }
 
-  const result = evaluateConstraints(definition, credential);
+  // Whichever language the verifier used is the one evaluated. Falling back to
+  // the other would mean reporting on a request that was never sent.
+  if (options.dcqlQuery) {
+    const result = evaluateDcql(options.dcqlQuery, credential, {
+      format: options.format ?? 'ldp_vc',
+      ...context,
+    });
+    const failures = result.details.filter((detail) => !detail.satisfied);
+
+    return {
+      id: 'vp.constraints',
+      title: 'Presentation satisfies the DCQL query',
+      ok: result.satisfied,
+      detail: result.satisfied
+        ? `All ${result.details.length} DCQL condition(s) satisfied.`
+        : failures.map((f) => `${f.query}: ${f.reason}`).join(' '),
+    };
+  }
+
+  const result = evaluateConstraints(options.presentationDefinition, credential);
   const failures = result.details.filter((detail) => !detail.satisfied);
 
   return {

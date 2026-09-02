@@ -66,6 +66,7 @@ const drafts = args.drafts ? args.drafts.split(',') : ['draft-13'];
 const flowModes = args.flowModes ? args.flowModes.split(',') : ['cross-device'];
 const vcVersions = args.vcVersions ? args.vcVersions.split(',') : ['1.1'];
 const keyRefs = args.keyRefs ? args.keyRefs.split(',') : ['did'];
+const queryLanguages = args.queryLanguages ? args.queryLanguages.split(',') : ['presentation-exchange'];
 const baselinePath = args.baseline;
 const saveBaselinePath = args['save-baseline'];
 const failOnRegression = 'fail-on-regression' in args;
@@ -100,6 +101,7 @@ console.log(`Revisions:  ${drafts.join(', ')}`);
 console.log(`Flows:      ${flowModes.join(', ')}`);
 console.log(`Data model: ${vcVersions.join(', ')}`);
 console.log(`Issuer key: ${keyRefs.join(', ')}`);
+console.log(`Request:    ${queryLanguages.join(', ')}`);
 console.log('');
 
 const records = [];
@@ -109,6 +111,7 @@ for (const format of supported) {
       for (const flowMode of flowModes) {
       for (const vcVersion of vcVersions) {
       for (const issuerKeyReference of keyRefs) {
+      for (const queryLanguage of queryLanguages) {
       for (const tamper of faults) {
         // The issuer key reference only exists for SD-JWT credentials.
         if (issuerKeyReference !== 'did' && !format.endsWith('sd-jwt')) continue;
@@ -121,7 +124,9 @@ for (const format of supported) {
     process.stdout.write(
       `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
     );
-    const record = await runOne({ format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference });
+    const record = await runOne({
+      format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage,
+    });
     records.push(record);
     const summary = record.summary ?? {};
     console.log(
@@ -132,6 +137,7 @@ for (const format of supported) {
     if (record.status !== 'passed' && record.summary?.failure) {
       console.log(`      ↳ ${record.summary.failure.message}`);
     }
+      }
       }
       }
       }
@@ -176,7 +182,9 @@ process.exit(failures.length === 0 ? 0 : 1);
 
 /* ------------------------------------------------------------------ */
 
-async function runOne({ format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference }) {
+async function runOne({
+  format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference, queryLanguage,
+}) {
   const { runId } = await postJson(`${base}/api/runs`, {
     issuerId,
     walletId,
@@ -188,6 +196,7 @@ async function runOne({ format, tamper, proofType, draft, flowMode, vcVersion, i
     flowMode,
     vcVersion,
     issuerKeyReference,
+    queryLanguage,
     tamper,
   });
 
@@ -234,6 +243,7 @@ function runKey(record) {
     c.flowMode ?? 'cross-device',
     c.vcVersion ?? '1.1',
     c.issuerKeyReference ?? 'did',
+    c.queryLanguage ?? 'presentation-exchange',
     c.tamper,
   ].join(' | ');
 }

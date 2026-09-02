@@ -125,6 +125,53 @@ export interface InputDescriptor {
   };
 }
 
+/**
+ * DCQL, as OpenID4VP 1.0 defines it.
+ *
+ * Deliberately close to the wire format, including the snake_case and the
+ * per-format `meta` shapes — a normalised version would hide exactly the
+ * differences worth testing.
+ */
+export interface DcqlQuery {
+  credentials: DcqlCredentialQuery[];
+  credential_sets?: Array<{ options: string[][]; required?: boolean; purpose?: string }>;
+}
+
+export interface DcqlCredentialQuery {
+  id: string;
+  format: string;
+  /** Type constraints, whose shape depends on the format. */
+  meta?: DcqlCredentialMeta;
+  claims?: DcqlClaimQuery[];
+  /** Named claim combinations, any one of which satisfies the query. */
+  claim_sets?: string[][];
+}
+
+/**
+ * The per-format type constraint.
+ *
+ * Presentation Exchange expressed this with a generic JSONPath filter; DCQL
+ * gives each format its own key, so a query written for one format is not even
+ * syntactically valid for another.
+ */
+export interface DcqlCredentialMeta {
+  /** `ldp_vc` / `jwt_vc_json`: sets of acceptable `type` arrays. */
+  type_values?: string[][];
+  /** SD-JWT VC: acceptable `vct` values. */
+  vct_values?: string[];
+  /** mdoc: the single acceptable doctype. */
+  doctype_value?: string;
+}
+
+export interface DcqlClaimQuery {
+  /** Referenced from `claim_sets`. */
+  id?: string;
+  /** Path segments, not a JSONPath string. */
+  path: Array<string | number | null>;
+  /** Acceptable values; the claim is returned only if it matches one. */
+  values?: unknown[];
+}
+
 export interface AuthorizationRequest {
   client_id: string;
   response_type: 'vp_token' | 'vp_token id_token';
@@ -136,7 +183,7 @@ export interface AuthorizationRequest {
   presentation_definition?: PresentationDefinition;
   presentation_definition_uri?: string;
   /** OpenID4VP 1.0 replaces Presentation Exchange with DCQL. */
-  dcql_query?: Record<string, unknown>;
+  dcql_query?: DcqlQuery;
   client_metadata?: Record<string, unknown>;
 }
 

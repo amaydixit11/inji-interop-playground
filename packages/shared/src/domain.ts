@@ -206,6 +206,23 @@ export const FLOW_MODE_LABELS: Record<FlowMode, string> = {
   'same-device': 'Same-device (redirect back with a one-time response code)',
 };
 
+/**
+ * How a verifier states what it wants.
+ *
+ * OpenID4VP 1.0 replaces Presentation Exchange with DCQL, and the two are not
+ * interchangeable: DCQL addresses claims by path segments rather than JSONPath,
+ * describes credential types per format rather than through generic filters,
+ * and — most consequentially — makes `vp_token` a map keyed by query id instead
+ * of a single value. A wallet or verifier built for one does not understand the
+ * other, which is why this is a dimension rather than an implementation detail.
+ */
+export type QueryLanguage = 'presentation-exchange' | 'dcql';
+
+export const QUERY_LANGUAGE_LABELS: Record<QueryLanguage, string> = {
+  'presentation-exchange': 'Presentation Exchange (presentation_definition)',
+  dcql: 'DCQL (dcql_query, OpenID4VP 1.0)',
+};
+
 /** Deliberate corruption applied to a run to exercise negative paths. */
 export type TamperMode =
   | 'none'
@@ -251,6 +268,8 @@ export interface RunConfig {
   vcVersion?: VcVersion;
   /** How an SD-JWT names its issuer key; defaults to the DID. */
   issuerKeyReference?: IssuerKeyReference;
+  /** How the verifier states its request; defaults to Presentation Exchange. */
+  queryLanguage?: QueryLanguage;
   /**
    * Stop after this phase and treat the run as complete.
    *
