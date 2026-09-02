@@ -75,21 +75,69 @@ never be supplied.
 **Suggested fix:** document that the pre-authorized code flow requires `plugin-mode=VCIssuance`, and
 reject the combination at startup rather than at the first credential request.
 
-## 4. Authorization server metadata is not served at the credential issuer identifier
+## 4. Most `.well-known` documents are not served at the credential issuer identifier
 
-With Certify configured as its own authorization server, `credential_issuer` is `http://localhost:8091`,
-but:
+With Certify configured as its own authorization server, `credential_issuer` is `http://localhost:8091`:
+
+| Document | At the issuer identifier | Under `/v1/certify` |
+| --- | --- | --- |
+| `openid-credential-issuer` | 200 | 200 |
+| `oauth-authorization-server` | **404** | 200 |
+| `jwks.json` | **404** | 200 |
+
+`certify-nginx.conf` proxies only `openid-credential-issuer` and `did.json` to the origin. RFC 8414
+and RFC 7517 place their documents at the issuer identifier, so conformant discovery finds neither
+the token endpoint nor the issuer's keys — even though both exist one path segment away.
+
+**Impact:** a verifier resolving the issuer's key from the credential issuer identifier gets nothing,
+so it cannot verify a credential from an issuer it was not separately configured with.
+
+**Suggested fix:** add `oauth-authorization-server` and `jwks.json` to the nginx locations.
+
+## 4b. `/.well-known/did.json` returns HTTP 200 with an error body
 
 ```
-GET http://localhost:8091/.well-known/oauth-authorization-server              → 404
-GET http://localhost:8091/v1/certify/.well-known/oauth-authorization-server   → 200
+GET http://localhost:8091/.well-known/did.json   → HTTP 200
+
+{"response":null,"errors":[{"errorCode":"unsupported_in_current_plugin_mode"}]}
 ```
 
-`certify-nginx.conf` proxies `/.well-known/openid-credential-issuer` and `/.well-known/did.json` to the
-origin but not `/.well-known/oauth-authorization-server`. RFC 8414 places it at the issuer identifier,
-so conformant discovery fails.
+An error returned as `200` is treated as the document by any client that checks the status code, and
+by caching layers. It should be a `4xx` or `501`.
 
-**Suggested fix:** add the third location to the nginx configuration.
+Separately: no DID document is available in `VCIssuance` plugin mode at all. Combined with issue 6
+below — credentials in that mode are issued by `did:example:123456789` — the issuer publishes no
+resolvable identity and its credentials name an unresolvable one.
+
+## 6. The mock issuance plugin emits a structurally unverifiable credential
+
+A credential issued in `VCIssuance` mode:
+
+```json
+{
+  "@context": ["https://www.w3.org/2018/credentials/v1", "https://schema.org/"],
+  "type": ["VerifiableCredential", "MockVerifiableCredential"],
+  "issuer": "did:example:123456789",
+  "credentialSubject": null,
+  "proof": {
+    "type": "RsaSignature2018",
+    "verificationMethod": "http://localhost:8090/v1/certify/.well-known/jwks.json"
+  }
+}
+```
+
+Placeholder values are expected of a plugin named "mock". Three of these are structural defects that
+would be defects in any credential:
+
+1. **`https://schema.org/` is not a JSON-LD context.** Independently confirmed: it returns
+   `text/html` even when requested with `Accept: application/ld+json`. A JSON-LD processor cannot
+   canonicalise the credential, so its proof cannot be verified by anyone. The context document is at
+   `https://schema.org/docs/jsonldcontext.jsonld`.
+2. **`verificationMethod` points at a JWKS endpoint**, which is a *set* of keys. Data Integrity
+   expects an identifier for one key; a verifier cannot tell which one signed.
+3. **The credential does not match the advertised configuration.** Metadata advertises
+   `FarmerCredential` signed with `EdDSA`; the credential is a `MockVerifiableCredential` signed with
+   `RsaSignature2018`.
 
 ## 5. Key aliases do not survive a container restart
 

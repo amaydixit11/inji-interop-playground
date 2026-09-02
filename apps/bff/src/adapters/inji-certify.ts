@@ -188,6 +188,30 @@ export class InjiCertifyIssuer extends BaseOid4vciIssuer {
     return fallback;
   }
 
+  /** Certify serves its JWKS under the service context path, not the origin. */
+  protected override async probeAlternateKeyLocation(ctx: RunContext, base: string): Promise<void> {
+    const alternate = `${base.replace(/\/$/, '')}/v1/certify/.well-known/jwks.json`;
+    const response = await ctx.http<{ keys?: unknown[] }>({
+      label: 'Fetch Issuer JWKS (context path)',
+      from: 'Playground',
+      to: 'Inji Certify',
+      url: alternate,
+      allowNonOk: true,
+    });
+
+    const count = response.ok && Array.isArray(response.body?.keys) ? response.body.keys.length : 0;
+    if (count === 0) return;
+
+    ctx.check({
+      id: 'vci.issuer.key-material-location',
+      title: 'Key material is published where a verifier will look for it',
+      status: 'fail',
+      spec: 'RFC 7517 / OpenID4VCI §11.2.1',
+      detail: `${count} key(s) are published at ${alternate}, under the service context path rather than at the credential issuer identifier. The keys exist; a verifier resolving them from the issuer identifier will not find them.`,
+      attributedTo: 'issuer',
+    });
+  }
+
   async createOffer(ctx: RunContext, endpoints: IssuerEndpoints, opts: IssueOptions): Promise<OfferResult> {
     const apiBase = this.apiBaseUrl(ctx, endpoints.metadata);
     const configurationId =

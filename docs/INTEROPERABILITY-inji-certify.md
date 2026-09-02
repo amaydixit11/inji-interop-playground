@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T07:57:24.268Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T08:01:44.143Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,7 +21,7 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 17 | 11 | 0 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 17 | 14 | 0 | 2 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -29,6 +29,9 @@ A run with an injected fault passes when the verifier **rejects** the credential
 ## Findings
 
 - **Authorization server metadata is served at the issuer identifier** — `fail`, 1 run(s). The issuer identifier is http://localhost:8091 but /.well-known/oauth-authorization-server there returns 404. It is served under the service context path instead (http://localhost:8091/v1/certify), which a wallet following RFC 8414 will not find.
+- **DID document endpoint reports errors with an error status** — `fail`, 1 run(s). The endpoint returned HTTP 200 with an error body (unsupported_in_current_plugin_mode). A client checking the status code would treat that error as the document.
+- **Issuer publishes resolvable key material at its identifier** — `fail`, 1 run(s). Neither /.well-known/did.json (HTTP 200) nor /.well-known/jwks.json (HTTP 404) yielded a key at the issuer identifier. A verifier that has not already cached this issuer's key cannot verify anything it issues.
+- **Key material is published where a verifier will look for it** — `fail`, 1 run(s). 1 key(s) are published at http://localhost:8091/v1/certify/.well-known/jwks.json, under the service context path rather than at the credential issuer identifier. The keys exist; a verifier resolving them from the issuer identifier will not find them.
 - **Requested claims map onto the claims the issuer advertises** — `warn`, 1 run(s). Sent as requested: fullName, dateOfBirth, gender. Filled with sample values because the run did not supply them: phone. Dropped because the issuer does not advertise them and rejects unknown claims: nationality, idNumber.
 - **Verifier accepts the issued credential on its own** — `fail`, 1 run(s). Rejected before any presentation was involved: "credentialSubject" property is required..
 - **Every @context entry resolves to a JSON-LD context** — `fail`, 1 run(s). Could not use: https://schema.org/ (https://schema.org/ returned text/html, not a JSON-LD context). A credential whose context does not dereference cannot be canonicalised, so its proof cannot be verified by anyone.
@@ -44,7 +47,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 ## Conformance checks exercised
 
-30 distinct assertions across this run set.
+33 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -56,11 +59,14 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Credential is within its validity window | OpenID4VP §7 / credential format specification |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
 | Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
+| DID document endpoint reports errors with an error status | RFC 9110 §15 |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
 | Holder can sign a presentation containing this credential | W3C VC Data Integrity / JSON-LD 1.1 |
 | Issued credential is in the requested format | OpenID4VCI §7.3 |
 | Issuer advertises the requested credential format | OpenID4VCI §11.2.3 |
+| Issuer publishes resolvable key material at its identifier | did:web method / RFC 7517 |
 | Issuer supplied a nonce for the holder proof | OpenID4VCI §7.2 (c_nonce) / §8 (Nonce Endpoint) |
+| Key material is published where a verifier will look for it | RFC 7517 / OpenID4VCI §11.2.1 |
 | Metadata advertises a credential endpoint | OpenID4VCI §11.2.3 |
 | Metadata uses the draft-13+ credential_configurations_supported shape | OpenID4VCI §11.2.3 |
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |

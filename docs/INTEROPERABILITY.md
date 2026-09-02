@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T07:25:46.556Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T08:01:43.049Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,33 +21,33 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 25 | 0 | 1 | 2 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 25 | 0 | 0 | 1 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 22 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 25 | 0 | 0 | 1 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 22 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 25 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 24 | 0 | 0 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 23 | 0 | 0 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 22 | 0 | 1 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 28 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 1 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 27 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 0 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 0 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 25 | 0 | 0 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 24 | 0 | 0 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -84,14 +84,14 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 - **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
 - **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T07:25:37.000Z.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T07:25:40.000Z.
-- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T07:25:44.533Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:01:33.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:01:37.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T08:01:41.033Z.
 - **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised
 
-50 distinct assertions across this run set.
+51 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -114,6 +114,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Issued credential is in the requested format | OpenID4VCI §7.3 |
 | Issuer advertises the requested credential format | OpenID4VCI §11.2.3 |
 | Issuer authentication verifies | OpenID4VP §7 / credential format specification |
+| Issuer publishes resolvable key material at its identifier | did:web method / RFC 7517 |
 | Issuer signature verifies | OpenID4VP §7 / credential format specification |
 | Issuer supplied a nonce for the holder proof | OpenID4VCI §7.2 (c_nonce) / §8 (Nonce Endpoint) |
 | Key binding JWT covers the presented disclosures | OpenID4VP §7 / credential format specification |

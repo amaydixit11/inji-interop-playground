@@ -63,6 +63,7 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
 
     const configurationId = this.selectConfiguration(ctx, metadata, opts.format);
     const tokenEndpoint = await this.resolveTokenEndpoint(ctx, base, metadata);
+    await this.checkIssuerIdentityDocuments(ctx, base);
 
     return {
       credentialIssuer: metadata.credential_issuer ?? base,
@@ -159,6 +160,83 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
     return fallback;
   }
 
+  /**
+   * Checks that the issuer publishes something a verifier can resolve its key
+   * from.
+   *
+   * A credential is only as verifiable as the issuer's key material is
+   * reachable. An issuer whose DID document or JWKS is missing produces
+   * credentials that verify for whoever already has the key cached and for
+   * nobody else — which looks like working until someone new tries.
+   */
+  protected async checkIssuerIdentityDocuments(ctx: RunContext, base: string): Promise<void> {
+    const did = await ctx.http<Record<string, unknown>>({
+      label: 'Fetch Issuer DID Document',
+      from: 'Playground',
+      to: 'Issuer',
+      url: `${base}/.well-known/did.json`,
+      allowNonOk: true,
+    });
+
+    const jwks = await ctx.http<{ keys?: unknown[] }>({
+      label: 'Fetch Issuer JWKS',
+      from: 'Playground',
+      to: 'Issuer',
+      url: `${base}/.well-known/jwks.json`,
+      allowNonOk: true,
+    });
+
+    // A 200 carrying an error envelope is worse than an honest 4xx: a client
+    // that checks the status code treats the error as the document.
+    for (const [label, response] of [
+      ['DID document', did],
+      ['JWKS', jwks],
+    ] as const) {
+      if (response.ok && isErrorEnvelope(response.body)) {
+        ctx.check({
+          id: `vci.issuer.${label === 'JWKS' ? 'jwks' : 'did'}-status-code`,
+          title: `${label} endpoint reports errors with an error status`,
+          status: 'fail',
+          spec: 'RFC 9110 §15',
+          detail: `The endpoint returned HTTP 200 with an error body (${errorCode(response.body)}). A client checking the status code would treat that error as the document.`,
+          attributedTo: 'issuer',
+        });
+      }
+    }
+
+    const didMethods = did.ok ? verificationMethodCount(did.body) : 0;
+    const jwkCount = jwks.ok && Array.isArray(jwks.body?.keys) ? jwks.body.keys.length : 0;
+    const resolvable = didMethods > 0 || jwkCount > 0;
+
+    ctx.check({
+      id: 'vci.issuer.key-material',
+      title: 'Issuer publishes resolvable key material at its identifier',
+      // Either document is enough: Data Integrity verifiers resolve a DID
+      // document, JOSE-based ones a JWKS. Neither is the problem.
+      status: resolvable ? 'pass' : 'fail',
+      spec: 'did:web method / RFC 7517',
+      detail: resolvable
+        ? `${didMethods} verification method(s) in the DID document, ${jwkCount} key(s) in the JWKS.`
+        : `Neither /.well-known/did.json (HTTP ${did.status}) nor /.well-known/jwks.json (HTTP ${jwks.status}) yielded a key at the issuer identifier. A verifier that has not already cached this issuer's key cannot verify anything it issues.`,
+      attributedTo: resolvable ? undefined : 'issuer',
+    });
+
+    if (!resolvable) await this.probeAlternateKeyLocation(ctx, base);
+    if (did.ok && didMethods > 0) ctx.artifact({ label: 'Issuer DID document', kind: 'json', value: did.body });
+    if (jwks.ok && jwkCount > 0) ctx.artifact({ label: 'Issuer JWKS', kind: 'json', value: jwks.body });
+  }
+
+  /**
+   * Looks for key material somewhere other than the issuer identifier.
+   *
+   * Reported rather than quietly used: finding it under a service context path
+   * means the deployment has the keys and publishes them where a conformant
+   * verifier will not look, which is a more actionable statement than "no keys".
+   */
+  protected async probeAlternateKeyLocation(ctx: RunContext, base: string): Promise<void> {
+    return;
+  }
+
   /** Shared validation of an offer, whoever produced it. */
   protected validateOffer(ctx: RunContext, offer: CredentialOffer, expectedConfigurationId: string): void {
     ctx.artifact({ label: 'Credential Offer', kind: 'json', value: offer });
@@ -217,4 +295,29 @@ export abstract class BaseOid4vciIssuer implements IssuerAdapter {
       });
     }
   }
+}
+
+/** Counts usable verification methods in a DID document. */
+function verificationMethodCount(document: unknown): number {
+  if (!document || typeof document !== 'object') return 0;
+  const methods = (document as Record<string, unknown>).verificationMethod;
+  if (!Array.isArray(methods)) return 0;
+  return methods.filter(
+    (method) =>
+      method &&
+      typeof method === 'object' &&
+      ('publicKeyJwk' in method || 'publicKeyMultibase' in method || 'publicKeyBase58' in method),
+  ).length;
+}
+
+/** Detects a MOSIP-style error envelope returned with a success status. */
+function isErrorEnvelope(body: unknown): boolean {
+  if (!body || typeof body !== 'object') return false;
+  const errors = (body as Record<string, unknown>).errors;
+  return Array.isArray(errors) && errors.length > 0;
+}
+
+function errorCode(body: unknown): string {
+  const errors = (body as { errors?: Array<{ errorCode?: string }> }).errors ?? [];
+  return errors[0]?.errorCode ?? 'unknown';
 }

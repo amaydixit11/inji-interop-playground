@@ -105,22 +105,65 @@ request.
 
 ---
 
-## 4. Authorization server metadata is not served at the credential issuer identifier
+## 4. None of the `.well-known` documents except one are served at the credential issuer identifier
 
 **Observed.** With Certify configured as its own authorization server, `credential_issuer` is
-`http://localhost:8091`, but:
+`http://localhost:8091`, and:
+
+| Document | At the issuer identifier | Under the service context path |
+| --- | --- | --- |
+| `openid-credential-issuer` | 200 | 200 |
+| `oauth-authorization-server` | **404** | 200 |
+| `jwks.json` | **404** | 200 |
+| `did.json` | 200, but see finding 4b | — |
+
+`certify-nginx.conf` proxies `/.well-known/openid-credential-issuer` and `/.well-known/did.json` to
+the origin, and nothing else. RFC 8414 and RFC 7517 both place their documents at the issuer
+identifier, so a wallet or verifier doing conformant discovery finds neither the token endpoint nor
+the issuer's keys.
+
+The keys *exist* — one is published at
+`http://localhost:8091/v1/certify/.well-known/jwks.json` — which makes this a routing gap rather
+than a missing capability, and correspondingly cheap to fix.
+
+**Impact.** A verifier resolving the issuer's key from the credential issuer identifier gets nothing,
+so it cannot verify a credential from an issuer it has not been separately configured with.
+
+**Suggested fix:** add `oauth-authorization-server` and `jwks.json` to the nginx locations alongside
+the two already there.
+
+The playground reports these as `vci.as.metadata-at-issuer`, `vci.issuer.key-material` and
+`vci.issuer.key-material-location`.
+
+---
+
+## 4b. The DID document endpoint returns HTTP 200 with an error body
+
+**Observed.**
 
 ```
-GET http://localhost:8091/.well-known/oauth-authorization-server   → 404
-GET http://localhost:8091/v1/certify/.well-known/oauth-authorization-server → 200
+GET http://localhost:8091/.well-known/did.json   → HTTP 200
+
+{"responseTime":"...","response":null,
+ "errors":[{"errorCode":"unsupported_in_current_plugin_mode",
+            "errorMessage":"unsupported_in_current_plugin_mode"}]}
 ```
 
-The shipped `certify-nginx.conf` proxies `/.well-known/openid-credential-issuer` and
-`/.well-known/did.json` to the origin, but not `/.well-known/oauth-authorization-server`. RFC 8414
-places that document at the issuer identifier, so a wallet doing conformant discovery does not find
-it. The playground reports this as `vci.as.metadata-at-issuer`.
+Two problems, one inside the other.
 
-**Fix:** add the third location to the nginx configuration.
+**The status code is wrong.** An error returned as `200` is worse than an honest `4xx`: a client that
+checks the status — which is most clients, and all caching layers — treats the error envelope as the
+document. A DID resolver would hand that object to its parser and fail somewhere further away from
+the cause.
+
+**And the DID document is unavailable at all in `VCIssuance` plugin mode.** Combined with finding 9,
+where credentials in that mode are issued by `did:example:123456789`, the result is that the issuer
+publishes no resolvable identity and its credentials name an unresolvable one. Nothing in that chain
+can be verified by a third party.
+
+**Suggested fix:** return `501` or `404` when the plugin mode does not support a DID document, and
+consider whether `VCIssuance` mode should be able to publish one — the credentials it issues need an
+issuer somebody can resolve.
 
 ---
 
@@ -475,7 +518,8 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | # | Repository | Severity |
 | --- | --- | --- |
 | 1, 2, 3 | `mosip/inji-certify` | blocker — pre-authorized code flow unusable as shipped |
-| 4 | `mosip/inji-certify` | conformance — RFC 8414 discovery fails |
+| 4 | `mosip/inji-certify` | conformance — RFC 8414 and RFC 7517 discovery both fail at the issuer identifier |
+| 4b | `mosip/inji-certify` | HTTP 200 on error; no resolvable DID document in VCIssuance mode |
 | 5 | `mosip/inji-certify` | operational — restart loses key aliases |
 | 6 | `mosip/inji-verify` | blocker for any ported deployment; small fix |
 | 7, 8 | `mosip/inji-verify` | interoperability limits worth documenting if intended |

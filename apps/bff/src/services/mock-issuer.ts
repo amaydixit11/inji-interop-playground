@@ -161,7 +161,14 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
 
   router.get('/.well-known/jwks.json', async (_req, res) => {
     const key = await deps.issuerKey();
-    res.json({ keys: [key.publicJwk] });
+    res.json({ keys: [key.publicJwk, { ...key.mdocPublicJwk, kid: key.mdocKid }] });
+  });
+
+  // Published at the issuer identifier as well as at the did:web path, because
+  // a Data Integrity verifier resolves key material from the issuer identifier
+  // and should not have to know the DID method to find it.
+  router.get('/.well-known/did.json', async (_req, res) => {
+    res.json((await deps.issuerKey()).didDocument);
   });
 
   /**
