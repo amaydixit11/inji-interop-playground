@@ -3,6 +3,7 @@ import type { AuthorizationRequest, Participant, PresentationDefinition } from '
 import type { RunContext } from '../core/context.js';
 import { buildPresentationDefinition } from '../services/mock-verifier.js';
 import { pollUntil } from '../core/poll.js';
+import { discoverFromActuator } from '../core/versions.js';
 import type {
   HeldCredential,
   PresentOptions,
@@ -45,6 +46,13 @@ export class InjiVerifyVerifier implements VerifierAdapter {
           required: true,
         },
         {
+          key: 'version',
+          label: 'Version label (if the service will not report one)',
+          value: '',
+          placeholder: 'e.g. 0.14.0',
+          required: false,
+        },
+        {
           key: 'resultMode',
           label: 'Result API (transaction | session)',
           value: 'transaction',
@@ -61,6 +69,14 @@ export class InjiVerifyVerifier implements VerifierAdapter {
       this.manifest.config.find((f) => f.key === 'baseUrl')?.value ??
       ''
     ).replace(/\/$/, '');
+  }
+
+  /**
+   * verify-service exposes no actuator, but the probe is worth making: the
+   * 404 is the evidence for the finding, and a future release may add one.
+   */
+  async discoverVersion(ctx: RunContext): Promise<{ value?: string; detail: string }> {
+    return discoverFromActuator(ctx, `${this.baseUrl(ctx)}/actuator/info`, 'Inji Verify');
   }
 
   /**
@@ -214,7 +230,12 @@ export class InjiVerifyVerifier implements VerifierAdapter {
     ctx.artifact({ label: 'Authorization Request (normalised)', kind: 'json', value: authorizationRequest });
     ctx.artifact({ label: 'verify-service response (raw)', kind: 'json', value: response.body });
 
-    const deeplink = `openid4vp://authorize?${new URLSearchParams(
+    // Two ways to put this request on a screen, and the difference is the whole
+    // of the QR size problem: by value carries the entire presentation
+    // definition, by reference carries a URL the wallet fetches. Both are
+    // measured; the by-reference form is the one shown, because it is the one
+    // that scans.
+    const byValue = `openid4vp://authorize?${new URLSearchParams(
       Object.fromEntries(
         Object.entries(authorizationRequest).map(([key, value]) => [
           key,
@@ -222,11 +243,27 @@ export class InjiVerifyVerifier implements VerifierAdapter {
         ]),
       ),
     ).toString()}`;
-    ctx.artifact({ label: 'OpenID4VP request URI (QR payload)', kind: 'qr', value: deeplink });
+
+    const requestUri = `${base}/vp-request/${response.body.requestId}`;
+    const byReference = `openid4vp://authorize?client_id=${encodeURIComponent(details.clientId)}&request_uri=${encodeURIComponent(requestUri)}`;
+
+    const valueBytes = Buffer.byteLength(byValue, 'utf8');
+    const referenceBytes = Buffer.byteLength(byReference, 'utf8');
+
+    ctx.check({
+      id: 'vp.request.by-reference',
+      title: 'Request is small enough to scan because it is passed by reference',
+      status: referenceBytes < valueBytes ? 'pass' : 'warn',
+      spec: 'OpenID4VP §5.10 (request_uri)',
+      detail: `By value the request is ${valueBytes} bytes; by reference ${referenceBytes}. verify-service publishes a signed request object at ${requestUri}, so the small form is available and is what the playground displays. A verifier that only offers the by-value form pushes the whole presentation definition into the QR code.`,
+    });
+
+    ctx.artifact({ label: 'OpenID4VP request URI (QR payload)', kind: 'qr', value: byReference });
+    ctx.artifact({ label: 'OpenID4VP request URI (by value, for comparison)', kind: 'text', value: byValue });
 
     return {
       authorizationRequest,
-      requestUri: deeplink,
+      requestUri: byReference,
       transactionId: response.body.transactionId ?? transactionId,
       requestId: response.body.requestId,
       // `state` correlates the submission back to the request; verify-service

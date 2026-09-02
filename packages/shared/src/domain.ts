@@ -403,6 +403,8 @@ export interface RunStats {
   byIssuer: StatBucket[];
   byVerifier: StatBucket[];
   byFault: StatBucket[];
+  /** Success rate by participant build, for regression tracking across releases. */
+  byVersion: StatBucket[];
   /** The checks that fail or warn most often across the whole history. */
   topFindings: Array<{ title: string; status: CheckStatus; count: number; spec: string }>;
 }
@@ -416,6 +418,16 @@ export interface StatBucket {
 }
 
 /**
+ * Which build of a participant a run exercised.
+ *
+ * Needed for the one thing a run history is actually for: telling whether a
+ * result changed because the software changed. Discovery is unreliable across
+ * this stack — some services publish build info, some publish nothing — so an
+ * operator-supplied label is a first-class alternative rather than a fallback,
+ * and the source is recorded either way so nobody mistakes a guess for a fact.
+ */
+
+/**
  * A plain-language account of what a run actually did.
  *
  * Built by the engine rather than reconstructed in the UI, because the facts
@@ -423,6 +435,17 @@ export interface StatBucket {
  * withheld, whether anyone could tell the credential was genuine — are known
  * precisely at the moment they happen and only approximately afterwards.
  */
+export interface ParticipantVersion {
+  role: Role;
+  participantId: string;
+  /** Where the value came from, or that there is none. */
+  source: 'discovered' | 'declared' | 'unknown';
+  /** Version, commit or build identifier. */
+  value?: string;
+  /** What was consulted, for a reader who wants to check. */
+  detail?: string;
+}
+
 export interface RunNarrative {
   /** Every claim the issuer put in the credential. */
   issuedClaims: Record<string, unknown>;
@@ -456,6 +479,8 @@ export interface RunRecord {
   summary?: RunSummary;
   /** Plain-language account of the run, for readers who are not protocol people. */
   narrative?: RunNarrative;
+  /** Which build of each participant this run exercised. */
+  versions?: ParticipantVersion[];
   /** Weakest traceability across the three participants; caveats the result. */
   traceability: Traceability;
 }

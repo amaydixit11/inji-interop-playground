@@ -29,8 +29,24 @@ export function computeStats(runs: RunRecord[]): RunStats {
     byIssuer: bucket(runs, (run) => run.participants.issuer.label),
     byVerifier: bucket(runs, (run) => run.participants.verifier.label),
     byFault: bucket(runs, (run) => run.config.tamper),
+    // Keyed on the participants whose build can actually change between runs.
+    // A run with nothing discoverable is bucketed as such rather than dropped:
+    // "we do not know what we tested" is the finding.
+    byVersion: bucket(runs, (run) => versionKey(run)),
     topFindings: topFindings(runs),
   };
+}
+
+/** A short label for the builds a run exercised. */
+function versionKey(run: RunRecord): string {
+  const relevant = (run.versions ?? []).filter((version) => version.role !== 'wallet');
+  if (relevant.length === 0) return 'version unknown';
+
+  const parts = relevant.map((version) => {
+    const label = version.value ?? 'unknown';
+    return `${version.participantId} ${label}`;
+  });
+  return parts.join(' · ');
 }
 
 function bucket(runs: RunRecord[], key: (run: RunRecord) => string): StatBucket[] {

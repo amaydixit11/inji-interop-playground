@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T08:01:44.143Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T09:23:47.598Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,13 +21,14 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 17 | 14 | 0 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 19 | 14 | 0 | 3 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
 
 ## Findings
 
+- **This run can be attributed to specific participant builds** — `warn`, 1 run(s). No version available for inji-certify. http://localhost:8091/v1/certify/actuator/info returned HTTP 200 carrying an error envelope (unknown_error) rather than build information. Without it a result cannot be tied to a release, so a regression cannot be attributed to a change. Set a "version" override on the participant to label the run by hand.
 - **Authorization server metadata is served at the issuer identifier** — `fail`, 1 run(s). The issuer identifier is http://localhost:8091 but /.well-known/oauth-authorization-server there returns 404. It is served under the service context path instead (http://localhost:8091/v1/certify), which a wallet following RFC 8414 will not find.
 - **DID document endpoint reports errors with an error status** — `fail`, 1 run(s). The endpoint returned HTTP 200 with an error body (unsupported_in_current_plugin_mode). A client checking the status code would treat that error as the document.
 - **Issuer publishes resolvable key material at its identifier** — `fail`, 1 run(s). Neither /.well-known/did.json (HTTP 200) nor /.well-known/jwks.json (HTTP 404) yielded a key at the issuer identifier. A verifier that has not already cached this issuer's key cannot verify anything it issues.
@@ -47,7 +48,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 ## Conformance checks exercised
 
-33 distinct assertions across this run set.
+36 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -58,6 +59,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Credential has not been revoked | OpenID4VP §7 / credential format specification |
 | Credential is within its validity window | OpenID4VP §7 / credential format specification |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Credential offer URI fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
 | DID document endpoint reports errors with an error status | RFC 9110 §15 |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
@@ -72,6 +74,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |
 | Offer names the credential issuer | OpenID4VCI §4.1.1 |
 | Offer uses credential_configuration_ids | OpenID4VCI §4.1.1 |
+| OpenID4VP request URI (QR payload) fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Presentation and credential proofs verify | OpenID4VP §7 / credential format specification |
 | Presentation carries a holder proof | OpenID4VP §7 / credential format specification |
 | Presentation satisfies the presentation definition | OpenID4VP §7 / credential format specification |
@@ -80,6 +83,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Requested claims map onto the claims the issuer advertises | OpenID4VCI §11.2.3 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
+| This run can be attributed to specific participant builds | Playground provenance |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
 | Verification succeeded | An untampered credential must verify. |
 | Verifier accepts the issued credential on its own | W3C VC Data Model |

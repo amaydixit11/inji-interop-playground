@@ -2,6 +2,7 @@ import type { CredentialOffer, Participant } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
 import { BaseOid4vciIssuer } from './oid4vci-issuer.js';
 import type { IssueOptions, IssuerEndpoints, OfferResult } from './types.js';
+import { playgroundVersion } from '../core/versions.js';
 
 /**
  * Issuer adapter for the playground's own OpenID4VCI service.
@@ -11,6 +12,11 @@ import type { IssueOptions, IssuerEndpoints, OfferResult } from './types.js';
  * verified against the specification and nothing else.
  */
 export class ReferenceIssuer extends BaseOid4vciIssuer {
+  /** Hosted by the playground, so its version is this repository's. */
+  async discoverVersion(): Promise<{ value?: string; detail: string }> {
+    return playgroundVersion();
+  }
+
   readonly manifest: Participant;
 
   constructor(private readonly publicUrl: string) {

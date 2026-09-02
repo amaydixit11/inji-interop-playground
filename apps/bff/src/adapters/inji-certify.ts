@@ -1,6 +1,7 @@
 import type { CredentialIssuerMetadata, CredentialOffer, Participant } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
+import { discoverFromActuator } from '../core/versions.js';
 import { BaseOid4vciIssuer } from './oid4vci-issuer.js';
 import type { IssueOptions, IssuerEndpoints, OfferResult } from './types.js';
 
@@ -42,6 +43,13 @@ export class InjiCertifyIssuer extends BaseOid4vciIssuer {
           label: 'Certify API base URL',
           value: '',
           placeholder: 'derived from credential_endpoint',
+          required: false,
+        },
+        {
+          key: 'version',
+          label: 'Version label (if the service will not report one)',
+          value: '',
+          placeholder: 'e.g. 0.14.0',
           required: false,
         },
         {
@@ -186,6 +194,11 @@ export class InjiCertifyIssuer extends BaseOid4vciIssuer {
       attributedTo: 'issuer',
     });
     return fallback;
+  }
+
+  /** Certify's actuator lives under the service context path. */
+  async discoverVersion(ctx: RunContext): Promise<{ value?: string; detail: string }> {
+    return discoverFromActuator(ctx, `${this.baseUrl(ctx)}/v1/certify/actuator/info`, 'Inji Certify');
   }
 
   /** Certify serves its JWKS under the service context path, not the origin. */

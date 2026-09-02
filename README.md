@@ -242,7 +242,8 @@ a GitHub issue.
 assertion with the clause it cites, and the exchanges that produced them. Written to be pasted into
 a bug report by someone who was not watching.
 
-**Dashboard** — pass rate and latency by format, fault, issuer and verifier; median time per phase;
+**Dashboard** — pass rate and latency by format, fault, issuer, verifier and **participant build**;
+median time per phase;
 and the checks that fail or warn most often, with deliberately provoked failures excluded so real
 problems are not buried under tests that are working.
 
@@ -299,6 +300,13 @@ observed or read from source. The most consequential:
   until the comparison was run.
 - **Inji Verify does not check revocation for SD-JWT at all**, and reports an empty status list that
   is indistinguishable from a clean one. A revoked SD-JWT VC is accepted.
+- **No Inji service will tell you which build it is.** Mimoto reports a git commit; Certify's actuator
+  returns HTTP 200 with an error envelope; verify-service has no actuator. A regression therefore
+  cannot be attributed to a release — so the playground records a version per participant *with its
+  source*, and an operator-supplied label is a first-class alternative rather than a fallback.
+- **An OpenID4VP request passed by value is 1,169 bytes** against 217 by reference — 40% of a QR
+  code's capacity, at a module density most phone cameras will not resolve. Every QR payload is now
+  measured as it is recorded.
 - **inji-verify ships a database schema that does not match its own image**, so every presentation
   submission returns HTTP 500 until the authoritative DDL is used instead.
 
@@ -360,7 +368,9 @@ while building this — two runs still said `PASS`, and only the baseline caught
 change to the playground's own engine can be checked the same way.
 
 Every participant's endpoint can also be overridden per run from the UI, so you can point one run at
-your local build and the next at the Collab sandbox without restarting anything.
+your local build and the next at the Collab sandbox without restarting anything. Set a `version`
+override on a participant to label the run, since neither Certify nor verify-service will report its
+own build (finding 14) — the history and dashboard both filter on it.
 
 ## Running the matrix from CI
 

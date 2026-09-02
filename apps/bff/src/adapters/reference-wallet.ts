@@ -19,6 +19,7 @@ import type {
   PresentationRequest,
   WalletAdapter,
 } from './types.js';
+import { playgroundVersion } from '../core/versions.js';
 
 /**
  * A headless, standards-only wallet.
@@ -29,6 +30,11 @@ import type {
  * in one of the two protocol endpoints rather than in a bespoke integration.
  */
 export class ReferenceWallet implements WalletAdapter {
+  /** Hosted by the playground, so its version is this repository's. */
+  async discoverVersion(): Promise<{ value?: string; detail: string }> {
+    return playgroundVersion();
+  }
+
   readonly manifest: Participant;
 
   constructor(

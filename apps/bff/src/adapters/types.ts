@@ -76,7 +76,16 @@ export interface PresentOptions {
   walletProofType: WalletProofType;
 }
 
-export interface IssuerAdapter {
+/**
+ * Optional across all three roles: a participant that can report which build it
+ * is. Implemented where the service exposes something; absent where it does not,
+ * which is itself worth recording.
+ */
+export interface VersionAware {
+  discoverVersion?(ctx: RunContext): Promise<{ value?: string; detail: string }>;
+}
+
+export interface IssuerAdapter extends VersionAware {
   manifest: Participant;
   /** Fetch and normalise `.well-known` metadata; also runs discovery checks. */
   discover(ctx: RunContext, opts: IssueOptions): Promise<IssuerEndpoints>;
@@ -84,7 +93,7 @@ export interface IssuerAdapter {
   createOffer(ctx: RunContext, endpoints: IssuerEndpoints, opts: IssueOptions): Promise<OfferResult>;
 }
 
-export interface WalletAdapter {
+export interface WalletAdapter extends VersionAware {
   manifest: Participant;
   /** Walk the OpenID4VCI flow to obtain the credential described by the offer. */
   acceptOffer(
@@ -102,7 +111,7 @@ export interface WalletAdapter {
   ): Promise<void>;
 }
 
-export interface VerifierAdapter {
+export interface VerifierAdapter extends VersionAware {
   manifest: Participant;
   /** Create an authorization request for the given format. */
   createRequest(ctx: RunContext, opts: PresentOptions): Promise<PresentationRequest>;

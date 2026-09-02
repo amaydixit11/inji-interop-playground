@@ -61,6 +61,7 @@ export function Dashboard({ runs }: { runs: RunRecord[] }) {
         <BucketPanel title="Pass rate by fault injected" buckets={stats.byFault} />
         <BucketPanel title="Pass rate by issuer" buckets={stats.byIssuer} />
         <BucketPanel title="Pass rate by verifier" buckets={stats.byVerifier} />
+        <BucketPanel title="Pass rate by participant build" buckets={stats.byVersion} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">

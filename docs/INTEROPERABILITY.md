@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T08:07:25.454Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T09:23:32.926Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,33 +21,33 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 28 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 1 | 2 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 27 | 0 | 1 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 2 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 0 | 1 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 26 | 0 | 0 | 1 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 25 | 0 | 0 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 24 | 0 | 0 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 23 | 0 | 1 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 24 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 31 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 29 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 29 | 0 | 1 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 29 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 29 | 0 | 2 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 30 | 0 | 0 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 29 | 0 | 0 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 30 | 0 | 0 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 29 | 0 | 0 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 26 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 28 | 0 | 0 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 27 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 27 | 0 | 0 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 27 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 26 | 0 | 1 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 27 | 0 | 1 | 0 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -84,14 +84,14 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 - **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
 - **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:07:16.000Z.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T08:07:19.000Z.
-- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T08:07:23.431Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T09:23:23.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T09:23:27.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T09:23:30.905Z.
 - **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised
 
-51 distinct assertions across this run set.
+54 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -100,6 +100,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Credential has not been revoked | OpenID4VP §7 / credential format specification |
 | Credential is within its validity window | OpenID4VP §7 / credential format specification |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Credential offer URI fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
 | Device authentication verifies against the session transcript | OpenID4VP §7 / credential format specification |
 | DeviceResponse binds to this request | ISO/IEC 18013-5 §9.1.3, ISO/IEC 18013-7 Annex B |
@@ -126,6 +127,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |
 | Offer names the credential issuer | OpenID4VCI §4.1.1 |
 | Offer uses credential_configuration_ids | OpenID4VCI §4.1.1 |
+| OpenID4VP request URI (QR payload) fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Presentation and credential proofs verify | OpenID4VP §7 / credential format specification |
 | Presentation carries a holder proof | OpenID4VP §7 / credential format specification |
 | Presentation includes a key binding JWT | OpenID4VP §7 / credential format specification |
@@ -134,6 +136,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Proof verification method identifies a single key | W3C VC Data Integrity §2.2 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
+| This run can be attributed to specific participant builds | Playground provenance |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
 | Verification succeeded | An untampered credential must verify. |
 | Verifier accepts the issued credential on its own | W3C VC Data Model |

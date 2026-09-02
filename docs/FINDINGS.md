@@ -454,6 +454,65 @@ may well consume credential offers directly; nothing here should be read as a cl
 
 ---
 
+## 14. No Inji service will tell you which build it is
+
+**Observed.** The problem statement asks for a run history filterable by *module version*, which
+turns out to be the hardest of the three filters to implement, because the versions are not
+available.
+
+| Service | Version endpoint | Result |
+| --- | --- | --- |
+| Mimoto | `/v1/mimoto/actuator/info` | build name, artifact and **git commit** |
+| Inji Certify | `/v1/certify/actuator/info` | HTTP **200** carrying `{"errors":[{"errorCode":"unknown_error"}]}` |
+| Inji Verify | `/actuator/info`, `/v1/verify/actuator/info` | **404** |
+
+Mimoto — the one module that cannot participate in a run (finding 13) — is the only one that reports
+its build. Certify's actuator is reachable but returns the same 200-with-error-envelope pattern as
+finding 4b. verify-service exposes no actuator at all.
+
+**Impact.** A regression cannot be attributed to a release. "This passed last month and fails now" is
+unanswerable without someone remembering which container tags were running, which is exactly the
+information a run history exists to preserve.
+
+The playground records a version per participant with its **source** — discovered, declared by the
+operator, or unknown — so a labelled run is never mistaken for a measured one, and the history and
+dashboard filter on it. An operator-supplied label is treated as a first-class alternative rather
+than a fallback, because otherwise the regression-tracking use case simply does not work.
+
+**Suggested fix:** enable the Spring Boot actuator `info` endpoint with build information on Certify
+and verify-service, as Mimoto already does. It is a configuration change, not a feature.
+
+---
+
+## 15. An OpenID4VP request passed by value is five times too big for a QR code
+
+**Observed.** The problem statement names "QR size limits" as a gap to surface. Measured on a live
+verify-service request:
+
+| Form | Size | Verdict |
+| --- | --- | --- |
+| By value (`presentation_definition` inline) | **1,169 bytes** | 40% of a single QR code's absolute capacity — encodable, and at a module density most phone cameras will not resolve reliably |
+| By reference (`request_uri`) | **217 bytes** | scans reliably at modest sizes |
+
+The thresholds here are about *scanning*, not encoding. A QR code holds 2,953 bytes at the lowest
+error correction, but the module size at that density is beyond what a phone camera resolves from a
+laptop screen at arm's length — so a specification-legal request can be unusable in the cross-device
+flow it exists for.
+
+verify-service **does** publish a signed request object at `GET /vp-request/{requestId}`
+(finding 11), so the small form is available; a caller only has to use it. The playground now
+measures every QR payload as it is recorded, displays the by-reference form, and keeps the by-value
+form alongside for comparison.
+
+For completeness it also reports what `@mosip/pixelpass` compression would save — 8–28% on these
+payloads. Reported rather than applied: compressing changes what a scanning wallet has to
+understand, so it belongs in the report as a remedy, not silently in the payload.
+
+**Not a defect in Inji Verify.** It is a trap for anyone integrating against it, and the reason the
+by-value form exists at all is that it is the easier one to build.
+
+---
+
 ## What works, and is worth saying so
 
 A findings list that only records defects gives a misleading impression of a project. Three things
@@ -475,21 +534,21 @@ were tested specifically because they might have been wrong, and were not:
 Included because they are the ones only a real counterparty could have surfaced, and because a
 report that lists only other people's defects is not a credible one.
 
-### 14. The reference wallet sent two key identifiers in a proof
+### 16. The reference wallet sent two key identifiers in a proof
 
 Certify rejected our proof with `invalid_proof: Error encountered during proof jwt parsing`. Our
 wallet was setting both `jwk` and `kid` in the `openid4vci-proof+jwt` header. OpenID4VCI §7.2.1
 requires **exactly one**. Our own issuer accepted it, so the bug was invisible until a second
 implementation saw it.
 
-### 15. Preferring a DID reference over a raw key broke SD-JWT holder binding
+### 17. Preferring a DID reference over a raw key broke SD-JWT holder binding
 
 Once fixed, our wallet chose `kid` whenever the issuer advertised any DID method. An SD-JWT issuer
 needs a raw key to place in `cnf`, so credentials went out unbound and Inji Verify correctly
 rejected them with `ERR_INVALID_CNF: Missing 'cnf' in SD-JWT payload`. The wallet now prefers a bare
 `jwk`, falling back to `did:jwk`.
 
-### 16. Corrupting the last base64url character may not corrupt anything
+### 18. Corrupting the last base64url character may not corrupt anything
 
 An Ed25519 signature is 64 bytes, or 86 base64url characters, of which the last carries 4
 significant bits and 2 unused. Changing it can decode to the same bytes, leaving the signature
@@ -497,14 +556,14 @@ valid. Our first fault-injection implementation did exactly this, and the `break
 passed while testing nothing. Any negative-path suite that corrupts an encoded signature by touching
 its last character has the same problem.
 
-### 17. A verifier that checks only signatures accepts the wrong credential
+### 19. A verifier that checks only signatures accepts the wrong credential
 
 An early version of our reference verifier checked issuer signatures, disclosure digests and key
 binding — and accepted a credential of an unrelated type, because nothing evaluated the presentation
 definition it had itself sent. A valid signature proves someone authentic signed something; it does
 not prove the holder satisfies what was asked. The same gap is worth checking for in any verifier.
 
-### 18. Reading a result from the wrong field name looks exactly like the other party being broken
+### 20. Reading a result from the wrong field name looks exactly like the other party being broken
 
 Our Inji Verify adapter derived its verdict from `verificationStatus`, which the v2 result does not
 carry. Every successful verification was therefore read as `UNKNOWN` and counted as a failure — and
@@ -520,7 +579,7 @@ correctly, and there is no external signal when one does not. The mitigation now
 credential verification, which cross-checks the same credential through a second endpoint — that is
 how the discrepancy surfaced.
 
-### 19. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
+### 21. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
 
 `toJwk({secretKey: true})` returns the 64-byte libsodium private key (seed ‖ public key) as JWK `d`.
 RFC 8037 §2 defines `d` as the 32-byte seed alone, and Node rejects the longer value with
@@ -544,6 +603,8 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | 11 | `mosip/inji-verify` | documentation only — the request object itself is conformant |
 | 12 | `mosip/inji-verify` | triage note for findings 7 and 8 |
 | 13 | `mosip/mimoto` | documentation — Inji Web is not a general OpenID4VCI wallet |
-| 19 | `@digitalbazaar/ed25519-multikey` | spec deviation |
+| 14 | `mosip/inji-certify`, `mosip/inji-verify` | no build version is discoverable; blocks regression attribution |
+| 15 | integrator guidance | by-value OpenID4VP requests do not scan; use `request_uri` |
+| 21 | `@digitalbazaar/ed25519-multikey` | spec deviation |
 
-Findings 14–18 are ours and are already fixed in this repository.
+Findings 16–20 are ours and are already fixed in this repository.

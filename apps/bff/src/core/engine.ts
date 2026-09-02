@@ -5,6 +5,7 @@ import type {
   RunEvent,
   RunRecord,
   RunStatus,
+  ParticipantVersion,
   RunNarrative,
   RunSummary,
   StepId,
@@ -13,6 +14,7 @@ import type {
 } from '@interop/shared';
 import { RunContext, RunFailure, type EventSink } from './context.js';
 import { buildNarrative } from './narrative.js';
+import { resolveVersions } from './versions.js';
 import { DEFAULT_CLAIMS } from './credentials.js';
 import type { IssuerAdapter, VerificationOutcome, VerifierAdapter, WalletAdapter } from '../adapters/types.js';
 
@@ -153,8 +155,18 @@ export class Run {
     let request: Awaited<ReturnType<VerifierAdapter['createRequest']>> | undefined;
     let outcome: VerificationOutcome | undefined;
 
+    let versions: ParticipantVersion[] = [];
+
     try {
       this.preflight();
+
+      // Established before anything else, so a run that fails later can still
+      // be attributed to the builds it was testing.
+      versions = await resolveVersions(this.ctx, [
+        { role: 'issuer', adapter: this.participants.issuer },
+        { role: 'wallet', adapter: this.participants.wallet },
+        { role: 'verifier', adapter: this.participants.verifier },
+      ]);
 
       // From here the credential is deliberately broken, so checks failing
       // during presentation and verification are the intended result. They are
@@ -244,7 +256,7 @@ export class Run {
       at: new Date().toISOString(),
     });
 
-    return this.toRecord(summary, buildNarrative({ held, request, outcome, checks: this.ctx.checks }));
+    return this.toRecord(summary, buildNarrative({ held, request, outcome, checks: this.ctx.checks }), versions);
   }
 
   /** Rejects combinations that cannot work, before any network traffic. */
@@ -367,7 +379,7 @@ export class Run {
     });
   }
 
-  private toRecord(summary: RunSummary, narrative: RunNarrative): RunRecord {
+  private toRecord(summary: RunSummary, narrative: RunNarrative, versions: ParticipantVersion[]): RunRecord {
     const manifests: Record<'issuer' | 'wallet' | 'verifier', Participant> = {
       issuer: this.participants.issuer.manifest,
       wallet: this.participants.wallet.manifest,
@@ -387,6 +399,7 @@ export class Run {
       artifacts: [...this.ctx.artifacts],
       summary,
       narrative,
+      versions,
       // The report is only as trustworthy as its least-observable participant.
       traceability: Object.values(manifests).some((p) => p.traceability === 'endpoint-only')
         ? 'endpoint-only'

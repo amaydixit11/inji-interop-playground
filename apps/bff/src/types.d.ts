@@ -131,3 +131,14 @@ declare module '@digitalbazaar/jws-linked-data-signature' {
     assertVerificationMethod(options: { verificationMethod: Record<string, unknown> }): Promise<void>;
   }
 }
+
+// MOSIP's QR compression library, used to report what compressing a payload
+// would save. Ships no types.
+declare module '@mosip/pixelpass' {
+  interface PixelPass {
+    generateQRData(data: string, header?: string): string;
+    decode(data: string): string;
+  }
+  const pixelpass: PixelPass;
+  export default pixelpass;
+}

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { assessQrPayload } from './qr.js';
 import type {
   Artifact,
   CheckStatus,
@@ -159,7 +160,33 @@ export class RunContext {
     const artifact: Artifact = { id: randomUUID(), step: this.currentStep, ...input };
     this.artifacts.push(artifact);
     this.emit({ type: 'artifact', runId: this.runId, artifact, at: now() });
+
+    // Anything destined for a QR code gets measured as it is recorded. Doing it
+    // here rather than in each adapter means a new participant cannot forget,
+    // and the check appears in the step that produced the payload.
+    if (input.kind === 'qr' && typeof input.value === 'string') this.assessQr(input.label, input.value);
+
     return artifact;
+  }
+
+  /** Reports whether a QR payload can actually be scanned. */
+  private assessQr(label: string, payload: string): void {
+    const assessment = assessQrPayload(payload);
+    this.check({
+      id: `qr.capacity.${this.currentStep}`,
+      title: `${label} fits in a scannable QR code`,
+      status:
+        assessment.verdict === 'comfortable'
+          ? 'pass'
+          : assessment.verdict === 'workable'
+            ? 'pass'
+            : assessment.verdict === 'impossible'
+              ? 'fail'
+              : 'warn',
+      spec: 'ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10',
+      detail: assessment.summary,
+      attributedTo: assessment.verdict === 'comfortable' || assessment.verdict === 'workable' ? undefined : 'verifier',
+    });
   }
 
   fail(message: string, attributedTo?: Role): never {

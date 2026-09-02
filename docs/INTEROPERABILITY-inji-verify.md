@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T08:07:29.131Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T09:23:46.025Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,15 +21,16 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 23 | 1 | 0 | 1 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 19 | 3 | 0 | 2 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | — | 24 | 0 | 0 | 2 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 26 | 1 | 0 | 2 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 22 | 3 | 0 | 3 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | — | 27 | 0 | 0 | 3 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
 
 ## Findings
 
+- **This run can be attributed to specific participant builds** — `warn`, 3 run(s). No version available for inji-verify. http://localhost:8010/v1/verify/actuator/info returned HTTP 404. Without it a result cannot be tied to a release, so a regression cannot be attributed to a change. Set a "version" override on the participant to label the run by hand.
 - **Authorization request parameters use the specified names** — `warn`, 3 run(s). The /vp-request response is a camelCase envelope (clientId, responseUri, presentationDefinition) rather than the specified client_id, response_uri and presentation_definition. This affects only a caller wiring a wallet against that API directly — the request object served at the request_uri does use the specified names, so the normal cross-device path is unaffected.
 - **Inji Verify: Revocation status was checked** — `warn`, 2 run(s). verify-service returned an empty status list. Its log reports status checking as unsupported for this credential format, so a revoked credential would be accepted.
 - **Verifier accepts the issued credential on its own** — `fail`, 1 run(s). verify-service rejected the credential before any presentation was involved: ERR_SIGNATURE_VERIFICATION_FAILED — Exception during Verification: Error while doing verification of verifiable credential: foundation.identity.jsonld.JsonLDException: There was a problem encountered loading a remote context [code=LOADING_REMOTE_CONTEXT_FAILED].. Whatever happens in the OpenID4VP exchange, the credential itself cannot be read by this verifier.
@@ -39,7 +40,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 ## Conformance checks exercised
 
-31 distinct assertions across this run set.
+35 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -47,6 +48,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Authorization server advertises the pre-authorized code grant | OpenID4VCI §3.5, RFC 8414 |
 | Credential carries a credential subject | W3C VC Data Model §4.4 |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Credential offer URI fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
 | Inji Verify: Holder proof | Inji Verify credential verification |
@@ -62,12 +64,15 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |
 | Offer names the credential issuer | OpenID4VCI §4.1.1 |
 | Offer uses credential_configuration_ids | OpenID4VCI §4.1.1 |
+| OpenID4VP request URI (QR payload) fits in a scannable QR code | ISO/IEC 18004 (QR capacity) / OpenID4VP §5.10 |
 | Proof JWT carries exactly one key identifier | OpenID4VCI §7.2.1 |
 | Proof verification method identifies a single key | W3C VC Data Integrity §2.2 |
+| Request is small enough to scan because it is passed by reference | OpenID4VP §5.10 (request_uri) |
 | Request object is a signed JWT | OpenID4VP §5.10, JAR (RFC 9101) |
 | Request object uses the specified parameter names | OpenID4VP §5 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
+| This run can be attributed to specific participant builds | Playground provenance |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
 | Verification succeeded | An untampered credential must verify. |
 | Verifier accepts the issued credential on its own | W3C VC Data Model / Inji Verify credential verification |

@@ -8,9 +8,15 @@ import type {
   VerifierAdapter,
 } from './types.js';
 import { pollUntil } from '../core/poll.js';
+import { playgroundVersion } from '../core/versions.js';
 
 /** Verifier adapter for the playground's own OpenID4VP relying party. */
 export class ReferenceVerifier implements VerifierAdapter {
+  /** Hosted by the playground, so its version is this repository's. */
+  async discoverVersion(): Promise<{ value?: string; detail: string }> {
+    return playgroundVersion();
+  }
+
   readonly manifest: Participant;
 
   constructor(private readonly publicUrl: string) {
