@@ -310,9 +310,11 @@ apps/bff/src/services/              The hosted reference issuer and verifier
 
 ## What the live runs found
 
-Running against real Certify 0.14.0 and verify-service 0.18.2 produced sixteen findings, recorded in
-[`docs/FINDINGS.md`](docs/FINDINGS.md) with the evidence for each and a note on whether it was
-observed or read from source. The most consequential:
+Running against real Certify 0.14.0 and verify-service 0.18.2 produced **thirty-two findings**,
+recorded in [`docs/FINDINGS.md`](docs/FINDINGS.md) — which opens with a one-page **ranked summary**
+(severity, blast radius, estimated upstream fix cost) so the list can be triaged rather than read
+end to end. Every entry says how it was established: observed by running the software, with the
+error text quoted verbatim, or read from the shipped configuration. The most consequential:
 
 - **Inji Certify cannot complete a pre-authorized-code issuance with the configuration it ships.**
   Three separate blockers, each hiding the next.
@@ -335,8 +337,18 @@ observed or read from source. The most consequential:
   measured as it is recorded.
 - **inji-verify ships a database schema that does not match its own image**, so every presentation
   submission returns HTTP 500 until the authoritative DDL is used instead.
+- **Certify's `/oauth/iar` answers a JSON body with 403 Forbidden** rather than 415 — and its own
+  OpenAPI document declares the parameter as an object `in: query`, which is precisely what makes
+  JSON the natural first attempt. A rejection from the same endpoint returns the Java controller
+  signature and never names the missing parameter.
 
-Five of the nineteen are defects in *this* project that only a real counterparty exposed. One is
+And one finding that is good news, singled out because it is the one this project's premise rests
+on: **a credential type registered through Certify's `/credential-configurations` API is advertised
+to wallets immediately**, with no restart, and round-trips cleanly through GET, PUT and DELETE. So
+"issue any credential type" is achievable against Certify without editing properties files — which
+findings 1–5 otherwise force you to do.
+
+Six of the thirty-two are defects in *this* project that only a real counterparty exposed. One is
 worth singling out: our Inji Verify adapter read its verdict from a field the response does not
 carry, so **every successful verification was reported as a failure** — and the reports said so. It
 surfaced only because the `x5c` comparison produced a result that should have been green. An
@@ -354,8 +366,16 @@ Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
 [flow modes](docs/INTEROPERABILITY-flow-modes.md) ·
 [data model 1.1 vs 2.0](docs/INTEROPERABILITY-data-model.md) ·
 [issuer key reference](docs/INTEROPERABILITY-issuer-key-reference.md) ·
+[issuance grants](docs/INTEROPERABILITY-grants.md) ·
+[request language](docs/INTEROPERABILITY-query-language.md) ·
 [Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
 [Inji Verify](docs/INTEROPERABILITY-inji-verify.md).
+
+Accessibility and the colour palette are documented separately in
+[`docs/ACCESSIBILITY.md`](docs/ACCESSIBILITY.md), including the measurement that started it: the
+pass/fail colours this project shipped were **ΔE 2.2** apart under simulated deuteranopia, so the one
+distinction the whole interface exists to convey was invisible to the commonest colour blindness. The
+replacements were searched rather than chosen, and reach ΔE 13.5.
 
 The findings are drafted as ready-to-file upstream issues in
 [`docs/upstream-issues/`](docs/upstream-issues/) — six reports, each written to stand on its own so a
