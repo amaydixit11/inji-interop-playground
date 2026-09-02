@@ -1,5 +1,5 @@
 import * as vc from '@digitalbazaar/vc';
-import { checkCredentialStatus } from './statuslist.js';
+import { checkCredentialStatus, checkTokenStatus } from './statuslist.js';
 import { verificationSuites } from './suites.js';
 import { compactVerify, decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type JWK } from 'jose';
 import type { PresentationDefinition } from '@interop/shared';
@@ -277,9 +277,32 @@ async function verifySdJwtPresentation(
   }
 
   // Issuer signature.
+  const chain = Array.isArray(parsed.header.x5c) ? (parsed.header.x5c as string[]) : undefined;
   const kid = (parsed.header.kid as string | undefined) ?? (parsed.payload.iss as string | undefined);
-  if (!kid) {
-    checks.push({ id: 'sdjwt.kid', title: 'Issuer key is identified', ok: false, detail: 'Neither `kid` nor `iss` is present.' });
+
+  if (chain && chain.length > 0) {
+    // The chain carries the key, so nothing is resolved. A production verifier
+    // would additionally establish that the chain leads to a CA it trusts;
+    // here the point is only that the signature matches the key presented.
+    try {
+      const key = await publicKeyFromCertificate(chain[0] as string);
+      await compactVerify(parsed.issuerJwt, key);
+      checks.push({
+        id: 'sdjwt.issuer-signature',
+        title: 'Issuer signature verifies',
+        ok: true,
+        detail: 'Signature verified against the certificate embedded in the x5c header.',
+      });
+    } catch (error) {
+      checks.push({
+        id: 'sdjwt.issuer-signature',
+        title: 'Issuer signature verifies',
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  } else if (!kid) {
+    checks.push({ id: 'sdjwt.kid', title: 'Issuer key is identified', ok: false, detail: 'Neither `kid`, `x5c` nor `iss` is present.' });
   } else {
     try {
       const { key } = await resolveVerificationKey(kid, options.documentLoader, parsed.header.alg as string);
@@ -377,6 +400,15 @@ async function verifySdJwtPresentation(
     });
   }
 
+  const status = await checkTokenStatus(parsed.payload, options.resolveUrl);
+  checks.push({
+    id: 'vc.status',
+    title: 'Credential has not been revoked',
+    ok: status.checked ? !status.revoked : true,
+    detail: status.detail,
+    warnOnly: !status.checked,
+  });
+
   const exp = parsed.payload.exp;
   const expired = typeof exp === 'number' && exp * 1000 < Date.now();
   checks.push({
@@ -463,4 +495,16 @@ function collectErrors(result: { verified: boolean; error?: { errors?: Error[]; 
 function toArray(value: unknown): unknown[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+/** Extracts the public key from a base64 DER certificate, as `x5c` carries it. */
+async function publicKeyFromCertificate(base64Der: string): Promise<CryptoKey | Uint8Array> {
+  const { X509Certificate } = await import('node:crypto');
+  const { importSPKI } = await import('jose');
+
+  const pem = `-----BEGIN CERTIFICATE-----\n${base64Der.replace(/(.{64})/g, '$1\n')}\n-----END CERTIFICATE-----`;
+  const certificate = new X509Certificate(pem);
+  const spki = certificate.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+
+  return (await importSPKI(spki, 'RS256')) as never;
 }

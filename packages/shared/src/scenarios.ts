@@ -162,6 +162,25 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: 'x5c-vs-did',
+    title: 'Why does Inji Verify reject our SD-JWT?',
+    question:
+      'Send the same SD-JWT to a live Inji Verify twice — once naming the issuer key by DID, once with a certificate chain embedded.',
+    expect:
+      'The x5c run passes end to end; the DID run is rejected. Same credential, same issuer, one difference. Needs the Inji stack running.',
+    duration: 'seconds',
+    requires: ['inji-verify'],
+    order: 11,
+    config: {
+      issuerId: 'reference-issuer',
+      walletId: 'reference-wallet',
+      verifierId: 'inji-verify',
+      format: 'vc+sd-jwt',
+      issuerKeyReference: 'x5c',
+      tamper: 'none',
+    },
+  },
+  {
     id: 'phone-wallet',
     title: 'Does it work with a real phone wallet?',
     question: 'Show a QR code, scan it with Inji Wallet, and let the phone talk to the issuer directly.',
@@ -169,7 +188,7 @@ export const SCENARIOS: Scenario[] = [
       'Needs a phone, and PUBLIC_URL set to something it can reach. The run is marked endpoint-only: the wallet’s own traffic is not captured, so it is weaker evidence than the others.',
     duration: 'needs-a-phone',
     requires: [],
-    order: 11,
+    order: 12,
     config: {
       issuerId: 'reference-issuer',
       walletId: 'inji-wallet',

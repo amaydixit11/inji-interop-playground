@@ -322,7 +322,14 @@ export class InjiVerifyVerifier implements VerifierAdapter {
     const result = await ctx.http<{
       transactionId: string;
       allChecksSuccessful?: boolean;
-      credentialResults?: Array<Record<string, unknown>>;
+      credentialResults?: Array<{
+        allChecksSuccessful?: boolean;
+        schemaAndSignatureCheck?: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } };
+        expiryCheck?: { valid?: boolean } | null;
+        statusCheck?: unknown[];
+        holderProofCheck?: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } } | null;
+        claims?: Record<string, unknown>;
+      }>;
     }>({
       label: 'Fetch Verification Result',
       from: 'Playground',
@@ -333,45 +340,100 @@ export class InjiVerifyVerifier implements VerifierAdapter {
 
     ctx.artifact({ label: 'Inji Verify result', kind: 'json', value: result.body });
 
-    const credentialResults = (result.body.credentialResults ?? []).map((entry) => ({
-      status: String(entry.verificationStatus ?? entry.status ?? 'UNKNOWN'),
-      detail: entry.verificationMessage ? String(entry.verificationMessage) : undefined,
-      claims: (entry.claims as Record<string, unknown>) ?? undefined,
-    }));
+    const credentialResults = result.body.credentialResults ?? [];
 
+    // Each sub-check is surfaced separately rather than collapsed into the
+    // verdict. verify-service reports them individually, and which ones it did
+    // *not* run is as informative as the ones that passed.
     for (const [index, entry] of credentialResults.entries()) {
+      const prefix = credentialResults.length > 1 ? `credential ${index + 1}: ` : '';
+
+      report(ctx, `verifier.inji.signature-${index}`, `${prefix}Signature and schema`, entry.schemaAndSignatureCheck);
+      report(ctx, `verifier.inji.holder-proof-${index}`, `${prefix}Holder proof`, entry.holderProofCheck);
+
+      if (entry.expiryCheck) {
+        ctx.check({
+          id: `verifier.inji.expiry-${index}`,
+          title: `${prefix}Within validity period`,
+          status: entry.expiryCheck.valid ? 'pass' : 'warn',
+          spec: 'Inji Verify credential verification',
+          detail: entry.expiryCheck.valid ? 'Inji Verify found the credential in date.' : 'Inji Verify reports the credential as expired.',
+        });
+      }
+
+      // An empty status list is not the same as a clean one: verify-service
+      // logs that status checking is unsupported for some formats and returns
+      // nothing, which reads identically to "checked, and fine".
+      const statusChecks = entry.statusCheck ?? [];
       ctx.check({
-        id: `verifier.inji.credential-${index}`,
-        title: `Inji Verify credential ${index + 1} status`,
-        status: entry.status.toUpperCase() === 'SUCCESS' ? 'pass' : 'fail',
-        spec: 'Inji Verify verification result',
-        detail: entry.detail ?? `verificationStatus = ${entry.status}`,
-        attributedTo: entry.status.toUpperCase() === 'SUCCESS' ? undefined : 'wallet',
+        id: `verifier.inji.status-${index}`,
+        title: `${prefix}Revocation status was checked`,
+        status: statusChecks.length > 0 ? 'pass' : 'warn',
+        spec: 'W3C Bitstring Status List / IETF Token Status List',
+        detail:
+          statusChecks.length > 0
+            ? `verify-service ran ${statusChecks.length} status check(s).`
+            : 'verify-service returned an empty status list. Its log reports status checking as unsupported for this credential format, so a revoked credential would be accepted.',
+        attributedTo: statusChecks.length > 0 ? undefined : 'verifier',
       });
     }
 
+    const verdict = deriveVerdict(result.body.allChecksSuccessful, credentialResults);
+
     return {
-      verdict: deriveVerdict(result.body.allChecksSuccessful, credentialResults),
+      verdict,
       raw: result.body,
-      credentialResults,
+      credentialResults: credentialResults.map((entry) => ({
+        status: entry.allChecksSuccessful ? 'SUCCESS' : 'FAILED',
+        detail: entry.schemaAndSignatureCheck?.error?.errorMessage,
+        claims: entry.claims,
+      })),
     };
   }
 }
 
+/** Records one of verify-service's sub-checks, when it reported that check. */
+function report(
+  ctx: RunContext,
+  id: string,
+  title: string,
+  check: { valid?: boolean; error?: { errorCode?: string; errorMessage?: string } } | null | undefined,
+): void {
+  if (!check) return;
+  ctx.check({
+    id,
+    title: `Inji Verify: ${title}`,
+    status: check.valid ? 'pass' : 'fail',
+    spec: 'Inji Verify credential verification',
+    detail: check.valid
+      ? 'Reported valid by verify-service.'
+      : `${check.error?.errorCode ?? 'failed'} — ${check.error?.errorMessage ?? 'no detail given'}`,
+    attributedTo: check.valid ? undefined : 'issuer',
+  });
+}
+
 /**
- * Maps Inji Verify's result onto the playground's three-way verdict.
+ * Maps verify-service's result onto the playground's three-way verdict.
  *
- * An expired-but-authentic credential is reported distinctly, because a relying
- * party's response to it differs from its response to a forged one.
+ * Reads `allChecksSuccessful`, which is the field verify-service actually sets.
+ * An earlier version looked for `verificationStatus`, which the v2 response does
+ * not carry — so a fully successful verification was reported as UNKNOWN and
+ * counted as a failure. Worth remembering: a result mapped from the wrong field
+ * name looks exactly like the other party being broken.
  */
 function deriveVerdict(
   allChecksSuccessful: boolean | undefined,
-  credentialResults: Array<{ status: string; detail?: string }>,
+  credentialResults: Array<{ allChecksSuccessful?: boolean; expiryCheck?: { valid?: boolean } | null }>,
 ): VerificationOutcome['verdict'] {
   if (allChecksSuccessful) return 'valid';
+  if (credentialResults.length === 0) return 'error';
 
-  const statuses = credentialResults.map((r) => r.status.toUpperCase());
-  if (statuses.some((status) => status.includes('EXPIRED'))) return 'valid-but-expired';
-  if (statuses.length === 0) return 'error';
+  // Everything sound except the validity window is a distinct outcome, and the
+  // only one a holder can do anything about.
+  const onlyExpired = credentialResults.every(
+    (entry) => entry.expiryCheck && entry.expiryCheck.valid === false,
+  );
+  if (onlyExpired) return 'valid-but-expired';
+
   return 'invalid';
 }

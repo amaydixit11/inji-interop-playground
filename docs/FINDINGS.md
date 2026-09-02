@@ -185,25 +185,59 @@ set of contexts that can be verified.
 
 ---
 
-## 8. Inji Verify requires an X.509 chain to verify an SD-JWT VC
+## 8. Inji Verify requires an X.509 chain to verify an SD-JWT VC — confirmed
 
-**Observed.** An SD-JWT VC whose issuer key is identified by `kid` (a `did:web` verification method):
+**Observed, and settled by a controlled comparison.** This was previously a diagnosis; it is now a
+result.
+
+The same credential, from the same issuer, differing only in how it names its signing key:
+
+| Issuer key reference | `POST /v2/vc-verification` | Full presentation |
+| --- | --- | --- |
+| `kid` (a `did:web` verification method) | `ERR_SIGNATURE_VERIFICATION_FAILED` — `getX509CertChain(...) must not be null` | rejected |
+| `x5c` (certificate chain embedded) | **valid** | **verifies end to end** |
+
+So the requirement is real and it is specifically the chain: nothing else about the credential
+changed. Inji Verify cannot resolve an SD-JWT issuer key from a DID.
+
+IETF SD-JWT VC §3.5 also defines resolution from the `iss` value via `/.well-known/jwt-vc-issuer`,
+and DID-based resolution is in common use — including elsewhere in this stack, where Certify
+advertises `did:jwk` binding. An issuer that identifies its key by DID, as MOSIP's own documentation
+encourages, produces SD-JWT credentials this verifier cannot check.
+
+**The corollary is worth stating as loudly as the defect: with `x5c`, an SD-JWT VC verifies through
+Inji Verify completely** — signature, holder proof and validity period all reported valid. This is
+the one fully green path against a real Inji service, and it was invisible until the comparison was
+run.
+
+**Suggested fix:** support `iss`-based JWKS resolution per SD-JWT VC §3.5, or document that `x5c` is
+required. The playground exposes this as a run dimension (`issuerKeyReference`), so the difference can
+be reproduced in two runs.
+
+---
+
+## 8b. Inji Verify does not check revocation for SD-JWT VC
+
+**Observed.** On every SD-JWT run, `statusCheck` comes back as an empty array while the service log
+says:
 
 ```
-{"errorCode":"ERR_SIGNATURE_VERIFICATION_FAILED",
- "errorMessage":"Exception during Verification: getX509CertChain(...) must not be null"}
+i.m.v.vcverifier.CredentialsVerifier : Error occurred while checking credential status of
+format VC_SD_JWT: Credential status checking not supported for this credential format.
+Returning empty status list
 ```
 
-The issuer key appears to be resolvable only from an `x5c` header. IETF SD-JWT VC also defines
-resolution from the `iss` value via `/.well-known/jwt-vc-issuer`, and DID-based resolution is in
-common use — including elsewhere in the Inji stack, where Certify advertises `did:jwk` binding.
+An empty status list is indistinguishable, in the response, from a list that was checked and found
+clean. A caller reading `allChecksSuccessful` gets `true` for a credential whose revocation was never
+examined — so **a revoked SD-JWT VC is accepted**.
 
-An issuer that identifies its key by DID, as MOSIP's own documentation encourages, produces
-credentials this verifier cannot check.
+The credentials the playground issues carry an IETF Token Status List reference
+(`status.status_list`), which is the mechanism SD-JWT VC specifies, so there is something there to
+check.
 
-**Diagnosis confidence:** the error is unambiguous about the missing chain. Confirming that an
-`x5c`-bearing SD-JWT verifies would require issuing with a certificate chain, which the playground
-does not yet do.
+**Suggested fix:** implement Token Status List checking for SD-JWT, or distinguish "not checked" from
+"checked and clean" in the response so a caller can tell the difference. The second is the smaller
+change and prevents the silent-acceptance case on its own.
 
 ---
 
@@ -288,20 +322,25 @@ correction came from testing the path a wallet takes rather than the one that wa
 
 ---
 
-## 12. Direct credential verification isolates the two Inji Verify blockers
+## 12. Direct credential verification is what made findings 7 and 8 tractable
 
-**Observed.** The playground now submits each issued credential to
-`POST /v2/vc-verification` before any presentation exists. Both failures reproduce there:
+**Observed.** The playground submits each issued credential to `POST /v2/vc-verification` before any
+presentation exists. Both Inji Verify failures reproduce there:
 
-| Format | Error from `/v2/vc-verification` |
-| --- | --- |
-| `ldp_vc` | `LOADING_REMOTE_CONTEXT_FAILED` (finding 7) |
-| `vc+sd-jwt` | `getX509CertChain(...) must not be null` (finding 8) |
+| Format | Issuer key | Result from `/v2/vc-verification` |
+| --- | --- | --- |
+| `ldp_vc` | `did:web` | `LOADING_REMOTE_CONTEXT_FAILED` (finding 7) |
+| `vc+sd-jwt` | `kid` | `getX509CertChain(...) must not be null` (finding 8) |
+| `vc+sd-jwt` | `x5c` | **valid** |
 
-This matters for triage. Both findings are properties of the **credential** as this verifier reads
-it, not of the OpenID4VP exchange — which, as finding 11 now shows, is itself conformant. Anyone
-investigating either should look at credential handling in the vcverifier library, not at the
-presentation flow.
+Two things follow. First, both are properties of the **credential** as this verifier reads it, not of
+the OpenID4VP exchange — which, as finding 11 shows, is itself conformant. Anyone investigating
+should look at credential handling in the vcverifier library, not at the presentation flow.
+
+Second, it is what caught our own bug (finding 18). The third row should have been green end to end
+and was being reported as `UNKNOWN`; having the same credential answered by two different endpoints
+is what exposed the adapter misreading one of them. An interoperability tool has no external signal
+when it misreads a counterparty, so a second, independent path to the same answer is worth its cost.
 
 ## 13. Inji Web cannot be paired with an arbitrary issuer
 
@@ -406,7 +445,23 @@ binding — and accepted a credential of an unrelated type, because nothing eval
 definition it had itself sent. A valid signature proves someone authentic signed something; it does
 not prove the holder satisfies what was asked. The same gap is worth checking for in any verifier.
 
-### 18. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
+### 18. Reading a result from the wrong field name looks exactly like the other party being broken
+
+Our Inji Verify adapter derived its verdict from `verificationStatus`, which the v2 result does not
+carry. Every successful verification was therefore read as `UNKNOWN` and counted as a failure — and
+the reports said so.
+
+It was caught only because the x5c comparison produced a result that *should* have been green, which
+prompted a look at the raw payload: `allChecksSuccessful: true`, with signature, holder proof and
+expiry all valid. The verifier had been working; the adapter was misreading it.
+
+Worth recording because it is the failure mode an interoperability tool is most prone to and least
+able to notice. Every other finding here rests on an adapter reading a counterparty's response
+correctly, and there is no external signal when one does not. The mitigation now in place is direct
+credential verification, which cross-checks the same credential through a second endpoint — that is
+how the discrepancy surfaced.
+
+### 19. `@digitalbazaar/ed25519-multikey` emits a 64-byte JWK `d`
 
 `toJwk({secretKey: true})` returns the 64-byte libsodium private key (seed ‖ public key) as JWK `d`.
 RFC 8037 §2 defines `d` as the 32-byte seed alone, and Node rejects the longer value with
@@ -429,6 +484,6 @@ library, which any issuer supporting both `ldp_vc` and SD-JWT from one key has t
 | 11 | `mosip/inji-verify` | documentation only — the request object itself is conformant |
 | 12 | `mosip/inji-verify` | triage note for findings 7 and 8 |
 | 13 | `mosip/mimoto` | documentation — Inji Web is not a general OpenID4VCI wallet |
-| 18 | `@digitalbazaar/ed25519-multikey` | spec deviation |
+| 19 | `@digitalbazaar/ed25519-multikey` | spec deviation |
 
-Findings 14–17 are ours and are already fixed in this repository.
+Findings 14–18 are ours and are already fixed in this repository.

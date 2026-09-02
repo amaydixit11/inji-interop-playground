@@ -106,7 +106,7 @@ reporting them identically would be misleading.
 
 | Format | Issued by | Notes |
 | --- | --- | --- |
-| `ldp_vc` | Reference, Certify | W3C VC 1.1 JSON-LD with an `Ed25519Signature2020` Data Integrity proof |
+| `ldp_vc` | Reference, Certify | W3C VC **1.1 and 2.0** JSON-LD, with any of three Data Integrity proof suites |
 | `vc+sd-jwt` | Reference, Certify | IETF SD-JWT VC, draft media type, with holder key binding |
 | `dc+sd-jwt` | Reference | IETF SD-JWT VC, registered media type |
 | `mso_mdoc` | Reference, Certify | ISO/IEC 18013-5 mdoc: COSE_Sign1 issuer authentication over a MobileSecurityObject, selective disclosure by digest, and device binding over an OpenID4VP session transcript |
@@ -131,6 +131,8 @@ Six independent dimensions, each of which changes what is actually on the wire:
 | **Proof suite** (JSON-LD) | `Ed25519Signature2020` · `Ed25519Signature2018` · `RsaSignature2018` |
 | **OpenID4VCI revision** | draft 11 · draft 12 · draft 13 · 1.0 |
 | **Presentation flow** | cross-device (QR, polled) · same-device (redirect + one-time response code) |
+| **W3C data model** | 1.1 (`issuanceDate`) · 2.0 (`validFrom`) |
+| **Issuer key reference** | `kid` / DID · `x5c` certificate chain |
 | **Holder binding** | JWT key-binding proof · none |
 | **Fault injected** | see below |
 
@@ -291,12 +293,21 @@ observed or read from source. The most consequential:
   host — which rules out every development and CI deployment. Small fix, large effect.
 - **Inji Verify cannot load an issuer-hosted JSON-LD context**, which affects any credential with
   custom claims, since such claims must be defined in a context of their own.
+- **Inji Verify resolves an SD-JWT issuer key only from an embedded `x5c` chain**, not from a DID —
+  confirmed by sending the same credential twice, differing only in that. With `x5c` it verifies
+  **end to end**, which is the one fully green path against a real Inji service and was invisible
+  until the comparison was run.
+- **Inji Verify does not check revocation for SD-JWT at all**, and reports an empty status list that
+  is indistinguishable from a clean one. A revoked SD-JWT VC is accepted.
 - **inji-verify ships a database schema that does not match its own image**, so every presentation
   submission returns HTTP 500 until the authoritative DDL is used instead.
 
-Four of the sixteen are defects in *this* project that only a real counterparty exposed — including
-a proof header carrying two key identifiers where OpenID4VCI permits exactly one, which our own
-issuer had been happily accepting.
+Five of the nineteen are defects in *this* project that only a real counterparty exposed. One is
+worth singling out: our Inji Verify adapter read its verdict from a field the response does not
+carry, so **every successful verification was reported as a failure** — and the reports said so. It
+surfaced only because the `x5c` comparison produced a result that should have been green. An
+interoperability tool has no external signal when it misreads a counterparty, which is why the same
+credential is now also verified through a second, independent endpoint.
 
 One finding changed what got built: **Inji Web cannot be paired with an arbitrary issuer.** Its
 Mimoto backend takes a pre-registered `issuer_id` rather than a credential offer, and requires an
@@ -307,6 +318,8 @@ interactive login. The constraint is declared on the participant and shown befor
 Generated matrices: [reference baseline](docs/INTEROPERABILITY.md) ·
 [suites × revisions](docs/INTEROPERABILITY-suites-revisions.md) ·
 [flow modes](docs/INTEROPERABILITY-flow-modes.md) ·
+[data model 1.1 vs 2.0](docs/INTEROPERABILITY-data-model.md) ·
+[issuer key reference](docs/INTEROPERABILITY-issuer-key-reference.md) ·
 [Inji Certify](docs/INTEROPERABILITY-inji-certify.md) ·
 [Inji Verify](docs/INTEROPERABILITY-inji-verify.md).
 

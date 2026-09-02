@@ -298,7 +298,7 @@ export class Run {
       this.ctx.fail('The replay-response-code fault requires flowMode "same-device".');
     }
 
-    if (this.config.tamper === 'revoke-credential' && format !== 'ldp_vc') {
+    if (this.config.tamper === 'revoke-credential' && format === 'mso_mdoc') {
       // Revocation is modelled through the W3C status list, which only the
       // JSON-LD credential carries. SD-JWT VC and mdoc have their own status
       // mechanisms (Token Status List, and the mdoc status field) that this
@@ -309,7 +309,8 @@ export class Run {
         title: 'Revocation can be modelled for this credential format',
         status: 'fail',
         spec: 'W3C Bitstring Status List / StatusList2021',
-        detail: `Revocation is only wired up for ldp_vc, which carries a credentialStatus entry. ${format} uses a different status mechanism that this playground does not implement.`,
+        detail:
+          'ISO/IEC 18013-5 defines no status list mechanism comparable to the W3C or IETF ones, so there is nothing for an mdoc to reference. Revocation for mdoc is handled out of band, by the reader trusting a revocation feed rather than the document itself.',
       });
       this.ctx.fail(`The revoke-credential fault is not applicable to ${format}.`);
     }

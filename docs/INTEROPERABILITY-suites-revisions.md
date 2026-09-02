@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-01T15:37:35.298Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T07:57:43.751Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,30 +21,30 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-11` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-11` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-12` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-12` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `1.0` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `1.0` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-11` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-11` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-12` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-12` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `1.0` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `Ed25519Signature2018` | `1.0` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-11` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-11` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-12` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-12` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-13` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `draft-13` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `1.0` | `none` | **passed** | `valid` | 26 | 0 | 0 | 0 |
-| `ldp_vc` | `RsaSignature2018` | `1.0` | `break-signature` | **passed** | `invalid` | 24 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-11` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-11` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-12` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-12` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `1.0` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `1.0` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-11` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-11` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-12` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-12` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `1.0` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `Ed25519Signature2018` | `1.0` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-11` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-11` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-12` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-12` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-13` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `draft-13` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `1.0` | `none` | **passed** | `valid` | 27 | 0 | 0 | 0 |
+| `ldp_vc` | `RsaSignature2018` | `1.0` | `break-signature` | **passed** | `invalid` | 25 | 0 | 2 | 0 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -68,7 +68,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 ## Conformance checks exercised
 
-33 distinct assertions across this run set.
+34 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -77,6 +77,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Credential has not been revoked | OpenID4VP §7 / credential format specification |
 | Credential is within its validity window | OpenID4VP §7 / credential format specification |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
 | Holder echoed the verifier nonce | OpenID4VP §7 / credential format specification |
 | Issued credential is in the requested format | OpenID4VCI §7.3 |

@@ -172,3 +172,85 @@ export async function checkCredentialStatus(
     detail: `Checked ${entries.length} status list entry/entries; none of the bits are set.`,
   };
 }
+
+/* ------------------------- IETF Token Status List ------------------------- */
+
+/**
+ * The status mechanism SD-JWT VC references.
+ *
+ * The same bitstring idea as the W3C list, reached differently: the credential
+ * carries a `status.status_list` object naming a URI and an index, and the list
+ * itself is a JWT rather than a Verifiable Credential. Supporting both is what
+ * lets revocation be tested on every format rather than only JSON-LD.
+ */
+export interface TokenStatusReference {
+  idx: number;
+  uri: string;
+}
+
+export function tokenStatusReference(claims: Record<string, unknown>): TokenStatusReference | undefined {
+  const status = claims.status as { status_list?: { idx?: number; uri?: string } } | undefined;
+  const list = status?.status_list;
+  if (!list || typeof list.idx !== 'number' || typeof list.uri !== 'string') return undefined;
+  return { idx: list.idx, uri: list.uri };
+}
+
+/**
+ * Resolves an SD-JWT credential's status.
+ *
+ * Reports "not checked" distinctly from "not revoked", for the same reason as
+ * the W3C path: a list that cannot be fetched means the verifier does not know,
+ * and treating unknown as good standing is how revocation stops working.
+ */
+export async function checkTokenStatus(
+  claims: Record<string, unknown>,
+  resolveUrl: (url: string) => string = (url) => url,
+): Promise<StatusCheckResult> {
+  const reference = tokenStatusReference(claims);
+  if (!reference) {
+    return {
+      checked: false,
+      revoked: false,
+      detail: 'The credential carries no `status.status_list`, so it can never be revoked once issued.',
+    };
+  }
+
+  try {
+    const response = await fetch(resolveUrl(reference.uri), {
+      headers: { accept: 'application/statuslist+jwt, application/jwt' },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    // Only the payload is needed to read a bit. A production verifier would
+    // additionally verify the JWT against the issuer's key before trusting it.
+    const jwt = (await response.text()).trim();
+    const segment = jwt.split('.')[1];
+    if (!segment) throw new Error('Status list is not a JWT');
+
+    const payload = JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as {
+      status_list?: { lst?: string; bits?: number };
+    };
+    const encoded = payload.status_list?.lst;
+    if (typeof encoded !== 'string') throw new Error('Status list JWT carries no `lst`');
+
+    const list = StatusList.decode(encoded);
+    const revoked = list.get(reference.idx);
+    return {
+      checked: true,
+      revoked,
+      purpose: 'revocation',
+      detail: revoked
+        ? `Bit ${reference.idx} is set in the status list at ${reference.uri}.`
+        : `Bit ${reference.idx} is clear in the status list at ${reference.uri}.`,
+    };
+  } catch (error) {
+    return {
+      checked: false,
+      revoked: false,
+      detail: `Could not read the status list at ${reference.uri}: ${
+        error instanceof Error ? error.message : String(error)
+      }. Status is unknown, which is not the same as good standing.`,
+    };
+  }
+}

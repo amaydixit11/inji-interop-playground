@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-01T15:37:38.885Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T07:57:07.834Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -12,8 +12,8 @@ exchanges captured.
 | Issuer | Reference Issuer (OpenID4VCI) (`reference-issuer`, mock) |
 | Wallet | Reference Wallet (headless) (`reference-wallet`, mock) |
 | Verifier | Inji Verify (`inji-verify`, inji) |
-| Runs | 2 |
-| Passed | 0 |
+| Runs | 3 |
+| Passed | 1 |
 | Failed | 2 |
 | Traceability | full |
 
@@ -21,23 +21,25 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 21 | 1 | 0 | 1 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 18 | 3 | 0 | 1 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 22 | 1 | 0 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | — | 18 | 3 | 0 | 2 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | — | 23 | 0 | 0 | 2 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
 
 ## Findings
 
-- **Authorization request parameters use the specified names** — `warn`, 2 run(s). The /vp-request response is a camelCase envelope (clientId, responseUri, presentationDefinition) rather than the specified client_id, response_uri and presentation_definition. This affects only a caller wiring a wallet against that API directly — the request object served at the request_uri does use the specified names, so the normal cross-device path is unaffected.
+- **Authorization request parameters use the specified names** — `warn`, 3 run(s). The /vp-request response is a camelCase envelope (clientId, responseUri, presentationDefinition) rather than the specified client_id, response_uri and presentation_definition. This affects only a caller wiring a wallet against that API directly — the request object served at the request_uri does use the specified names, so the normal cross-device path is unaffected.
+- **Revocation status was checked** — `warn`, 2 run(s). verify-service returned an empty status list. Its log reports status checking as unsupported for this credential format, so a revoked credential would be accepted.
 - **Verifier accepts the issued credential on its own** — `fail`, 1 run(s). verify-service rejected the credential before any presentation was involved: ERR_SIGNATURE_VERIFICATION_FAILED — Exception during Verification: Error while doing verification of verifiable credential: foundation.identity.jsonld.JsonLDException: There was a problem encountered loading a remote context [code=LOADING_REMOTE_CONTEXT_FAILED].. Whatever happens in the OpenID4VP exchange, the credential itself cannot be read by this verifier.
 - **Verifier accepts the issued credential on its own** — `fail`, 1 run(s). verify-service rejected the credential before any presentation was involved: ERR_SIGNATURE_VERIFICATION_FAILED — Exception during Verification: getX509CertChain(...) must not be null. Whatever happens in the OpenID4VP exchange, the credential itself cannot be read by this verifier.
-- **Inji Verify credential 1 status** — `fail`, 1 run(s). verificationStatus = UNKNOWN
+- **Inji Verify: Signature and schema** — `fail`, 1 run(s). ERR_SIGNATURE_VERIFICATION_FAILED — Exception during Verification: getX509CertChain(...) must not be null
 - **Verification succeeded** — `fail`, 1 run(s). Verifier reported "invalid" but this run expected one of: valid. 
 
 ## Conformance checks exercised
 
-26 distinct assertions across this run set.
+30 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -45,8 +47,10 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Authorization server advertises the pre-authorized code grant | OpenID4VCI §3.5, RFC 8414 |
 | Credential carries a credential subject | W3C VC Data Model §4.4 |
 | Credential issuer is a resolvable identifier | W3C VC Data Model §4.5 |
+| Credential uses the W3C data model it was issued under (1.1) | W3C VC Data Model 1.1 §4.6 / 2.0 §4.8 |
 | Every @context entry resolves to a JSON-LD context | W3C VC Data Model §4.1, JSON-LD 1.1 §3.1 |
-| Inji Verify credential 1 status | Inji Verify verification result |
+| Inji Verify: Holder proof | Inji Verify credential verification |
+| Inji Verify: Signature and schema | Inji Verify credential verification |
 | Issued credential is in the requested format | OpenID4VCI §7.3 |
 | Issuer advertises the requested credential format | OpenID4VCI §11.2.3 |
 | Issuer supplied a nonce for the holder proof | OpenID4VCI §7.2 (c_nonce) / §8 (Nonce Endpoint) |
@@ -61,12 +65,14 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Request object uses the specified parameter names | OpenID4VP §5 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
+| Revocation status was checked | W3C Bitstring Status List / IETF Token Status List |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
 | Verification succeeded | An untampered credential must verify. |
 | Verifier accepts the issued credential on its own | W3C VC Data Model / Inji Verify credential verification |
 | Verifier honoured the requested nonce | OpenID4VP §5 |
 | Verifier requested a supported response mode | OpenID4VP §6.2 |
 | Wallet discloses only the requested claims | OpenID4VP §7 / SD-JWT VC §5 |
+| Within validity period | Inji Verify credential verification |
 
 ## Reproducing
 

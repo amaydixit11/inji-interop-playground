@@ -57,6 +57,8 @@ export class ReferenceIssuer extends BaseOid4vciIssuer {
       json: {
         format: opts.format,
         proofType: opts.proofType,
+        vcVersion: ctx.config.vcVersion ?? '1.1',
+        issuerKeyReference: ctx.config.issuerKeyReference ?? 'did',
         claims: opts.claims,
         tamper: ctx.config.tamper,
       },

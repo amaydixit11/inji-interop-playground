@@ -5,7 +5,7 @@ import type {
   RunConfig,
   TamperMode,
 } from '@interop/shared';
-import type { FlowMode, ProofType, VciDraft } from '@interop/shared';
+import type { FlowMode, IssuerKeyReference, ProofType, VciDraft, VcVersion } from '@interop/shared';
 import {
   CREDENTIAL_FORMAT_LABELS,
   FLOW_MODE_LABELS,
@@ -13,6 +13,8 @@ import {
   PROOF_TYPE_LABELS,
   TAMPER_MODE_LABELS,
   VCI_DRAFT_LABELS,
+  VC_VERSION_LABELS,
+  ISSUER_KEY_REFERENCE_LABELS,
 } from '@interop/shared';
 import { Badge, kindTone, TraceabilityBadge } from './primitives.js';
 
@@ -117,7 +119,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2 xl:grid-cols-4">
         <Field label="Credential format" hint="Must be supported by all three participants">
           <select
             disabled={disabled}
@@ -171,6 +173,24 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
           </select>
         </Field>
 
+        <Field
+          label="Data model"
+          hint={config.format === 'ldp_vc' ? 'W3C revision the credential uses' : 'JSON-LD only'}
+        >
+          <select
+            disabled={disabled || config.format !== 'ldp_vc'}
+            value={config.vcVersion ?? '1.1'}
+            onChange={(event) => onChange({ ...config, vcVersion: event.target.value as VcVersion })}
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(VC_VERSION_LABELS) as VcVersion[]).map((version) => (
+              <option key={version} value={version}>
+                {VC_VERSION_LABELS[version]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
         <Field label="OpenID4VCI revision" hint="Which draft the wallet speaks on the wire">
           <select
             disabled={disabled}
@@ -196,6 +216,28 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             {(Object.keys(FLOW_MODE_LABELS) as FlowMode[]).map((mode) => (
               <option key={mode} value={mode}>
                 {FLOW_MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          label="Issuer key reference"
+          hint={
+            config.format === 'ldp_vc' ? 'SD-JWT only; ignored for JSON-LD' : 'How the issuer names its signing key'
+          }
+        >
+          <select
+            disabled={disabled || config.format === 'ldp_vc' || config.format === 'mso_mdoc'}
+            value={config.issuerKeyReference ?? 'did'}
+            onChange={(event) =>
+              onChange({ ...config, issuerKeyReference: event.target.value as IssuerKeyReference })
+            }
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+          >
+            {(Object.keys(ISSUER_KEY_REFERENCE_LABELS) as IssuerKeyReference[]).map((reference) => (
+              <option key={reference} value={reference}>
+                {ISSUER_KEY_REFERENCE_LABELS[reference]}
               </option>
             ))}
           </select>

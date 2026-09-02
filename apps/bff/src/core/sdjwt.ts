@@ -17,8 +17,16 @@ export interface SdJwtIssueOptions {
   /** Verifiable credential type identifier. */
   vct: string;
   signingKey: KeyLike;
-  alg: 'EdDSA' | 'ES256';
+  alg: 'EdDSA' | 'ES256' | 'RS256';
   kid: string;
+  /**
+   * Certificate chain to embed, base64 DER, leaf first.
+   *
+   * An alternative to `kid` for telling a verifier which key signed: the chain
+   * carries the key itself, so nothing has to be resolved. Some verifiers
+   * accept only this.
+   */
+  x5c?: string[];
   /** Claims made selectively disclosable, one disclosure each. */
   selectiveClaims: Record<string, unknown>;
   /** Claims always visible in the issuer-signed payload. */
@@ -82,7 +90,11 @@ export async function issueSdJwt(options: SdJwtIssueOptions): Promise<SdJwtIssue
   if (options.holderJwk) payload.cnf = { jwk: options.holderJwk };
 
   const issuerJwt = await new SignJWT(payload)
-    .setProtectedHeader({ alg: options.alg, typ: options.typ, kid: options.kid })
+    .setProtectedHeader({
+      alg: options.alg,
+      typ: options.typ,
+      ...(options.x5c ? { x5c: options.x5c } : { kid: options.kid }),
+    })
     .sign(options.signingKey);
 
   return {

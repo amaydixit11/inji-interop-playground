@@ -1,8 +1,8 @@
 {
-  "recordedAt": "2026-09-01T15:37:15.884Z",
+  "recordedAt": "2026-09-02T07:25:46.553Z",
   "runs": [
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | none",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | none",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -20,6 +20,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "pass",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -34,7 +35,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | break-signature",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | break-signature",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -52,6 +53,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "expected",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -66,7 +68,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | expire-credential",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | expire-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -84,6 +86,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "expected",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -99,7 +102,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | wrong-type",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | wrong-type",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -117,6 +120,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "pass",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -131,7 +135,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | strip-holder-proof",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | strip-holder-proof",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -149,6 +153,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "pass",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -162,7 +167,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | replay-nonce",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | replay-nonce",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -180,6 +185,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "pass",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -194,7 +200,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | revoke-credential",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | revoke-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -212,6 +218,7 @@
         "vci.credential.format-match": "pass",
         "verifier.direct.credential": "pass",
         "vp.response-mode": "pass",
+        "vc.data-model.version": "pass",
         "vc.context.dereferenceable": "pass",
         "vc.issuer.resolvable": "pass",
         "vc.proof.verification-method": "pass",
@@ -226,7 +233,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | none",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | none",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -251,13 +258,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | break-signature",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | break-signature",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -282,13 +290,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | expire-credential",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | expire-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -313,13 +322,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "warn",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | wrong-type",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | wrong-type",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -344,13 +354,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "expected",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | strip-holder-proof",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | strip-holder-proof",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -372,13 +383,14 @@
         "verifier.sdjwt.issuer-signature": "pass",
         "verifier.sdjwt.disclosure-digests": "pass",
         "verifier.sdjwt.kb-present": "expected",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | replay-nonce",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | replay-nonce",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -403,13 +415,14 @@
         "verifier.sdjwt.kb-nonce": "expected",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | none",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | vc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | revoke-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -434,13 +447,46 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "expected",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | break-signature",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | none",
+      "status": "passed",
+      "checks": {
+        "vci.metadata.credential-endpoint": "pass",
+        "vci.metadata.configurations": "pass",
+        "vci.metadata.format-supported": "pass",
+        "vci.as.pre-authorized-grant": "pass",
+        "vci.offer.issuer": "pass",
+        "vci.offer.configuration-ids": "pass",
+        "vci.offer.pre-authorized-code": "pass",
+        "vci.token.type": "pass",
+        "vci.nonce.available": "pass",
+        "vci.proof.key-identifier": "pass",
+        "vci.credential.envelope": "pass",
+        "vci.credential.format-echo": "pass",
+        "vci.credential.format-match": "pass",
+        "verifier.direct.credential": "pass",
+        "vp.response-mode": "pass",
+        "vp.selective-disclosure": "pass",
+        "verifier.sdjwt.issuer-signature": "pass",
+        "verifier.sdjwt.disclosure-digests": "pass",
+        "verifier.sdjwt.sd-hash": "pass",
+        "verifier.sdjwt.kb-nonce": "pass",
+        "verifier.sdjwt.kb-audience": "pass",
+        "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
+        "verifier.sdjwt.validity-window": "pass",
+        "verifier.vp.constraints": "pass",
+        "run.expected-outcome": "pass"
+      }
+    },
+    {
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | break-signature",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -465,13 +511,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | expire-credential",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | expire-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -496,13 +543,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "warn",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | wrong-type",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | wrong-type",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -527,13 +575,14 @@
         "verifier.sdjwt.kb-nonce": "pass",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "expected",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | strip-holder-proof",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | strip-holder-proof",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -555,13 +604,14 @@
         "verifier.sdjwt.issuer-signature": "pass",
         "verifier.sdjwt.disclosure-digests": "pass",
         "verifier.sdjwt.kb-present": "expected",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | replay-nonce",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | replay-nonce",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -586,13 +636,46 @@
         "verifier.sdjwt.kb-nonce": "expected",
         "verifier.sdjwt.kb-audience": "pass",
         "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "pass",
         "verifier.sdjwt.validity-window": "pass",
         "verifier.vp.constraints": "pass",
         "run.expected-outcome": "pass"
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | none",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | dc+sd-jwt | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | revoke-credential",
+      "status": "passed",
+      "checks": {
+        "vci.metadata.credential-endpoint": "pass",
+        "vci.metadata.configurations": "pass",
+        "vci.metadata.format-supported": "pass",
+        "vci.as.pre-authorized-grant": "pass",
+        "vci.offer.issuer": "pass",
+        "vci.offer.configuration-ids": "pass",
+        "vci.offer.pre-authorized-code": "pass",
+        "vci.token.type": "pass",
+        "vci.nonce.available": "pass",
+        "vci.proof.key-identifier": "pass",
+        "vci.credential.envelope": "pass",
+        "vci.credential.format-echo": "pass",
+        "vci.credential.format-match": "pass",
+        "verifier.direct.credential": "pass",
+        "vp.response-mode": "pass",
+        "vp.selective-disclosure": "pass",
+        "verifier.sdjwt.issuer-signature": "pass",
+        "verifier.sdjwt.disclosure-digests": "pass",
+        "verifier.sdjwt.sd-hash": "pass",
+        "verifier.sdjwt.kb-nonce": "pass",
+        "verifier.sdjwt.kb-audience": "pass",
+        "verifier.sdjwt.kb-signature": "pass",
+        "verifier.vc.status": "expected",
+        "verifier.sdjwt.validity-window": "pass",
+        "verifier.vp.constraints": "pass",
+        "run.expected-outcome": "pass"
+      }
+    },
+    {
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | none",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -622,7 +705,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | break-signature",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | break-signature",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -652,7 +735,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | expire-credential",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | expire-credential",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -682,7 +765,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | wrong-type",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | wrong-type",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -712,7 +795,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | strip-holder-proof",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | strip-holder-proof",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",
@@ -742,7 +825,7 @@
       }
     },
     {
-      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | replay-nonce",
+      "key": "Reference Issuer (OpenID4VCI) | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | mso_mdoc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | replay-nonce",
       "status": "passed",
       "checks": {
         "vci.metadata.credential-endpoint": "pass",

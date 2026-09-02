@@ -46,7 +46,9 @@ const DEFAULT_FAULTS = [
  * configuration limit as a test failure, which is noise rather than signal.
  */
 const FAULT_FORMATS = {
-  'revoke-credential': ['ldp_vc'],
+  // mdoc is excluded: ISO/IEC 18013-5 defines no status list to reference, so
+  // there is nothing for a revocation fault to act on.
+  'revoke-credential': ['ldp_vc', 'vc+sd-jwt', 'dc+sd-jwt'],
 };
 
 /** Faults that only exist in one presentation flow. */
@@ -62,6 +64,8 @@ const faults = args.faults ? args.faults.split(',') : DEFAULT_FAULTS;
 const proofTypes = args.proofTypes ? args.proofTypes.split(',') : ['Ed25519Signature2020'];
 const drafts = args.drafts ? args.drafts.split(',') : ['draft-13'];
 const flowModes = args.flowModes ? args.flowModes.split(',') : ['cross-device'];
+const vcVersions = args.vcVersions ? args.vcVersions.split(',') : ['1.1'];
+const keyRefs = args.keyRefs ? args.keyRefs.split(',') : ['did'];
 const baselinePath = args.baseline;
 const saveBaselinePath = args['save-baseline'];
 const failOnRegression = 'fail-on-regression' in args;
@@ -94,6 +98,8 @@ console.log(`Faults:     ${faults.join(', ')}`);
 console.log(`Suites:     ${proofTypes.join(', ')}`);
 console.log(`Revisions:  ${drafts.join(', ')}`);
 console.log(`Flows:      ${flowModes.join(', ')}`);
+console.log(`Data model: ${vcVersions.join(', ')}`);
+console.log(`Issuer key: ${keyRefs.join(', ')}`);
 console.log('');
 
 const records = [];
@@ -101,7 +107,13 @@ for (const format of supported) {
   for (const proofType of proofTypes) {
     for (const draft of drafts) {
       for (const flowMode of flowModes) {
+      for (const vcVersion of vcVersions) {
+      for (const issuerKeyReference of keyRefs) {
       for (const tamper of faults) {
+        // The issuer key reference only exists for SD-JWT credentials.
+        if (issuerKeyReference !== 'did' && !format.endsWith('sd-jwt')) continue;
+        // The data model revision only exists for JSON-LD credentials.
+        if (vcVersion !== '1.1' && format !== 'ldp_vc') continue;
         const allowed = FAULT_FORMATS[tamper];
         if (allowed && !allowed.includes(format)) continue;
         const allowedFlows = FAULT_FLOW_MODES[tamper];
@@ -109,7 +121,7 @@ for (const format of supported) {
     process.stdout.write(
       `  ${format.padEnd(11)} ${tamper.padEnd(19)} ${proofTypes.length > 1 ? proofType.padEnd(22) : ''}${drafts.length > 1 ? draft.padEnd(10) : ''}`,
     );
-    const record = await runOne({ format, tamper, proofType, draft, flowMode });
+    const record = await runOne({ format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference });
     records.push(record);
     const summary = record.summary ?? {};
     console.log(
@@ -120,6 +132,8 @@ for (const format of supported) {
     if (record.status !== 'passed' && record.summary?.failure) {
       console.log(`      ↳ ${record.summary.failure.message}`);
     }
+      }
+      }
       }
       }
     }
@@ -162,7 +176,7 @@ process.exit(failures.length === 0 ? 0 : 1);
 
 /* ------------------------------------------------------------------ */
 
-async function runOne({ format, tamper, proofType, draft, flowMode }) {
+async function runOne({ format, tamper, proofType, draft, flowMode, vcVersion, issuerKeyReference }) {
   const { runId } = await postJson(`${base}/api/runs`, {
     issuerId,
     walletId,
@@ -172,12 +186,19 @@ async function runOne({ format, tamper, proofType, draft, flowMode }) {
     walletProofType: 'jwt',
     vciDraft: draft,
     flowMode,
+    vcVersion,
+    issuerKeyReference,
     tamper,
   });
 
   // The run executes after the POST returns, so poll until the record is
   // persisted rather than guessing at a fixed delay.
-  const deadline = Date.now() + 180_000;
+  //
+  // Generous, because a verifier that rejects a submission never flips its
+  // status and the adapter polls its full timeout waiting — which is honest
+  // behaviour and slow. A tighter deadline reports that as a harness timeout
+  // rather than as the finding it is.
+  const deadline = Date.now() + 360_000;
   while (Date.now() < deadline) {
     const response = await fetch(`${base}/api/runs/${runId}`);
     if (response.ok) return response.json();
@@ -211,6 +232,8 @@ function runKey(record) {
     c.proofType,
     c.vciDraft ?? 'draft-13',
     c.flowMode ?? 'cross-device',
+    c.vcVersion ?? '1.1',
+    c.issuerKeyReference ?? 'did',
     c.tamper,
   ].join(' | ');
 }

@@ -2,17 +2,24 @@ import { randomUUID } from 'node:crypto';
 import * as vc from '@digitalbazaar/vc';
 import jsigs from 'jsonld-signatures';
 import { createIssuanceSuite, SUITE_CONTEXTS, verificationSuites } from './suites.js';
-import type { JWK } from 'jose';
-import type { CredentialFormat, ProofType, TamperMode } from '@interop/shared';
+import { SignJWT, type JWK } from 'jose';
+import type { CredentialFormat, IssuerKeyReference, ProofType, TamperMode, VcVersion } from '@interop/shared';
 import type { IssuerKey } from './keys.js';
 import type { DocumentLoader } from './jsonld.js';
 import { PLAYGROUND_CONTEXT_PATH } from './jsonld.js';
 import { issueMdoc, MDL_DOCTYPE } from './mdoc.js';
 import { issueSdJwt } from './sdjwt.js';
+import { getIssuerCertificate } from './x509.js';
 import { checkCredentialStatus } from './statuslist.js';
 
 /** Context defining the StatusList2021 terms, for VC 1.1 credentials. */
 export const STATUS_LIST_CONTEXT = 'https://w3id.org/vc/status-list/2021/v1';
+
+/** Base context per data model revision. */
+export const VC_CONTEXT: Record<VcVersion, string> = {
+  '1.1': 'https://www.w3.org/2018/credentials/v1',
+  '2.0': 'https://www.w3.org/ns/credentials/v2',
+};
 
 export const CREDENTIAL_TYPE = 'InteropTestCredential';
 export const VCT = 'https://inji-interop-playground.dev/vct/InteropTestCredential';
@@ -29,6 +36,10 @@ export interface MintOptions {
   format: CredentialFormat;
   /** Data Integrity suite to sign a JSON-LD credential with. */
   proofType: ProofType;
+  /** W3C data model revision; defaults to 1.1. */
+  vcVersion?: VcVersion;
+  /** How an SD-JWT names its issuer key; defaults to the DID. */
+  issuerKeyReference?: IssuerKeyReference;
   claims: Record<string, unknown>;
   issuerKey: IssuerKey;
   publicUrl: string;
@@ -88,22 +99,29 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
   }
   if (expired) tamperNotes.push(`expirationDate backdated to ${expirationDate.toISOString()}.`);
 
+  const version: VcVersion = options.vcVersion ?? '1.1';
+
   // The suite's own context has to be present before signing: it is what
   // defines the proof terms, and without it canonicalisation silently drops the
-  // proof's own properties.
-  const suiteContext = SUITE_CONTEXTS[options.proofType];
+  // proof's own properties. VC 2.0 already defines the Data Integrity terms, so
+  // adding a suite context on top would redefine protected terms and fail.
+  const suiteContext = version === '2.0' ? undefined : SUITE_CONTEXTS[options.proofType];
+
   const credential: Record<string, unknown> = {
     '@context': [
-      'https://www.w3.org/2018/credentials/v1',
+      VC_CONTEXT[version],
       new URL(PLAYGROUND_CONTEXT_PATH, options.publicUrl).toString(),
-      ...(options.status ? [STATUS_LIST_CONTEXT] : []),
+      ...(options.status && version === '1.1' ? [STATUS_LIST_CONTEXT] : []),
       ...(suiteContext ? [suiteContext] : []),
     ],
     id: `urn:uuid:${randomUUID()}`,
     type,
     issuer: options.issuerKey.did,
-    issuanceDate: issuanceDate.toISOString(),
-    expirationDate: expirationDate.toISOString(),
+    // 2.0 renamed both date fields; emitting the pair the chosen revision
+    // defines is the whole point of having the dimension.
+    ...(version === '2.0'
+      ? { validFrom: issuanceDate.toISOString(), validUntil: expirationDate.toISOString() }
+      : { issuanceDate: issuanceDate.toISOString(), expirationDate: expirationDate.toISOString() }),
     credentialSubject: {
       ...(options.holderDid ? { id: options.holderDid } : {}),
       ...options.claims,
@@ -115,7 +133,7 @@ async function mintJsonLd(options: MintOptions): Promise<MintedCredential> {
             // StatusList2021 rather than BitstringStatusList: the latter is
             // defined by the VC 2.0 context, and these credentials are VC 1.1.
             // Mixing the two produces a term the processor cannot expand.
-            type: 'StatusList2021Entry',
+            type: version === '2.0' ? 'BitstringStatusListEntry' : 'StatusList2021Entry',
             statusPurpose: 'revocation',
             statusListIndex: options.status.statusListIndex,
             statusListCredential: options.status.statusListCredential,
@@ -171,14 +189,26 @@ async function mintSdJwtVc(
   const expired = options.tamper === 'expire-credential';
   const now = new Date();
 
+  // With `x5c` the signing key is the one inside the certificate, and the
+  // algorithm follows from it — the chain is useless if it does not carry the
+  // key that actually signed.
+  const useCertificate = options.issuerKeyReference === 'x5c';
+  const certificate = useCertificate ? await getIssuerCertificate(options.issuerKey.did) : undefined;
+
   const issued = await issueSdJwt({
     typ,
     issuer: options.issuerKey.did,
     vct: options.tamper === 'wrong-type' ? `${VCT}#unrelated` : VCT,
-    signingKey: options.issuerKey.joseKey,
-    alg: 'EdDSA',
+    signingKey: certificate?.privateKey ?? options.issuerKey.joseKey,
+    alg: certificate ? 'RS256' : 'EdDSA',
     kid: options.issuerKey.kid,
+    x5c: certificate?.x5c,
     selectiveClaims: options.claims,
+    // Always visible rather than selectively disclosable: a holder who could
+    // withhold the status reference could hide the fact of their own revocation.
+    alwaysVisibleClaims: options.status
+      ? { status: { status_list: { idx: Number(options.status.statusListIndex), uri: options.status.statusListCredential } } }
+      : undefined,
     holderJwk: options.holderJwk,
     issuedAt: expired ? new Date(now.getTime() - 365 * 864e5) : now,
     expiresAt: expired ? new Date(now.getTime() - 864e5) : new Date(now.getTime() + 365 * 864e5),
@@ -354,4 +384,26 @@ export async function signStatusListCredential(options: {
     suite: createIssuanceSuite('Ed25519Signature2020', options.issuerKey),
     documentLoader: options.documentLoader,
   })) as Record<string, unknown>;
+}
+
+/**
+ * Signs the revocation list as an IETF Token Status List JWT.
+ *
+ * A separate representation from the W3C one because SD-JWT VC references a
+ * status list by URI expecting a JWT, not a Verifiable Credential — the same
+ * bitstring reached through a different envelope.
+ */
+export async function signTokenStatusList(options: {
+  uri: string;
+  issuerKey: IssuerKey;
+  encodedList: string;
+}): Promise<string> {
+  return new SignJWT({
+    status_list: { bits: 1, lst: options.encodedList },
+  })
+    .setProtectedHeader({ alg: 'EdDSA', typ: 'statuslist+jwt', kid: options.issuerKey.kid })
+    .setIssuer(options.issuerKey.did)
+    .setSubject(options.uri)
+    .setIssuedAt()
+    .sign(options.issuerKey.joseKey);
 }

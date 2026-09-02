@@ -59,6 +59,38 @@ export const PROOF_TYPE_LABELS: Partial<Record<ProofType, string>> = {
   RsaSignature2018: 'RsaSignature2018 (detached JWS, RS256)',
 };
 
+/**
+ * Which revision of the W3C Verifiable Credentials data model to issue.
+ *
+ * Not a cosmetic change: `issuanceDate` and `expirationDate` become `validFrom`
+ * and `validUntil`, and the context defines a different term set. A verifier
+ * written for one and handed the other usually reads the validity period as
+ * absent rather than failing loudly, which is the quiet kind of incompatibility
+ * worth having a dimension for.
+ */
+export type VcVersion = '1.1' | '2.0';
+
+export const VC_VERSION_LABELS: Record<VcVersion, string> = {
+  '1.1': 'W3C VC 1.1 (issuanceDate / expirationDate)',
+  '2.0': 'W3C VC 2.0 (validFrom / validUntil)',
+};
+
+/**
+ * How an SD-JWT issuer tells a verifier which key signed the credential.
+ *
+ * `did` puts a `kid` in the header and expects the verifier to resolve it;
+ * `x5c` embeds a certificate chain so nothing has to be resolved. Both are
+ * permitted by SD-JWT VC, and a verifier that supports only one cannot read
+ * credentials from an issuer that uses the other — which is exactly the kind of
+ * incompatibility worth being able to select between.
+ */
+export type IssuerKeyReference = 'did' | 'x5c';
+
+export const ISSUER_KEY_REFERENCE_LABELS: Record<IssuerKeyReference, string> = {
+  did: 'kid — verifier resolves the issuer DID',
+  x5c: 'x5c — certificate chain embedded in the credential',
+};
+
 /** Key-binding proof the wallet sends to the credential endpoint. */
 export type WalletProofType = 'jwt' | 'cwt' | 'none';
 
@@ -215,6 +247,10 @@ export interface RunConfig {
   vciDraft?: VciDraft;
   /** How the wallet returns the presentation; defaults to cross-device. */
   flowMode?: FlowMode;
+  /** W3C data model revision for JSON-LD credentials; defaults to 1.1. */
+  vcVersion?: VcVersion;
+  /** How an SD-JWT names its issuer key; defaults to the DID. */
+  issuerKeyReference?: IssuerKeyReference;
   tamper: TamperMode;
   /** Claims to put in the credential; defaults to a sample identity subject. */
   claims?: Record<string, unknown>;

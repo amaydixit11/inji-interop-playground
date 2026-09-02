@@ -457,6 +457,33 @@ export class ReferenceWallet implements WalletAdapter {
    */
   private async inspectJsonLdCredential(ctx: RunContext, credential: Record<string, unknown>): Promise<void> {
     const loader = this.deps.documentLoader();
+
+    // The two revisions name the validity window differently. A credential
+    // carrying neither pair, or the pair belonging to the other revision, is
+    // typically read as having no validity period at all rather than failing —
+    // so it is worth asserting rather than assuming.
+    const requested = ctx.config.vcVersion ?? '1.1';
+    const declaredContexts = toArray(credential['@context']).filter(
+      (entry): entry is string => typeof entry === 'string',
+    );
+    const isV2 = declaredContexts.includes('https://www.w3.org/ns/credentials/v2');
+    const hasV2Dates = 'validFrom' in credential || 'validUntil' in credential;
+    const hasV11Dates = 'issuanceDate' in credential || 'expirationDate' in credential;
+
+    ctx.check({
+      id: 'vc.data-model.version',
+      title: `Credential uses the W3C data model it was issued under (${requested})`,
+      status: (isV2 ? hasV2Dates : hasV11Dates) ? 'pass' : 'fail',
+      spec: 'W3C VC Data Model 1.1 §4.6 / 2.0 §4.8',
+      detail: isV2
+        ? hasV2Dates
+          ? 'Uses the VC 2.0 context with validFrom/validUntil.'
+          : 'Declares the VC 2.0 context but carries issuanceDate/expirationDate, which 2.0 replaced. A 2.0 verifier reads this as having no validity period.'
+        : hasV11Dates
+          ? 'Uses the VC 1.1 context with issuanceDate/expirationDate.'
+          : 'Declares the VC 1.1 context but carries validFrom/validUntil, which 1.1 does not define.',
+      attributedTo: (isV2 ? hasV2Dates : hasV11Dates) ? undefined : 'issuer',
+    });
     const contexts = toArray(credential['@context']).filter((entry): entry is string => typeof entry === 'string');
     const unresolvable: string[] = [];
 

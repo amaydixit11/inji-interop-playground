@@ -2,12 +2,12 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import type { JWK } from 'jose';
 import { decodeJwt, decodeProtectedHeader, importJWK, jwtVerify, type KeyLike } from 'jose';
-import type { CredentialFormat, ProofType, TamperMode } from '@interop/shared';
+import type { CredentialFormat, IssuerKeyReference, ProofType, TamperMode, VcVersion } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import { mintCredential, CREDENTIAL_TYPE, VCT, DEFAULT_CLAIMS } from '../core/credentials.js';
 import { MDL_DOCTYPE } from '../core/mdoc.js';
 import { DEFAULT_STATUS_LIST_LENGTH, StatusList } from '../core/statuslist.js';
-import { signStatusListCredential } from '../core/credentials.js';
+import { signStatusListCredential, signTokenStatusList } from '../core/credentials.js';
 import { PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from '../core/jsonld.js';
 import type { IssuerKey } from '../core/keys.js';
 
@@ -32,6 +32,10 @@ interface PendingOffer {
   claims: Record<string, unknown>;
   /** Data Integrity suite to sign with, for JSON-LD credentials. */
   proofType: ProofType;
+  /** W3C data model revision for JSON-LD credentials. */
+  vcVersion: VcVersion;
+  /** How an SD-JWT names its issuer key. */
+  issuerKeyReference: IssuerKeyReference;
   /** Deliberate corruption to apply when this offer is redeemed. */
   tamper: TamperMode;
   txCode?: string;
@@ -183,6 +187,8 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       // Carried on the offer rather than read from the credential request, so
       // the wallet driving the flow stays a plain protocol client.
       proofType: (req.body?.proofType as ProofType) ?? 'Ed25519Signature2020',
+      vcVersion: (req.body?.vcVersion as VcVersion) ?? '1.1',
+      issuerKeyReference: (req.body?.issuerKeyReference as IssuerKeyReference) ?? 'did',
       tamper: (req.body?.tamper as TamperMode) ?? 'none',
       txCode: req.body?.txCode,
       createdAt: Date.now(),
@@ -218,6 +224,26 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
         documentLoader: deps.documentLoader(),
       });
       res.set('cache-control', 'no-store').type('application/ld+json').json(credential);
+    } catch (error) {
+      res.status(500).json({ error: 'status_list_unavailable', error_description: String(error) });
+    }
+  });
+
+  /**
+   * The same revocation list as a Token Status List JWT, for SD-JWT credentials.
+   *
+   * One list, two representations, because the two format families reference
+   * status differently and a credential can only point at the one its own
+   * specification defines.
+   */
+  router.get('/token-status-list/:id', async (req, res) => {
+    try {
+      const jwt = await signTokenStatusList({
+        uri: `${base()}/token-status-list/${req.params.id}`,
+        issuerKey: await deps.issuerKey(),
+        encodedList: statusList.encode(),
+      });
+      res.set('cache-control', 'no-store').type('application/statuslist+jwt').send(jwt);
     } catch (error) {
       res.status(500).json({ error: 'status_list_unavailable', error_description: String(error) });
     }
@@ -359,15 +385,22 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
       const minted = await mintCredential({
         format: token.offer.format,
         proofType: token.offer.proofType,
+        vcVersion: token.offer.vcVersion,
+        issuerKeyReference: token.offer.issuerKeyReference,
         claims: token.offer.claims,
+        // JSON-LD points at a Verifiable Credential; SD-JWT at a JWT. mdoc has
+        // no equivalent mechanism in 18013-5, so it gets none.
         status:
-          token.offer.format === 'ldp_vc'
-            ? {
+          token.offer.format === 'mso_mdoc'
+            ? undefined
+            : {
                 id: `${base()}/status-list/${STATUS_LIST_ID}#${statusIndex}`,
-                statusListCredential: `${base()}/status-list/${STATUS_LIST_ID}`,
+                statusListCredential:
+                  token.offer.format === 'ldp_vc'
+                    ? `${base()}/status-list/${STATUS_LIST_ID}`
+                    : `${base()}/token-status-list/${STATUS_LIST_ID}`,
                 statusListIndex: String(statusIndex),
-              }
-            : undefined,
+              },
         issuerKey: await deps.issuerKey(),
         publicUrl: deps.publicUrl,
         documentLoader: deps.documentLoader(),
