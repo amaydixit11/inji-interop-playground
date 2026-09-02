@@ -194,17 +194,22 @@ shaped authorization request, polls `/vp-request/{requestId}/status`, and fetche
 
 ### Testing with a real phone wallet
 
-QR codes contain absolute URLs. A phone cannot reach `localhost`, so `PUBLIC_URL` **must** be set to
-an address the phone can resolve:
+QR codes carry absolute URLs, so `PUBLIC_URL` must be an address the phone can resolve — it also
+becomes the issuer's `did:web` identifier, which determines whether the credential is verifiable by
+anyone at all. Full runbook: [`docs/PHONE-TEST.md`](docs/PHONE-TEST.md).
 
 ```bash
-ngrok http 8787
-PUBLIC_URL=https://<your-subdomain>.ngrok-free.app npm run dev:bff
+npx --yes localtunnel --port 8787        # or cloudflared / ngrok
+PUBLIC_URL=https://<your-tunnel-host> npm run dev
 ```
 
-`PUBLIC_URL` also determines the issuer's `did:web` identifier and the `credential_issuer` in every
-offer, so changing it changes the issuer's identity. The playground warns at startup when it is left
-as `localhost`.
+Verified over a public tunnel without a phone: all three formats pass end to end, the issuer
+`did:web` resolves over public HTTPS, and both QR payloads (383 and 221 bytes) are comfortably
+scannable. The JSON-LD run takes 9.7s rather than 30ms there — that is the credential being verified
+against an issuer DID fetched from the real internet, which is what a third party would do.
+
+What remains unverified is the wallet's own behaviour after it scans, which is why those runs are
+marked `endpoint-only`.
 
 ---
 
@@ -253,6 +258,12 @@ and the checks that fail or warn most often, with deliberately provoked failures
 problems are not buried under tests that are working.
 
 ---
+
+## Demo
+
+[`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md) is a timed three-to-five minute walkthrough: one full
+cycle with the inspector open, the plain-language view, a fault injection, then **Run all** and
+**Compare** to show how a vague "it does not work" becomes a filable line.
 
 ## Architecture
 
