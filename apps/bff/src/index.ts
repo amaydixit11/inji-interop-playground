@@ -138,7 +138,7 @@ app.get('/api/participants', (_req, res) => {
 });
 
 app.get('/api/runs', (_req, res) => {
-  res.json({ runs: store.list() });
+  res.json({ runs: store.listSummaries() });
 });
 
 /** Aggregate view over the whole run history: success rates and latency. */

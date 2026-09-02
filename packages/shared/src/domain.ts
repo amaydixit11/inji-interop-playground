@@ -397,6 +397,21 @@ export interface RunSummary {
   failure?: { step: StepId; message: string; attributedTo?: Role };
 }
 
+/**
+ * A run without its payloads.
+ *
+ * The history list, dashboard and comparison view all need a run's checks and
+ * configuration; none of them needs the credential bodies or the raw HTTP
+ * exchanges, which are the overwhelming bulk of a record. Returning full
+ * records made the listing grow linearly with every payload ever captured — six
+ * megabytes for twenty-seven runs — so the list is projected and the full record
+ * fetched by id when someone actually opens one.
+ */
+export type RunListItem = Omit<RunRecord, 'exchanges' | 'artifacts'> & {
+  exchangeCount: number;
+  artifactCount: number;
+};
+
 /** Aggregate statistics over recorded runs. */
 export interface RunStats {
   total: number;

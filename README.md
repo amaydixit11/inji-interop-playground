@@ -240,8 +240,9 @@ actually observed. Uncaptured hops appear as dashed arrows marked `not captured`
 answerable for it. Failures that were deliberately provoked are labelled `expected` and do not fail
 the run.
 
-**Interoperability matrix** — every recorded run, filterable, exportable as Markdown for a report or
-a GitHub issue.
+**Interoperability matrix** — every recorded run, filterable by outcome, format and participant
+build, exportable as Markdown. Clicking a row reloads its configuration; *read it* opens that run in
+the Story view, so a result from last week can still be read in plain language.
 
 **Verify with MOSIP's own SDK** — a view that mounts `@injistack/react-inji-verify-sdk` and points it
 at verify-service, so a result comes from their client and their service with nothing of this project
@@ -466,7 +467,10 @@ there is now a test asserting exactly that hazard. Writing them turned up a thir
 meant an exception rather than a reported finding.
 
 Run history is written to `runs/` as plain JSON — one readable file per run, so a result can be
-attached to a bug report without exporting anything.
+attached to a bug report without exporting anything. Records average about 80 KB, most of it captured
+payloads, so `GET /api/runs` returns a projection without the exchanges and artifacts (6 MB → 0.29 MB
+across 27 runs) and the full record is fetched by id when a run is opened. Nothing is deleted
+automatically: the history is the deliverable, so pruning is left to you.
 
 ## Licence
 

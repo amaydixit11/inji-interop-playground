@@ -1,4 +1,4 @@
-import type { Participant, RunConfig, RunRecord, RunStats, StampedRunEvent } from '@interop/shared';
+import type { Participant, RunConfig, RunListItem, RunRecord, RunStats, StampedRunEvent } from '@interop/shared';
 
 async function json<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
@@ -14,7 +14,7 @@ async function json<T>(input: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   participants: () => json<{ participants: Participant[]; publicUrl: string }>('/api/participants'),
-  runs: () => json<{ runs: RunRecord[] }>('/api/runs'),
+  runs: () => json<{ runs: RunListItem[] }>('/api/runs'),
   stats: () => json<RunStats>('/api/stats'),
   run: (id: string) => json<RunRecord>(`/api/runs/${id}`),
   events: (id: string) => json<{ events: StampedRunEvent[] }>(`/api/runs/${id}/events`),

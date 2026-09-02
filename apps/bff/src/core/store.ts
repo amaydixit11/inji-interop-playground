@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { RunRecord } from '@interop/shared';
+import type { RunListItem, RunRecord } from '@interop/shared';
 
 /**
  * Persistence for completed runs.
@@ -42,5 +42,20 @@ export class RunStore {
 
   list(): RunRecord[] {
     return [...this.cache.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  }
+
+  /**
+   * The history without its payloads.
+   *
+   * Everything the listing, dashboard and comparison view display comes from
+   * the checks and configuration; the exchanges and artifacts are the bulk and
+   * are only wanted when someone opens a single run.
+   */
+  listSummaries(): RunListItem[] {
+    return this.list().map(({ exchanges, artifacts, ...rest }) => ({
+      ...rest,
+      exchangeCount: exchanges.length,
+      artifactCount: artifacts.length,
+    }));
   }
 }

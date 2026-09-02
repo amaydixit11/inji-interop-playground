@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ConformanceCheck, RunRecord } from '@interop/shared';
+import type { ConformanceCheck, RunListItem } from '@interop/shared';
 import { Badge, checkTone, Panel, runTone } from './primitives.js';
 
 /**
@@ -10,7 +10,7 @@ import { Badge, checkTone, Panel, runTone } from './primitives.js';
  * "Our credential verifies here and not there" is only actionable once you can
  * point at the specific check that differs.
  */
-export function Compare({ runs }: { runs: RunRecord[] }) {
+export function Compare({ runs }: { runs: RunListItem[] }) {
   const [leftId, setLeftId] = useState<string>(runs[1]?.id ?? '');
   const [rightId, setRightId] = useState<string>(runs[0]?.id ?? '');
 
@@ -122,7 +122,7 @@ function RunPicker({
   onChange,
 }: {
   label: string;
-  runs: RunRecord[];
+  runs: RunListItem[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -158,7 +158,7 @@ function RunPicker({
 }
 
 /** Shows only the configuration fields that actually differ. */
-function ConfigDiff({ left, right }: { left: RunRecord; right: RunRecord }) {
+function ConfigDiff({ left, right }: { left: RunListItem; right: RunListItem }) {
   const rows: Array<{ field: string; left: string; right: string }> = [
     { field: 'Issuer', left: left.participants.issuer.label, right: right.participants.issuer.label },
     { field: 'Wallet', left: left.participants.wallet.label, right: right.participants.wallet.label },
@@ -208,8 +208,8 @@ interface CheckDiff {
  * differently — it usually means that run never got far enough to ask, which is
  * the more useful thing to know.
  */
-function diffChecks(left: RunRecord, right: RunRecord): CheckDiff {
-  const index = (run: RunRecord) => new Map(run.checks.map((check) => [check.id, check]));
+function diffChecks(left: RunListItem, right: RunListItem): CheckDiff {
+  const index = (run: RunListItem) => new Map(run.checks.map((check) => [check.id, check]));
   const leftChecks = index(left);
   const rightChecks = index(right);
 

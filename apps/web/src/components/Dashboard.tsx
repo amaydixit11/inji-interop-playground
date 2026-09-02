@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { RunRecord, RunStats, StatBucket, StepId } from '@interop/shared';
+import type { RunListItem, RunStats, StatBucket, StepId } from '@interop/shared';
 import { STEP_LABELS } from '@interop/shared';
 import { api } from '../api.js';
 import { Badge, checkTone, Panel } from './primitives.js';
@@ -19,7 +19,7 @@ import { Badge, checkTone, Panel } from './primitives.js';
  * a hue pair that protanopic readers cannot separate. Order carries the
  * judgement instead — worst first — and every bar is labelled with its value.
  */
-export function Dashboard({ runs }: { runs: RunRecord[] }) {
+export function Dashboard({ runs }: { runs: RunListItem[] }) {
   const [stats, setStats] = useState<RunStats>();
   const [error, setError] = useState<string>();
 

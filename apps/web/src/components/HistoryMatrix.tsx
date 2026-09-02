@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { RunRecord } from '@interop/shared';
+import type { RunListItem } from '@interop/shared';
 import { CREDENTIAL_FORMAT_LABELS } from '@interop/shared';
 import { Badge, Panel, runTone } from './primitives.js';
 
@@ -13,10 +13,12 @@ import { Badge, Panel, runTone } from './primitives.js';
 export function HistoryMatrix({
   runs,
   onSelect,
+  onOpenStory,
   onExport,
 }: {
-  runs: RunRecord[];
-  onSelect: (run: RunRecord) => void;
+  runs: RunListItem[];
+  onSelect: (run: RunListItem) => void;
+  onOpenStory: (run: RunListItem) => void;
   onExport: () => void;
 }) {
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all');
@@ -43,7 +45,7 @@ export function HistoryMatrix({
   return (
     <Panel
       title="Interoperability matrix"
-      subtitle={`${runs.length} recorded run(s)`}
+      subtitle={`${runs.length} recorded run(s) · click a row to reload its configuration`}
       actions={
         <div className="flex items-center gap-2">
           <div className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
@@ -106,7 +108,7 @@ export function HistoryMatrix({
         <table className="w-full border-collapse text-[11.5px]">
           <thead className="sticky top-0 bg-surface-2 text-[10px] uppercase tracking-wider text-muted">
             <tr>
-              {['Result', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Build', 'Fault', 'Checks', 'When'].map((heading) => (
+              {['Result', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Build', 'Fault', 'Checks', 'When', ''].map((heading) => (
                 <th key={heading} className="border-b border-line px-2.5 py-1.5 text-left font-medium">
                   {heading}
                 </th>
@@ -152,6 +154,22 @@ export function HistoryMatrix({
                   {run.summary?.checksWarned ? <span className="text-warn"> / {run.summary.checksWarned}</span> : null}
                 </td>
                 <td className="px-2.5 py-1.5 text-muted">{new Date(run.startedAt).toLocaleString()}</td>
+                <td className="px-2.5 py-1.5">
+                  {run.narrative && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        // The row itself reloads the configuration; this opens
+                        // the run instead, so both are reachable.
+                        event.stopPropagation();
+                        onOpenStory(run);
+                      }}
+                      className="whitespace-nowrap rounded border border-line px-1.5 py-0.5 text-[10px] text-muted transition hover:border-accent hover:text-accent"
+                    >
+                      read it
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -162,7 +180,7 @@ export function HistoryMatrix({
 }
 
 /** Renders the matrix as Markdown for pasting into a report or an issue. */
-export function toMarkdown(runs: RunRecord[]): string {
+export function toMarkdown(runs: RunListItem[]): string {
   const header = [
     '# Inji Interoperability Report',
     '',
@@ -219,7 +237,7 @@ export function toMarkdown(runs: RunRecord[]): string {
  * discoverable are grouped rather than hidden — not knowing what you tested is
  * the finding, not a reason to omit the row.
  */
-function buildLabel(run: RunRecord): string {
+function buildLabel(run: RunListItem): string {
   const relevant = (run.versions ?? []).filter((version) => version.role !== 'wallet');
   if (relevant.length === 0) return 'unknown';
   return relevant.map((version) => `${version.participantId} ${version.value ?? '?'}`).join(' · ');

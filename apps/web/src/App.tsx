@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Participant, RunConfig, RunRecord, Scenario } from '@interop/shared';
+import type { Participant, RunConfig, RunListItem, RunRecord, Scenario } from '@interop/shared';
 import { api } from './api.js';
 import { download, runReport } from './report.js';
 import { useBatch } from './hooks/useBatch.js';
@@ -34,7 +34,7 @@ export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [publicUrl, setPublicUrl] = useState('');
   const [config, setConfig] = useState<RunConfig>(DEFAULT_CONFIG);
-  const [history, setHistory] = useState<RunRecord[]>([]);
+  const [history, setHistory] = useState<RunListItem[]>([]);
   const [view, setView] = useState<View>('live');
   const [loadError, setLoadError] = useState<string>();
   // On by default: the playground's first job is explaining the protocols, and
@@ -42,7 +42,10 @@ export function App() {
   const [explain, setExplain] = useState(true);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [activeScenario, setActiveScenario] = useState<Scenario>();
-  const [lastRecord, setLastRecord] = useState<RunRecord>();
+  // The run currently being read: the one that just finished, or one opened
+  // from the history. Story and the per-run export both work from this, so
+  // "the run you are looking at" means the same thing everywhere.
+  const [viewedRecord, setViewedRecord] = useState<RunRecord>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
   const refreshHistoryRef = useRef<() => void>(() => undefined);
@@ -73,7 +76,7 @@ export function App() {
       refreshHistory();
       // The narrative is built when the run finishes, so it only exists on the
       // persisted record rather than in the live event stream.
-      api.run(run.id).then(setLastRecord).catch(() => undefined);
+      api.run(run.id).then(setViewedRecord).catch(() => undefined);
     }
   }, [run?.status, refreshHistory, run]);
 
@@ -87,14 +90,15 @@ export function App() {
 
   /** Exports the run currently on screen, fetching the persisted record. */
   const exportRun = useCallback(async () => {
-    if (!run) return;
+    const id = run?.id ?? viewedRecord?.id;
+    if (!id) return;
     try {
-      const record = await api.run(run.id);
+      const record = await api.run(id);
       download(`inji-run-${record.id.slice(0, 8)}.md`, runReport(record));
     } catch (caught) {
       setLoadError(caught instanceof Error ? caught.message : String(caught));
     }
-  }, [run]);
+  }, [run, viewedRecord]);
 
   const exportMarkdown = useCallback(() => {
     const blob = new Blob([toMarkdown(history)], { type: 'text/markdown' });
@@ -167,17 +171,17 @@ export function App() {
         {view === 'dashboard' ? (
           <Dashboard runs={history} />
         ) : view === 'story' ? (
-          lastRecord?.narrative ? (
+          viewedRecord?.narrative ? (
             <Story
-              narrative={lastRecord.narrative}
-              participants={lastRecord.participants}
-              format={lastRecord.config.format}
-              status={lastRecord.status}
+              narrative={viewedRecord.narrative}
+              participants={viewedRecord.participants}
+              format={viewedRecord.config.format}
+              status={viewedRecord.status}
             />
           ) : (
             <div className="rounded-lg border border-line bg-surface p-4 text-[12px] text-muted">
-              Run a scenario first — this view describes what happened in the most recent one, without
-              assuming you know the protocols.
+              Nothing to describe yet. Run a scenario, or open a run from History — this view explains
+              what happened without assuming you know the protocols.
             </div>
           )
         ) : view === 'sdk' ? (
@@ -196,6 +200,17 @@ export function App() {
               onSelect={(record) => {
                 setConfig(record.config);
                 setView('live');
+              }}
+              onOpenStory={(record) => {
+                // The listing carries no payloads, so the full record is
+                // fetched before showing it.
+                void api
+                  .run(record.id)
+                  .then((full) => {
+                    setViewedRecord(full);
+                    setView('story');
+                  })
+                  .catch((caught: Error) => setLoadError(caught.message));
               }}
               onExport={exportMarkdown}
             />
