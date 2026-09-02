@@ -23,7 +23,34 @@ export interface Scenario {
   config: Partial<RunConfig> & Pick<RunConfig, 'issuerId' | 'walletId' | 'verifierId' | 'format'>;
   /** Ordering hint for the UI; lower comes first. */
   order: number;
+  /**
+   * Which group the scenario belongs to in the UI. Thirteen equally-weighted
+   * cards is a wall; three named groups say what kind of question each one is.
+   * Not derivable from `requires` — the Collab audit needs no local
+   * participant but is still a run against somebody else's software.
+   */
+  track: ScenarioTrack;
 }
+
+export type ScenarioTrack = 'core' | 'negative' | 'real';
+
+export const SCENARIO_TRACKS: Array<{ id: ScenarioTrack; title: string; blurb: string }> = [
+  {
+    id: 'core',
+    title: 'The core loop',
+    blurb: 'Issue, hold, present, verify — and the format and protocol variations of it that should all pass.',
+  },
+  {
+    id: 'negative',
+    title: 'Does it catch what it should?',
+    blurb: 'Faults injected on purpose. These runs succeed by being rejected; they fail if the forgery gets through.',
+  },
+  {
+    id: 'real',
+    title: 'Against real implementations',
+    blurb: 'The reference parts swapped for live Inji services and public sandboxes. This is where the findings come from.',
+  },
+];
 
 const REFERENCE = {
   issuerId: 'reference-issuer',
@@ -41,6 +68,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 1,
+    track: 'core',
     config: { ...REFERENCE, format: 'ldp_vc', proofType: 'Ed25519Signature2020', tamper: 'none' },
   },
   {
@@ -52,6 +80,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 2,
+    track: 'core',
     config: { ...REFERENCE, format: 'vc+sd-jwt', tamper: 'none' },
   },
   {
@@ -63,6 +92,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 3,
+    track: 'negative',
     config: { ...REFERENCE, format: 'ldp_vc', tamper: 'break-signature' },
   },
   {
@@ -75,6 +105,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 4,
+    track: 'negative',
     config: { ...REFERENCE, format: 'ldp_vc', tamper: 'revoke-credential' },
   },
   {
@@ -86,6 +117,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 5,
+    track: 'core',
     config: { ...REFERENCE, format: 'mso_mdoc', proofType: 'ES256', tamper: 'none' },
   },
   {
@@ -97,6 +129,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 6,
+    track: 'negative',
     config: { ...REFERENCE, format: 'ldp_vc', tamper: 'replay-nonce' },
   },
   {
@@ -109,6 +142,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 7,
+    track: 'core',
     config: {
       ...REFERENCE,
       format: 'ldp_vc',
@@ -125,6 +159,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 8,
+    track: 'core',
     config: { ...REFERENCE, format: 'ldp_vc', vciDraft: 'draft-11', tamper: 'none' },
   },
   {
@@ -136,6 +171,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: ['inji-certify'],
     order: 9,
+    track: 'real',
     config: {
       issuerId: 'inji-certify',
       walletId: 'reference-wallet',
@@ -153,6 +189,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: ['inji-verify'],
     order: 10,
+    track: 'real',
     config: {
       issuerId: 'reference-issuer',
       walletId: 'reference-wallet',
@@ -171,6 +208,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: ['inji-verify'],
     order: 11,
+    track: 'real',
     config: {
       issuerId: 'reference-issuer',
       walletId: 'reference-wallet',
@@ -190,6 +228,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'seconds',
     requires: [],
     order: 12,
+    track: 'real',
     config: {
       issuerId: 'inji-certify',
       walletId: 'reference-wallet',
@@ -219,6 +258,7 @@ export const SCENARIOS: Scenario[] = [
     duration: 'needs-a-phone',
     requires: [],
     order: 13,
+    track: 'real',
     config: {
       issuerId: 'reference-issuer',
       walletId: 'inji-wallet',

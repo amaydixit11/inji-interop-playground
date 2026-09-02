@@ -16,7 +16,9 @@ import { SequenceDiagram } from './components/SequenceDiagram.js';
 import { Story } from './components/Story.js';
 import { Timeline } from './components/Timeline.js';
 import { UserActionPrompt } from './components/UserActionPrompt.js';
-import { Badge, runTone } from './components/primitives.js';
+import { ViewTabs } from './components/ViewTabs.js';
+import type { View } from './components/ViewTabs.js';
+import { Badge, StatusIcon, runTone } from './components/primitives.js';
 
 const DEFAULT_CONFIG: RunConfig = {
   issuerId: 'reference-issuer',
@@ -27,8 +29,6 @@ const DEFAULT_CONFIG: RunConfig = {
   walletProofType: 'jwt',
   tamper: 'none',
 };
-
-type View = 'live' | 'story' | 'sequence' | 'dashboard' | 'compare' | 'history' | 'sdk';
 
 export function App() {
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -41,6 +41,9 @@ export function App() {
   // somebody who already knows them can turn it off in one click.
   const [explain, setExplain] = useState(true);
   const [builderOpen, setBuilderOpen] = useState(false);
+  // The scenario grid fills the viewport, so a run started from it would land
+  // entirely below the fold. It collapses on the first run and can be reopened.
+  const [scenariosOpen, setScenariosOpen] = useState(true);
   const [activeScenario, setActiveScenario] = useState<Scenario>();
   // The run currently being read: the one that just finished, or one opened
   // from the history. Story and the per-run export both work from this, so
@@ -48,6 +51,7 @@ export function App() {
   const [viewedRecord, setViewedRecord] = useState<RunRecord>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
+  const outputRef = useRef<HTMLDivElement>(null);
   const refreshHistoryRef = useRef<() => void>(() => undefined);
   const batch = useBatch(() => refreshHistoryRef.current());
   const busy = run?.status === 'running' || run?.status === 'awaiting-user' || batch.running;
@@ -80,6 +84,10 @@ export function App() {
     }
   }, [run?.status, refreshHistory, run]);
 
+  useEffect(() => {
+    if (run?.id) outputRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [run?.id]);
+
   const exchangeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const exchange of run?.exchanges ?? []) {
@@ -110,64 +118,101 @@ export function App() {
     URL.revokeObjectURL(url);
   }, [history]);
 
+  // Announced to a screen reader when a run ends, since the result is otherwise
+  // conveyed only by colour and by content appearing further down the page.
+  const announcement = useMemo(() => {
+    if (!run) return '';
+    if (run.status === 'running') return 'Run in progress.';
+    if (run.status === 'awaiting-user') return 'Waiting for you to do something.';
+    if (!run.summary) return `Run ${run.status}.`;
+    const { checksPassed, checksFailed, checksWarned } = run.summary;
+    return `Run ${run.status}. ${checksPassed} checks passed, ${checksFailed} failed, ${checksWarned} warned.`;
+  }, [run?.status, run?.summary, run]);
+
   return (
     <div className="flex h-full flex-col">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line bg-surface px-4 py-2.5">
-        <div className="mr-auto">
-          <h1 className="text-[14px] font-semibold tracking-tight text-ink">
-            Inji Interoperability Playground
-          </h1>
-          <p className="text-[11px] text-muted">
-            Issue, hold, present and verify credentials across implementations — and inspect every exchange.
-          </p>
-        </div>
+      <a className="skip-link" href="#view-panel">
+        Skip to content
+      </a>
 
-        <div className="flex items-center gap-2">
-          <Badge tone={connected ? 'pass' : 'fail'}>{connected ? 'live' : 'disconnected'}</Badge>
-          {publicUrl && (
+      <header className="shrink-0 border-b border-line bg-gradient-to-b from-surface-2 to-surface px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="mr-auto flex min-w-0 items-center gap-3">
             <span
-              className="payload hidden text-muted lg:inline"
-              title="Public URL used for DIDs and QR payloads. A localhost value cannot be reached from a phone."
+              aria-hidden="true"
+              className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-md font-bold text-accent shadow-[inset_0_0_0_1px_rgb(92_176_255_/_0.3)]"
             >
-              {publicUrl}
+              ⇄
             </span>
-          )}
-        </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-md font-semibold tracking-tight text-ink">
+                Inji Interoperability Playground
+              </h1>
+              <p className="truncate text-xs text-muted">
+                Issue, hold, present and verify credentials across implementations — and inspect every exchange.
+              </p>
+            </div>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setExplain((value) => !value)}
-          title="Annotate each step and payload with what it is and why the protocol has it"
-          className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition ${
-            explain ? 'border-info/50 bg-info/10 text-info' : 'border-line text-muted hover:text-ink'
-          }`}
-        >
-          Explain
-        </button>
-
-        <nav className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
-          {(['live', 'story', 'sequence', 'dashboard', 'compare', 'sdk', 'history'] as View[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setView(value)}
-              className={`rounded px-2.5 py-1 text-[11px] font-medium capitalize transition ${
-                view === value ? 'bg-accent/20 text-accent' : 'text-muted hover:text-ink'
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-2xs font-semibold uppercase tracking-wider ${
+                connected ? 'border-pass/35 bg-pass/10 text-pass' : 'border-fail/45 bg-fail/12 text-fail'
               }`}
             >
-              {value}
-            </button>
-          ))}
-        </nav>
+              <span aria-hidden="true">{connected ? '●' : '○'}</span>
+              {connected ? 'live' : 'disconnected'}
+              <span className="sr-only">
+                {connected ? 'Connected to the playground backend.' : 'Not connected to the playground backend.'}
+              </span>
+            </span>
+            {publicUrl && (
+              <span
+                className="payload hidden truncate text-muted lg:inline lg:max-w-[22rem]"
+                title="Public URL used for DIDs and QR payloads. A localhost value cannot be reached from a phone."
+              >
+                {publicUrl}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExplain((value) => !value)}
+            aria-pressed={explain}
+            title="Annotate each step and payload with what it is and why the protocol has it"
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+              explain
+                ? 'border-info/50 bg-info/12 text-info'
+                : 'border-line text-muted hover:border-line-strong hover:text-ink'
+            }`}
+          >
+            Explain
+          </button>
+
+          <ViewTabs view={view} onChange={setView} />
+          </div>
+        </div>
       </header>
 
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+
       {(loadError || error) && (
-        <div className="shrink-0 border-b border-fail/40 bg-fail/10 px-4 py-2 text-[11.5px] text-fail">
+        <div className="shrink-0 border-b border-fail/40 bg-fail/10 px-4 py-2 text-xs text-fail">
           {loadError ?? error}
         </div>
       )}
 
-      <main className="min-h-0 flex-1 overflow-auto p-3">
+      <main
+        id="view-panel"
+        role="tabpanel"
+        aria-labelledby={`tab-${view}`}
+        tabIndex={-1}
+        className="min-h-0 flex-1 overflow-auto p-3 outline-none"
+      >
         {view === 'dashboard' ? (
           <Dashboard runs={history} />
         ) : view === 'story' ? (
@@ -179,10 +224,10 @@ export function App() {
               status={viewedRecord.status}
             />
           ) : (
-            <div className="rounded-lg border border-line bg-surface p-4 text-[12px] text-muted">
-              Nothing to describe yet. Run a scenario, or open a run from History — this view explains
-              what happened without assuming you know the protocols.
-            </div>
+            <EmptyState
+              title="Nothing to describe yet"
+              body="Run a scenario, or open a run from History — this view explains what happened without assuming you know the protocols."
+            />
           )
         ) : view === 'sdk' ? (
           <OfficialSdk
@@ -224,9 +269,12 @@ export function App() {
               onRunAll={() => void batch.start()}
               onCancelAll={batch.cancel}
               disabled={busy}
+              open={scenariosOpen}
+              onOpenChange={setScenariosOpen}
               onRun={(scenarioConfig, scenario) => {
                 setConfig(scenarioConfig);
                 setActiveScenario(scenario);
+                setScenariosOpen(false);
                 void start(scenarioConfig);
               }}
             />
@@ -234,55 +282,67 @@ export function App() {
             <details
               open={builderOpen}
               onToggle={(event) => setBuilderOpen((event.currentTarget as HTMLDetailsElement).open)}
-              className="rounded-lg border border-line bg-surface"
+              className="rounded-xl border border-line bg-surface shadow-card"
             >
-              <summary className="cursor-pointer px-3 py-2 text-[12px] font-medium text-ink hover:text-accent">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink transition hover:text-accent">
+                <span aria-hidden="true" className="text-muted transition-transform">
+                  {builderOpen ? '▾' : '▸'}
+                </span>
                 Configure a run yourself
-                <span className="ml-2 text-[11px] font-normal text-muted">
+                <span className="payload ml-1 truncate text-xs font-normal text-muted">
                   {config.issuerId} → {config.walletId} → {config.verifierId} · {config.format}
                 </span>
               </summary>
-              <div className="border-t border-line p-3">
+              <div className="border-t border-line p-3.5">
                 <RunBuilder participants={participants} config={config} onChange={setConfig} disabled={busy} />
               </div>
             </details>
 
-            <div className="flex shrink-0 flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2">
+            <div
+              ref={outputRef}
+              className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-card"
+            >
               <button
                 type="button"
                 disabled={busy || participants.length === 0}
                 onClick={() => {
                   setActiveScenario(undefined);
+                  setScenariosOpen(false);
                   void start(config);
                 }}
-                className="rounded-md bg-accent px-4 py-1.5 text-[12px] font-semibold text-canvas transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas shadow-[0_1px_0_rgb(255_255_255_/_0.2)_inset,0_6px_16px_-8px_rgb(92_176_255_/_0.7)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
               >
                 {busy ? 'Run in progress…' : 'Run interoperability test'}
               </button>
 
               {activeScenario && (
-                <span className="text-[11px] text-info" title={activeScenario.expect}>
+                <span className="text-xs text-info measure" title={activeScenario.expect}>
                   {activeScenario.title}
                 </span>
               )}
 
               {run && (
                 <>
-                  <Badge tone={runTone(run.status)}>{run.status}</Badge>
+                  <span className="inline-flex items-center gap-1.5">
+                    <StatusIcon tone={runTone(run.status)} label={run.status} labelled />
+                    <Badge tone={runTone(run.status)} glyph>{run.status}</Badge>
+                  </span>
                   {run.summary && (
-                    <span className="text-[11px] text-muted">
-                      {run.summary.checksPassed} passed · {run.summary.checksFailed} failed ·{' '}
-                      {run.summary.checksWarned} warned
-                      {run.summary.checksExpectedFailures > 0 &&
-                        ` · ${run.summary.checksExpectedFailures} expected failure(s)`}
-                      {` · ${run.summary.durationMs}ms`}
+                    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
+                      <Tally tone="pass" count={run.summary.checksPassed} word="passed" />
+                      <Tally tone="fail" count={run.summary.checksFailed} word="failed" />
+                      <Tally tone="warn" count={run.summary.checksWarned} word="warned" />
+                      {run.summary.checksExpectedFailures > 0 && (
+                        <Tally tone="info" count={run.summary.checksExpectedFailures} word="expected" />
+                      )}
+                      <span className="text-muted">{run.summary.durationMs}ms</span>
                     </span>
                   )}
                   {run.summary?.failure && (
-                    <span className="text-[11px] text-fail">{run.summary.failure.message}</span>
+                    <span className="measure text-xs text-fail">{run.summary.failure.message}</span>
                   )}
                   {activeScenario && run.status === 'failed' && activeScenario.expect.startsWith('Fails') && (
-                    <span className="text-[11px] text-info">
+                    <span className="measure text-xs text-info">
                       This scenario is expected to fail — the findings are the result.
                     </span>
                   )}
@@ -290,9 +350,9 @@ export function App() {
                     <button
                       type="button"
                       onClick={() => void exportRun()}
-                      className="ml-auto rounded border border-line px-2 py-0.5 text-[10.5px] text-muted transition hover:border-accent hover:text-accent"
+                      className="ml-auto rounded-md border border-line px-2.5 py-1 text-xs text-muted transition hover:border-accent hover:text-accent"
                     >
-                      export this run
+                      Export this run
                     </button>
                   )}
                 </>
@@ -300,7 +360,7 @@ export function App() {
             </div>
 
             {run && (
-              <div className="shrink-0 rounded-lg border border-line bg-surface">
+              <div className="shrink-0 rounded-xl border border-line bg-surface shadow-card">
                 <Timeline steps={run.steps} exchangeCounts={exchangeCounts} explain={explain} />
               </div>
             )}
@@ -328,6 +388,29 @@ export function App() {
           onAbort={() => void abort()}
         />
       )}
+    </div>
+  );
+}
+
+/** A count with its status glyph, so the tally is not colour-coded alone. */
+function Tally({ tone, count, word }: { tone: 'pass' | 'fail' | 'warn' | 'info'; count: number; word: string }) {
+  const colours = { pass: 'text-pass', fail: 'text-fail', warn: 'text-warn', info: 'text-info' };
+  return (
+    <span className={`inline-flex items-center gap-1 ${count > 0 ? colours[tone] : 'text-muted'}`}>
+      <StatusIcon tone={tone} label={word} labelled />
+      <span className="font-semibold tabular-nums">{count}</span>
+      <span className="font-normal text-muted">{word}</span>
+    </span>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="grid place-items-center rounded-xl border border-dashed border-line bg-surface/60 p-10 text-center">
+      <div className="measure">
+        <p className="text-base font-semibold text-ink-2">{title}</p>
+        <p className="mt-1.5 text-sm text-muted">{body}</p>
+      </div>
     </div>
   );
 }

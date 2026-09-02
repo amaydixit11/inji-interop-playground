@@ -45,17 +45,18 @@ export function HistoryMatrix({
   return (
     <Panel
       title="Interoperability matrix"
-      subtitle={`${runs.length} recorded run(s) · click a row to reload its configuration`}
+      subtitle={`${runs.length} recorded run(s) · load one back into the builder, or read what happened`}
       actions={
         <div className="flex items-center gap-2">
-          <div className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
+          <div role="group" aria-label="Filter by result" className="flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
             {(['all', 'passed', 'failed'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
+                aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
-                className={`rounded px-2 py-0.5 text-[10.5px] font-medium capitalize transition ${
-                  filter === value ? 'bg-accent/20 text-accent' : 'text-muted hover:text-ink'
+                className={`rounded-md px-2 py-0.5 text-2xs font-medium capitalize transition ${
+                  filter === value ? 'bg-accent/15 text-accent' : 'text-muted hover:text-ink'
                 }`}
               >
                 {value}
@@ -66,7 +67,7 @@ export function HistoryMatrix({
             value={format}
             onChange={(event) => setFormat(event.target.value)}
             title="Filter by credential format"
-            className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-muted outline-none focus:border-accent"
+            className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-2xs text-muted outline-none focus:border-accent"
           >
             <option value="all">any format</option>
             {formats.map((value) => (
@@ -79,7 +80,7 @@ export function HistoryMatrix({
             value={build}
             onChange={(event) => setBuild(event.target.value)}
             title="Filter by the participant builds a run exercised"
-            className="max-w-[190px] rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[10.5px] text-muted outline-none focus:border-accent"
+            className="max-w-[190px] rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-2xs text-muted outline-none focus:border-accent"
           >
             <option value="all">any build</option>
             {builds.map((value) => (
@@ -92,27 +93,40 @@ export function HistoryMatrix({
             type="button"
             onClick={onExport}
             disabled={runs.length === 0}
-            className="rounded border border-line px-2 py-0.5 text-[10.5px] text-muted transition hover:border-accent hover:text-accent disabled:opacity-40"
+            className="rounded border border-line px-2 py-0.5 text-2xs text-muted transition hover:border-accent hover:text-accent disabled:opacity-40"
           >
-            export markdown
+            Export markdown
           </button>
         </div>
       }
       className="h-full"
     >
       {visible.length === 0 ? (
-        <p className="p-4 text-[11.5px] text-muted">
+        <p className="p-4 text-xs text-muted">
           {runs.length === 0 ? 'Completed runs are recorded here.' : 'No runs match this filter.'}
         </p>
       ) : (
-        <table className="w-full border-collapse text-[11.5px]">
-          <thead className="sticky top-0 bg-surface-2 text-[10px] uppercase tracking-wider text-muted">
+        <table className="w-full border-collapse text-xs">
+          <caption className="sr-only">
+            Every recorded run: result, the three participants, credential format, build, injected fault and
+            check counts.
+          </caption>
+          <thead className="sticky top-0 bg-surface-2 text-2xs uppercase tracking-wider text-muted">
             <tr>
-              {['Result', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Build', 'Fault', 'Checks', 'When', ''].map((heading) => (
-                <th key={heading} className="border-b border-line px-2.5 py-1.5 text-left font-medium">
-                  {heading}
-                </th>
-              ))}
+              {['Result', 'Issuer', 'Wallet', 'Verifier', 'Format', 'Build', 'Fault', 'Checks', 'When'].map(
+                (heading) => (
+                  <th
+                    key={heading}
+                    scope="col"
+                    className="border-b border-line px-2.5 py-1.5 text-left font-medium"
+                  >
+                    {heading}
+                  </th>
+                ),
+              )}
+              <th scope="col" className="border-b border-line px-2.5 py-1.5 text-left font-medium">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -123,7 +137,9 @@ export function HistoryMatrix({
                 className="cursor-pointer border-b border-line/40 transition hover:bg-surface-2"
               >
                 <td className="px-2.5 py-1.5">
-                  <Badge tone={runTone(run.status)}>{run.status}</Badge>
+                  <Badge tone={runTone(run.status)} glyph>
+                    {run.status}
+                  </Badge>
                 </td>
                 <td className="px-2.5 py-1.5 text-ink">{run.participants.issuer.label}</td>
                 <td className="px-2.5 py-1.5 text-ink">
@@ -133,7 +149,10 @@ export function HistoryMatrix({
                       title="Some exchanges in this run were not captured, so it is weaker evidence than a fully traced run."
                       className="ml-1 text-warn"
                     >
-                      *
+                      <span aria-hidden="true">*</span>
+                      <span className="sr-only">
+                        (endpoint only — some exchanges were not captured)
+                      </span>
                     </span>
                   )}
                 </td>
@@ -145,30 +164,57 @@ export function HistoryMatrix({
                   {buildLabel(run)}
                 </td>
                 <td className="px-2.5 py-1.5 text-muted">{run.config.tamper}</td>
-                <td className="px-2.5 py-1.5 text-muted">
-                  <span className="text-pass">{run.summary?.checksPassed ?? 0}</span>
-                  {' / '}
-                  <span className={run.summary?.checksFailed ? 'text-fail' : ''}>
-                    {run.summary?.checksFailed ?? 0}
+                <td
+                  className="px-2.5 py-1.5 text-muted"
+                  title={`${run.summary?.checksPassed ?? 0} passed, ${run.summary?.checksFailed ?? 0} failed, ${
+                    run.summary?.checksWarned ?? 0
+                  } warned`}
+                >
+                  <span aria-hidden="true">
+                    <span className="text-pass">{run.summary?.checksPassed ?? 0}</span>
+                    {' / '}
+                    <span className={run.summary?.checksFailed ? 'text-fail' : ''}>
+                      {run.summary?.checksFailed ?? 0}
+                    </span>
+                    {run.summary?.checksWarned ? (
+                      <span className="text-warn"> / {run.summary.checksWarned}</span>
+                    ) : null}
                   </span>
-                  {run.summary?.checksWarned ? <span className="text-warn"> / {run.summary.checksWarned}</span> : null}
+                  <span className="sr-only">
+                    {run.summary?.checksPassed ?? 0} passed, {run.summary?.checksFailed ?? 0} failed,{' '}
+                    {run.summary?.checksWarned ?? 0} warned
+                  </span>
                 </td>
                 <td className="px-2.5 py-1.5 text-muted">{new Date(run.startedAt).toLocaleString()}</td>
                 <td className="px-2.5 py-1.5">
-                  {run.narrative && (
+                  <div className="flex justify-end gap-1.5">
                     <button
                       type="button"
                       onClick={(event) => {
-                        // The row itself reloads the configuration; this opens
-                        // the run instead, so both are reachable.
                         event.stopPropagation();
-                        onOpenStory(run);
+                        onSelect(run);
                       }}
-                      className="whitespace-nowrap rounded border border-line px-1.5 py-0.5 text-[10px] text-muted transition hover:border-accent hover:text-accent"
+                      className="whitespace-nowrap rounded-md border border-line px-2 py-0.5 text-2xs text-muted transition hover:border-accent hover:text-accent"
                     >
-                      read it
+                      Load
+                      <span className="sr-only"> this run's configuration</span>
                     </button>
-                  )}
+                    {run.narrative && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          // The row itself reloads the configuration; this opens
+                          // the run instead, so both are reachable.
+                          event.stopPropagation();
+                          onOpenStory(run);
+                        }}
+                        className="whitespace-nowrap rounded-md border border-line px-2 py-0.5 text-2xs text-muted transition hover:border-accent hover:text-accent"
+                      >
+                        Read it
+                        <span className="sr-only"> — the story of this run</span>
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

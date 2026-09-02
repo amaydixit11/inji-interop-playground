@@ -1,3 +1,5 @@
+import { cloneElement, isValidElement, useId } from 'react';
+import type { ReactElement } from 'react';
 import type {
   CredentialFormat,
   Participant,
@@ -84,10 +86,10 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             )}
             <div className="rounded-lg border border-line bg-surface p-3">
               <div className="mb-2 flex items-baseline justify-between">
-                <h3 className="text-[13px] font-semibold text-ink">{ROLE_TITLES[role]}</h3>
-                <span className="text-[10px] uppercase tracking-wider text-muted">{role}</span>
+                <h3 className="text-base font-semibold text-ink">{ROLE_TITLES[role]}</h3>
+                <span className="text-2xs uppercase tracking-wider text-muted">{role}</span>
               </div>
-              <p className="mb-3 text-[11px] leading-snug text-muted">{ROLE_SUBTITLES[role]}</p>
+              <p className="mb-3 text-xs leading-snug text-muted">{ROLE_SUBTITLES[role]}</p>
 
               <div className="space-y-2">
                 {byRole(role).map((participant) => {
@@ -98,6 +100,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
                       type="button"
                       disabled={disabled || Boolean(participant.unavailable)}
                       onClick={() => select(role, participant.id)}
+                      aria-pressed={isSelected}
                       className={`w-full rounded-md border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
                         isSelected
                           ? 'border-accent bg-accent/10'
@@ -105,18 +108,23 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
                           {participant.label}
                         </span>
                         <Badge tone={kindTone(participant.kind)}>{participant.kind}</Badge>
                       </div>
-                      <p className="mt-1 text-[11px] leading-snug text-muted">{participant.summary}</p>
+                      <p className="mt-1 text-xs leading-snug text-muted">{participant.summary}</p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         <TraceabilityBadge traceability={participant.traceability} />
-                        {participant.interactive && <Badge tone="warn">needs a human</Badge>}
+                        {participant.interactive && (
+                          <Badge tone="warn" glyph>
+                            needs a human
+                          </Badge>
+                        )}
                         {participant.constraints && participant.constraints.length > 0 && (
-                          <Badge tone="warn" title={participant.constraints.join('\n\n')}>
+                          <Badge tone="warn" glyph title={participant.constraints.join('\n\n')}>
                             pairing limits
+                            <span className="sr-only">: {participant.constraints.join('. ')}</span>
                           </Badge>
                         )}
                       </div>
@@ -135,7 +143,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.format}
             onChange={(event) => onChange({ ...config, format: event.target.value as CredentialFormat })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {commonFormats.length === 0 && <option value="">No format is common to this combination</option>}
             {commonFormats.map((format) => (
@@ -151,7 +159,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.tamper}
             onChange={(event) => onChange({ ...config, tamper: event.target.value as TamperMode })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(TAMPER_MODE_LABELS) as TamperMode[]).map((mode) => (
               <option key={mode} value={mode}>
@@ -173,7 +181,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled || config.format !== 'ldp_vc'}
             value={config.proofType}
             onChange={(event) => onChange({ ...config, proofType: event.target.value as ProofType })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {ISSUABLE_PROOF_TYPES.map((proofType) => (
               <option key={proofType} value={proofType}>
@@ -191,7 +199,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled || config.format !== 'ldp_vc'}
             value={config.vcVersion ?? '1.1'}
             onChange={(event) => onChange({ ...config, vcVersion: event.target.value as VcVersion })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(VC_VERSION_LABELS) as VcVersion[]).map((version) => (
               <option key={version} value={version}>
@@ -206,7 +214,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.vciDraft ?? 'draft-13'}
             onChange={(event) => onChange({ ...config, vciDraft: event.target.value as VciDraft })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(VCI_DRAFT_LABELS) as VciDraft[]).map((draft) => (
               <option key={draft} value={draft}>
@@ -221,7 +229,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.grantType ?? 'pre-authorized_code'}
             onChange={(event) => onChange({ ...config, grantType: event.target.value as GrantType })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(GRANT_TYPE_LABELS) as GrantType[]).map((grant) => (
               <option key={grant} value={grant}>
@@ -236,7 +244,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.queryLanguage ?? 'presentation-exchange'}
             onChange={(event) => onChange({ ...config, queryLanguage: event.target.value as QueryLanguage })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(QUERY_LANGUAGE_LABELS) as QueryLanguage[]).map((language) => (
               <option key={language} value={language}>
@@ -251,7 +259,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             disabled={disabled}
             value={config.flowMode ?? 'cross-device'}
             onChange={(event) => onChange({ ...config, flowMode: event.target.value as FlowMode })}
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(FLOW_MODE_LABELS) as FlowMode[]).map((mode) => (
               <option key={mode} value={mode}>
@@ -273,7 +281,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             onChange={(event) =>
               onChange({ ...config, issuerKeyReference: event.target.value as IssuerKeyReference })
             }
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             {(Object.keys(ISSUER_KEY_REFERENCE_LABELS) as IssuerKeyReference[]).map((reference) => (
               <option key={reference} value={reference}>
@@ -290,7 +298,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
             onChange={(event) =>
               onChange({ ...config, walletProofType: event.target.value as RunConfig['walletProofType'] })
             }
-            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent disabled:opacity-50"
           >
             <option value="jwt">JWT proof (recommended)</option>
             <option value="none">None — omit holder binding</option>
@@ -300,8 +308,8 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
 
       {selected.some((participant) => (participant?.config.length ?? 0) > 0) && (
         <div className="space-y-3 rounded-lg border border-line bg-surface p-3">
-          <h3 className="text-[12px] font-semibold text-ink">Endpoint configuration</h3>
-          <p className="-mt-2 text-[11px] text-muted">
+          <h3 className="text-sm font-semibold text-ink">Endpoint configuration</h3>
+          <p className="-mt-2 text-xs text-muted">
             Overrides apply to this run only, so you can point at a local stack for one run and a sandbox for the
             next without restarting.
           </p>
@@ -311,10 +319,10 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
                 participant &&
                 participant.config.length > 0 && (
                   <div key={participant.id} className="space-y-2">
-                    <div className="text-[11px] font-medium text-accent">{participant.label}</div>
+                    <div className="text-xs font-medium text-accent">{participant.label}</div>
                     {participant.config.map((field) => (
                       <label key={field.key} className="block">
-                        <span className="mb-1 block text-[10.5px] text-muted">
+                        <span className="mb-1 block text-2xs text-muted">
                           {field.label}
                           {field.required && <span className="text-fail"> *</span>}
                         </span>
@@ -347,7 +355,7 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
       )}
 
       {commonFormats.length === 0 && (
-        <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] text-warn">
+        <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-xs text-warn">
           The selected issuer, wallet and verifier share no credential format. That mismatch is itself an
           interoperability finding — but the run cannot proceed until you pick a compatible combination.
         </p>
@@ -357,11 +365,22 @@ export function RunBuilder({ participants, config, onChange, disabled }: RunBuil
 }
 
 function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
   return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-medium text-ink">{label}</span>
-      {children}
-      <span className="mt-1 block text-[10px] leading-snug text-muted">{hint}</span>
-    </label>
+    <div className="block">
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-ink">
+        {label}
+      </label>
+      {isValidElement(children)
+        ? cloneElement(children as ReactElement<{ id?: string; 'aria-describedby'?: string }>, {
+            id,
+            'aria-describedby': hintId,
+          })
+        : children}
+      <span id={hintId} className="mt-1 block text-2xs leading-snug text-muted">
+        {hint}
+      </span>
+    </div>
   );
 }

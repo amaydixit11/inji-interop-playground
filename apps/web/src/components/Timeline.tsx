@@ -39,7 +39,7 @@ export function Timeline({
             >
               <span
                 aria-hidden
-                className={`text-[15px] leading-none ${
+                className={`text-md leading-none ${
                   tone === 'pass'
                     ? 'text-pass'
                     : tone === 'fail'
@@ -54,8 +54,8 @@ export function Timeline({
                 {GLYPH[status]}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[11.5px] font-medium text-ink">{STEP_LABELS[step]}</div>
-                <div className="text-[10px] text-muted">
+                <div className="truncate text-xs font-medium text-ink">{STEP_LABELS[step]}</div>
+                <div className="text-2xs text-muted">
                   {status === 'pending' ? 'not started' : status.replace('-', ' ')}
                   {exchangeCounts[step] ? ` · ${exchangeCounts[step]} exchange(s)` : ''}
                 </div>
@@ -63,7 +63,7 @@ export function Timeline({
               {status === 'awaiting-user' && <Badge tone="warn">action</Badge>}
             </div>
             {explain && (
-              <p className="mt-1.5 px-1 text-[10.5px] leading-snug text-muted">
+              <p className="mt-1.5 px-1 text-2xs leading-snug text-muted">
                 {STEP_EXPLANATIONS[step].what}
               </p>
             )}

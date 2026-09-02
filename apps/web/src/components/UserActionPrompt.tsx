@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { UserAction } from '@interop/shared';
 
@@ -21,6 +21,8 @@ export function UserActionPrompt({
 }) {
   const [dataUrl, setDataUrl] = useState<string>();
   const [copied, setCopied] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
@@ -40,17 +42,66 @@ export function UserActionPrompt({
     };
   }, [action.uri]);
 
+  // Focus moves to the primary action when the prompt appears; otherwise it
+  // stays behind on whatever was last clicked.
+  useEffect(() => {
+    confirmRef.current?.focus();
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-lg border border-line bg-surface p-5 shadow-2xl">
-        <h2 className="text-[15px] font-semibold text-ink">{action.title}</h2>
-        <p className="mt-1 text-[12px] leading-snug text-muted">{action.instructions}</p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          onAbort();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        // Focus has to be trapped: the run is blocked on this prompt, and
+        // tabbing behind it leaves a keyboard user operating a page that
+        // cannot respond.
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="action-title"
+        aria-describedby="action-instructions"
+        className="w-full max-w-md rounded-xl border border-line bg-surface p-5 shadow-lift"
+      >
+        <h2 id="action-title" className="text-md font-semibold text-ink">
+          {action.title}
+        </h2>
+        <p id="action-instructions" className="mt-1 text-sm leading-snug text-muted">
+          {action.instructions}
+        </p>
 
         <div className="my-4 flex justify-center">
           {dataUrl ? (
-            <img src={dataUrl} alt="QR code" className="rounded-md bg-white p-2" width={280} height={280} />
+            <img
+              src={dataUrl}
+              alt="QR code encoding the link shown below it, which is also given as copyable text."
+              className="rounded-md bg-white p-2"
+              width={280}
+              height={280}
+            />
           ) : error ? (
-            <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] leading-snug text-warn">
+            <p className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-xs leading-snug text-warn">
               {error}
             </p>
           ) : (
@@ -67,9 +118,12 @@ export function UserActionPrompt({
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
-            className="mt-2 w-full rounded border border-line py-1 text-[11px] text-muted transition hover:border-accent hover:text-accent"
+            className="mt-2 w-full rounded-md border border-line py-1 text-xs text-muted transition hover:border-accent hover:text-accent"
           >
-            {copied ? 'copied' : 'copy link'}
+            {copied ? 'Copied' : 'Copy link'}
+            <span aria-live="polite" className="sr-only">
+              {copied ? 'Link copied to the clipboard.' : ''}
+            </span>
           </button>
         </div>
 
@@ -78,15 +132,16 @@ export function UserActionPrompt({
         <div className="mt-4 flex gap-2">
           <button
             type="button"
+            ref={confirmRef}
             onClick={onComplete}
-            className="flex-1 rounded-md bg-accent py-2 text-[12px] font-semibold text-canvas transition hover:brightness-110"
+            className="flex-1 rounded-lg bg-accent py-2 text-sm font-semibold text-canvas transition hover:brightness-110"
           >
             I have completed this step
           </button>
           <button
             type="button"
             onClick={onAbort}
-            className="rounded-md border border-line px-3 text-[12px] text-muted transition hover:border-fail hover:text-fail"
+            className="rounded-md border border-line px-3 text-sm text-muted transition hover:border-fail hover:text-fail"
           >
             Abort
           </button>
@@ -114,7 +169,7 @@ function DigitalCredentialsProbe({ uri }: { uri: string }) {
   return (
     <div className="mt-3 rounded-md border border-line bg-surface-2 px-2.5 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] text-muted">
+        <span className="text-xs text-muted">
           Digital Credentials API: {supported ? 'available in this browser' : 'not available in this browser'}
         </span>
         <button
@@ -130,14 +185,14 @@ function DigitalCredentialsProbe({ uri }: { uri: string }) {
               setResult(error instanceof Error ? error.message : String(error));
             }
           }}
-          className="rounded border border-line px-2 py-0.5 text-[10.5px] text-muted transition hover:border-accent hover:text-accent disabled:opacity-40"
+          className="rounded border border-line px-2 py-0.5 text-2xs text-muted transition hover:border-accent hover:text-accent disabled:opacity-40"
         >
           try it
         </button>
       </div>
-      {result && <p className="mt-1 text-[10.5px] leading-snug text-warn">{result}</p>}
+      {result && <p className="mt-1 text-2xs leading-snug text-warn">{result}</p>}
       {!supported && (
-        <p className="mt-1 text-[10.5px] leading-snug text-muted">
+        <p className="mt-1 text-2xs leading-snug text-muted">
           Without it, a same-device handoff depends on the <code>openid4vp://</code> scheme being registered by an
           installed wallet — which is why the link below is offered as well.
         </p>

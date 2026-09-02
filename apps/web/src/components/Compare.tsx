@@ -22,7 +22,7 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
   if (runs.length < 2) {
     return (
       <Panel title="Compare runs">
-        <p className="p-4 text-[12px] text-muted">
+        <p className="p-4 text-sm text-muted">
           Two recorded runs are needed to compare. Run a scenario, change one participant, and run it again.
         </p>
       </Panel>
@@ -49,7 +49,7 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
               className="h-full"
             >
               {diff.changed.length === 0 ? (
-                <p className="p-4 text-[12px] text-muted">
+                <p className="p-4 text-sm text-muted">
                   Every assertion that ran in both resolved the same way. If the outcomes still differ, the cause is
                   in the checks that only one side ran — shown opposite.
                 </p>
@@ -57,17 +57,17 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
                 <ul className="divide-y divide-line/60">
                   {diff.changed.map((entry) => (
                     <li key={entry.id} className="px-3 py-2.5">
-                      <div className="text-[12px] font-medium leading-snug text-ink">{entry.title}</div>
+                      <div className="text-sm font-medium leading-snug text-ink">{entry.title}</div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                        <Badge tone={checkTone(entry.left.status, entry.left.expected)}>
+                        <Badge tone={checkTone(entry.left.status, entry.left.expected)} glyph>
                           baseline: {entry.left.status}
                         </Badge>
                         <span className="text-muted">→</span>
-                        <Badge tone={checkTone(entry.right.status, entry.right.expected)}>
+                        <Badge tone={checkTone(entry.right.status, entry.right.expected)} glyph>
                           compared: {entry.right.status}
                         </Badge>
                       </div>
-                      <p className="mt-1.5 text-[11px] leading-snug text-muted">{entry.right.detail}</p>
+                      <p className="mt-1.5 text-xs leading-snug text-muted">{entry.right.detail}</p>
                     </li>
                   ))}
                 </ul>
@@ -80,7 +80,7 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
               className="h-full"
             >
               {diff.onlyLeft.length === 0 && diff.onlyRight.length === 0 ? (
-                <p className="p-4 text-[12px] text-muted">Both runs evaluated the same set of assertions.</p>
+                <p className="p-4 text-sm text-muted">Both runs evaluated the same set of assertions.</p>
               ) : (
                 <ul className="divide-y divide-line/60">
                   {diff.onlyLeft.map((check) => (
@@ -88,8 +88,8 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
                       <div className="flex items-start gap-2">
                         <Badge>baseline only</Badge>
                         <div className="min-w-0 flex-1">
-                          <div className="text-[12px] leading-snug text-ink">{check.title}</div>
-                          <div className="text-[10.5px] text-muted">{check.spec}</div>
+                          <div className="text-sm leading-snug text-ink">{check.title}</div>
+                          <div className="text-2xs text-muted">{check.spec}</div>
                         </div>
                       </div>
                     </li>
@@ -99,8 +99,8 @@ export function Compare({ runs }: { runs: RunListItem[] }) {
                       <div className="flex items-start gap-2">
                         <Badge tone="accent">compared only</Badge>
                         <div className="min-w-0 flex-1">
-                          <div className="text-[12px] leading-snug text-ink">{check.title}</div>
-                          <div className="text-[10.5px] text-muted">{check.spec}</div>
+                          <div className="text-sm leading-snug text-ink">{check.title}</div>
+                          <div className="text-2xs text-muted">{check.spec}</div>
                         </div>
                       </div>
                     </li>
@@ -130,11 +130,11 @@ function RunPicker({
   return (
     <div className="rounded-lg border border-line bg-surface p-3">
       <label className="block">
-        <span className="mb-1 block text-[10.5px] uppercase tracking-wider text-muted">{label}</span>
+        <span className="mb-1 block text-2xs font-semibold uppercase tracking-wider text-muted">{label}</span>
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-[12px] text-ink outline-none focus:border-accent"
+          className="w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
         >
           {runs.map((run) => (
             <option key={run.id} value={run.id}>
@@ -146,8 +146,10 @@ function RunPicker({
       </label>
       {selected && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge tone={runTone(selected.status)}>{selected.status}</Badge>
-          <span className="text-[11px] text-muted">
+          <Badge tone={runTone(selected.status)} glyph>
+            {selected.status}
+          </Badge>
+          <span className="text-xs text-muted">
             {selected.summary?.checksPassed ?? 0} passed · {selected.summary?.checksFailed ?? 0} failed ·{' '}
             {selected.summary?.checksWarned ?? 0} warned
           </span>
@@ -172,7 +174,7 @@ function ConfigDiff({ left, right }: { left: RunListItem; right: RunListItem }) 
 
   if (rows.length === 0) {
     return (
-      <p className="p-3 text-[12px] text-muted">
+      <p className="p-3 text-sm text-muted">
         These runs used an identical configuration. Any difference in outcome is non-deterministic — a timeout, or
         state left behind by an earlier run.
       </p>
@@ -180,13 +182,18 @@ function ConfigDiff({ left, right }: { left: RunListItem; right: RunListItem }) 
   }
 
   return (
-    <table className="w-full border-collapse text-[11.5px]">
+    <table className="w-full border-collapse text-xs">
+      <caption className="sr-only">Configuration fields that differ between the two runs, left then right.</caption>
       <tbody>
         {rows.map((row) => (
           <tr key={row.field} className="border-b border-line/40 last:border-0">
-            <td className="px-3 py-1.5 text-muted">{row.field}</td>
+            <th scope="row" className="px-3 py-1.5 text-left font-normal text-muted">
+              {row.field}
+            </th>
             <td className="px-3 py-1.5 text-ink">{row.left}</td>
-            <td className="px-2 py-1.5 text-muted">→</td>
+            <td aria-hidden="true" className="px-2 py-1.5 text-muted">
+              →
+            </td>
             <td className="px-3 py-1.5 text-accent">{row.right}</td>
           </tr>
         ))}

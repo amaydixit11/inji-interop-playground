@@ -105,14 +105,14 @@ export function Story({
                 <ClaimList claims={narrative.disclosedClaims} tone="shared" />
                 {withheld > 0 && (
                   <div>
-                    <div className="mb-1 text-[10.5px] uppercase tracking-wider text-muted">Held back</div>
+                    <div className="mb-1 text-2xs uppercase tracking-wider text-muted">Held back</div>
                     <div className="flex flex-wrap gap-1">
                       {narrative.withheldClaims.map((name) => (
                         <span
                           key={name}
-                          className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted"
+                          className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-xs text-muted"
                         >
-                          {name} <span className="text-[10px]">hidden</span>
+                          {name} <span className="text-2xs">hidden</span>
                         </span>
                       ))}
                     </div>
@@ -144,13 +144,13 @@ export function Story({
                   <li key={entry.claim} className="flex items-start gap-2">
                     <span
                       aria-hidden
-                      className={`mt-px text-[13px] leading-none ${entry.ok ? 'text-pass' : 'text-warn'}`}
+                      className={`mt-px text-base leading-none ${entry.ok ? 'text-pass' : 'text-warn'}`}
                     >
                       {entry.ok ? '✓' : '✕'}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="text-[12px] text-ink">{entry.claim}</span>
-                      {entry.note && <span className="block text-[11px] leading-snug text-muted">{entry.note}</span>}
+                      <span className="text-sm text-ink">{entry.claim}</span>
+                      {entry.note && <span className="block text-xs leading-snug text-muted">{entry.note}</span>}
                     </span>
                   </li>
                 ))}
@@ -178,12 +178,12 @@ function Beat({
 }) {
   return (
     <li className="flex gap-3 px-4 py-3">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-line bg-surface-2 text-[10.5px] tabular-nums text-muted">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-line bg-surface-2 text-2xs tabular-nums text-muted">
         {index}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[12.5px] font-medium text-ink">{title}</div>
-        <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{body}</p>
+        <div className="text-sm font-medium text-ink">{title}</div>
+        <p className="mt-0.5 text-sm leading-relaxed text-muted">{body}</p>
         {detail && <div className="mt-2">{detail}</div>}
       </div>
     </li>
@@ -197,13 +197,13 @@ function ClaimList({ claims, tone }: { claims: Record<string, unknown>; tone: 'n
   return (
     <div>
       {tone === 'shared' && (
-        <div className="mb-1 text-[10.5px] uppercase tracking-wider text-muted">Shared with the verifier</div>
+        <div className="mb-1 text-2xs uppercase tracking-wider text-muted">Shared with the verifier</div>
       )}
       <div className="flex flex-wrap gap-1">
         {entries.map(([name, value]) => (
           <span
             key={name}
-            className={`rounded border px-1.5 py-0.5 text-[11px] ${
+            className={`rounded border px-1.5 py-0.5 text-xs ${
               tone === 'shared' ? 'border-pass/40 bg-pass/10 text-ink' : 'border-line bg-surface-2 text-ink'
             }`}
           >
@@ -251,8 +251,8 @@ function Verdict({ narrative, status }: { narrative: RunNarrative; status: RunSt
 
   return (
     <div className={`rounded-lg border px-4 py-3 ${copy?.tone}`}>
-      <div className="text-[14px] font-semibold">{copy?.headline}</div>
-      <p className="mt-0.5 text-[12px] leading-relaxed text-muted">{copy?.body}</p>
+      <div className="text-md font-semibold">{copy?.headline}</div>
+      <p className="mt-0.5 text-sm leading-relaxed text-muted">{copy?.body}</p>
     </div>
   );
 }

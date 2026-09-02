@@ -1,17 +1,51 @@
 @import 'tailwindcss';
 
+/* Palette provenance — the status colours are computed, not chosen.
+ *
+ * The shipped set was #3fb950 pass / #f85149 fail, which measures ΔE 2.2 under
+ * simulated deuteranopia: the single most consequential distinction in this UI
+ * — a conformance check passed versus failed — was invisible to the commonest
+ * form of colour blindness. These five were searched under OKLab with the
+ * Machado-Oliveira-Fernandes transforms, maximising the worst *all-pairs* CVD
+ * separation (all five co-occur as run statuses, so adjacency is not enough)
+ * subject to each hue still reading as its role and clearing WCAG 4.5:1:
+ *
+ *   worst all-pairs CVD ΔE 13.5 (deutan) · tritan 10.2 · normal-vision 17.9
+ *   contrast vs surface: accent 7.7 · pass 11.5 · fail 4.5 · warn 7.3 · info 4.5
+ *
+ * They sit above the data-viz dark lightness band [0.48, 0.67] on purpose: that
+ * band is calibrated for 3:1 chart marks on a lighter surface (#1a1a19) than
+ * this one, and a 3:1 mark is not a readable label. Colour is never the only
+ * encoding regardless — every status also carries a glyph and a word.
+ */
 @theme {
-  --color-canvas: #0b0f14;
-  --color-surface: #121820;
-  --color-surface-2: #182029;
-  --color-line: #263140;
-  --color-ink: #e6edf3;
-  --color-muted: #8b9bb0;
-  --color-accent: #4da3ff;
-  --color-pass: #3fb950;
-  --color-fail: #f85149;
-  --color-warn: #d29922;
-  --color-info: #a371f7;
+  --color-canvas: #0a0e14;
+  --color-surface: #121821;
+  --color-surface-2: #18212d;
+  --color-surface-3: #1e2836;
+  --color-line: #253040;
+  --color-line-strong: #33415a;
+  --color-ink: #e8eef6;
+  --color-ink-2: #b6c3d4;
+  --color-muted: #8494a8;
+
+  --color-accent: #5cb0ff;
+  --color-pass: #6ce7a1;
+  --color-fail: #d5565d;
+  --color-warn: #df9717;
+  --color-info: #8c67f2;
+
+  --text-2xs: 10.5px;
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 23px;
+  --text-2xl: 30px;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 16px 32px -16px rgb(0 0 0 / 0.6);
 }
 
 html,
@@ -24,7 +58,30 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: var(--text-sm);
   -webkit-font-smoothing: antialiased;
+}
+
+/* One visible focus ring for everything, on the accent, offset so it reads
+   against both the card and the canvas. Keyboard-only: a mouse click on a
+   button should not leave a ring behind. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respecting the OS setting is not optional: motion here is decoration, and
+   for some people it is a symptom trigger. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Payload panes are read as data, so they get a real monospace stack and
@@ -36,13 +93,56 @@ body {
   tab-size: 2;
 }
 
+/* Prose is unreadable at 1500px. Explanations and scenario copy are capped at
+   a comfortable measure regardless of how wide the window is. */
+.measure {
+  max-width: 68ch;
+}
+
+/* Visible only to screen readers — used for the words behind icon-only
+   controls and for status text that colour alone would otherwise carry. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* The skip link stays out of the way until focused, then lands on top of
+   everything — a keyboard user should not have to walk the whole nav to
+   reach the run output. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  border-radius: 6px;
+  background: var(--color-accent);
+  color: var(--color-canvas);
+  padding: 8px 14px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: top 120ms ease;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3543;
+  background: var(--color-line-strong);
   border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #43536f;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

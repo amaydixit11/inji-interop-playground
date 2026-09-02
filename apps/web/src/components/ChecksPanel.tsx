@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ConformanceCheck } from '@interop/shared';
 import { STEP_LABELS } from '@interop/shared';
-import { Badge, checkTone, Panel } from './primitives.js';
+import { Badge, checkTone, Panel, StatusIcon } from './primitives.js';
 
 /**
  * The interoperability findings for a run.
@@ -26,28 +26,29 @@ export function ChecksPanel({ checks }: { checks: ConformanceCheck[] }) {
       title="Conformance checks"
       subtitle="Assertions evaluated against the observed payloads"
       actions={
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <Badge tone="pass">{counts.pass} pass</Badge>
-            {counts.fail > 0 && <Badge tone="fail">{counts.fail} fail</Badge>}
-            {counts.expected > 0 && <Badge tone="info">{counts.expected} expected</Badge>}
-            {counts.warn > 0 && <Badge tone="warn">{counts.warn} warn</Badge>}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1">
+            <Badge tone="pass" glyph>{counts.pass} pass</Badge>
+            {counts.fail > 0 && <Badge tone="fail" glyph>{counts.fail} fail</Badge>}
+            {counts.expected > 0 && <Badge tone="info" glyph>{counts.expected} expected</Badge>}
+            {counts.warn > 0 && <Badge tone="warn" glyph>{counts.warn} warn</Badge>}
           </div>
           <button
             type="button"
             onClick={() => setOnlyProblems((value) => !value)}
-            className={`rounded border px-1.5 py-0.5 text-[10px] transition ${
+            aria-pressed={onlyProblems}
+            className={`rounded-md border px-2 py-0.5 text-2xs font-medium transition ${
               onlyProblems ? 'border-accent/50 bg-accent/10 text-accent' : 'border-line text-muted hover:text-ink'
             }`}
           >
-            problems only
+            Problems only
           </button>
         </div>
       }
       className="h-full"
     >
       {visible.length === 0 && (
-        <p className="p-4 text-[11.5px] text-muted">
+        <p className="p-4 text-xs text-muted">
           {checks.length === 0 ? 'Checks appear here as the run progresses.' : 'No problems found.'}
         </p>
       )}
@@ -56,18 +57,21 @@ export function ChecksPanel({ checks }: { checks: ConformanceCheck[] }) {
           <li key={`${check.id}-${index}`} className="px-3 py-2.5">
             <div className="flex items-start gap-2">
               <span className="mt-0.5">
-                <Badge tone={checkTone(check.status, check.expected)}>
+                <Badge tone={checkTone(check.status, check.expected)} glyph>
                   {check.expected && check.status === 'fail' ? 'expected' : check.status}
                 </Badge>
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[12px] font-medium leading-snug text-ink">{check.title}</div>
-                <p className="mt-0.5 text-[11px] leading-snug text-muted">{check.detail}</p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
+                <div className="text-sm font-medium leading-snug text-ink">{check.title}</div>
+                <p className="mt-0.5 text-xs leading-snug text-muted">{check.detail}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-2xs text-muted">
                   <span className="rounded bg-surface-2 px-1.5 py-0.5">{check.spec}</span>
                   <span>{STEP_LABELS[check.step]}</span>
                   {check.attributedTo && (
-                    <span className="text-fail">attributed to the {check.attributedTo}</span>
+                    <span className="flex items-center gap-1 text-fail">
+                      <StatusIcon tone="fail" label="Attributed to" labelled />
+                      attributed to the {check.attributedTo}
+                    </span>
                   )}
                 </div>
               </div>

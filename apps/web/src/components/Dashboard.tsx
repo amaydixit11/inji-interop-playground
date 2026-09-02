@@ -30,12 +30,12 @@ export function Dashboard({ runs }: { runs: RunListItem[] }) {
       .catch((caught: Error) => setError(caught.message));
   }, [runs.length]);
 
-  if (error) return <Panel title="Dashboard"><p className="p-4 text-[12px] text-fail">{error}</p></Panel>;
-  if (!stats) return <Panel title="Dashboard"><p className="p-4 text-[12px] text-muted">Loading…</p></Panel>;
+  if (error) return <Panel title="Dashboard"><p className="p-4 text-sm text-fail">{error}</p></Panel>;
+  if (!stats) return <Panel title="Dashboard"><p className="p-4 text-sm text-muted">Loading…</p></Panel>;
   if (stats.total === 0) {
     return (
       <Panel title="Dashboard">
-        <p className="p-4 text-[12px] text-muted">No runs recorded yet. Run an interoperability test first.</p>
+        <p className="p-4 text-sm text-muted">No runs recorded yet. Run an interoperability test first.</p>
       </Panel>
     );
   }
@@ -88,19 +88,19 @@ export function Dashboard({ runs }: { runs: RunListItem[] }) {
           subtitle="Deliberately provoked failures excluded"
         >
           {stats.topFindings.length === 0 ? (
-            <p className="p-4 text-[12px] text-muted">No failures or warnings recorded.</p>
+            <p className="p-4 text-sm text-muted">No failures or warnings recorded.</p>
           ) : (
             <ul className="divide-y divide-line/60">
               {stats.topFindings.map((finding) => (
                 <li key={`${finding.status}-${finding.title}`} className="flex items-start gap-2 px-3 py-2">
-                  <Badge tone={checkTone(finding.status)}>{finding.status}</Badge>
+                  <Badge tone={checkTone(finding.status)} glyph>{finding.status}</Badge>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12px] leading-snug text-ink">{finding.title}</div>
-                    <div className="text-[10px] text-muted">{finding.spec}</div>
+                    <div className="text-sm leading-snug text-ink">{finding.title}</div>
+                    <div className="text-2xs text-muted">{finding.spec}</div>
                   </div>
-                  <span className="shrink-0 text-[12px] tabular-nums text-muted">
+                  <span className="shrink-0 text-sm tabular-nums text-muted">
                     {finding.count}
-                    <span className="ml-1 text-[10px]">×</span>
+                    <span className="ml-1 text-2xs">×</span>
                   </span>
                 </li>
               ))}
@@ -115,9 +115,9 @@ export function Dashboard({ runs }: { runs: RunListItem[] }) {
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="rounded-lg border border-line bg-surface px-3 py-2.5">
-      <div className="text-[10.5px] uppercase tracking-wider text-muted">{label}</div>
-      <div className="mt-0.5 text-[22px] font-semibold leading-tight tabular-nums text-ink">{value}</div>
-      {note && <div className="text-[10.5px] text-muted">{note}</div>}
+      <div className="text-2xs uppercase tracking-wider text-muted">{label}</div>
+      <div className="mt-0.5 text-xl font-semibold leading-tight tabular-nums text-ink">{value}</div>
+      {note && <div className="text-2xs text-muted">{note}</div>}
     </div>
   );
 }
@@ -168,17 +168,25 @@ function Bar({
   return (
     <div title={title} className="group">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate text-[11.5px] text-ink">{label}</span>
-        <span className="shrink-0 text-[11.5px] tabular-nums text-ink">{value}</span>
+        <span className="min-w-0 truncate text-xs text-ink">{label}</span>
+        <span className="shrink-0 text-xs tabular-nums text-ink">{value}</span>
       </div>
       <div className="mt-1 flex items-center gap-2">
-        <div className="h-2 flex-1 overflow-hidden rounded-sm bg-surface-2">
+        <div
+          role="meter"
+          aria-label={label}
+          aria-valuenow={Math.round(width)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuetext={title}
+          className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2"
+        >
           <div
-            className="h-full rounded-sm bg-accent transition-[width] duration-300 group-hover:brightness-110"
+            className="h-full rounded-r-[4px] bg-accent transition-[width] duration-300 group-hover:brightness-110"
             style={{ width: `${width}%` }}
           />
         </div>
-        {note && <span className="shrink-0 text-[10px] tabular-nums text-muted">{note}</span>}
+        {note && <span className="shrink-0 text-2xs tabular-nums text-muted">{note}</span>}
       </div>
     </div>
   );

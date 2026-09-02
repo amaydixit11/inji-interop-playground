@@ -38,14 +38,18 @@ export function ProtocolInspector({
       title="Protocol inspector"
       subtitle="Raw payloads exchanged at every step"
       actions={
-        <div className="flex gap-1 rounded-md border border-line bg-surface-2 p-0.5">
+        <div role="tablist" aria-label="Inspector view" className="flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
           {(['exchanges', 'artifacts'] as const).map((value) => (
             <button
               key={value}
               type="button"
+              role="tab"
+              aria-selected={tab === value}
+              aria-controls="inspector-panel"
+              tabIndex={tab === value ? 0 : -1}
               onClick={() => setTab(value)}
-              className={`rounded px-2 py-0.5 text-[10.5px] font-medium capitalize transition ${
-                tab === value ? 'bg-accent/20 text-accent' : 'text-muted hover:text-ink'
+              className={`rounded-md px-2 py-0.5 text-2xs font-medium capitalize transition ${
+                tab === value ? 'bg-accent/15 text-accent' : 'text-muted hover:text-ink'
               }`}
             >
               {value} ({value === 'exchanges' ? exchanges.length : artifacts.length})
@@ -66,23 +70,27 @@ export function ProtocolInspector({
             className="min-h-0 overflow-auto border-b border-line lg:border-b-0 lg:border-r"
           >
             {exchanges.length === 0 && <Empty>Exchanges appear here as the run progresses.</Empty>}
+            <ul>
             {exchanges.map((exchange) => {
               const isSelected = selected?.id === exchange.id;
               const failed = exchange.error || (exchange.status ?? 200) >= 400;
               return (
+                <li key={exchange.id}>
                 <button
-                  key={exchange.id}
                   type="button"
                   onClick={() => setSelectedId(exchange.id)}
+                  aria-current={isSelected ? 'true' : undefined}
                   className={`block w-full border-b border-line/60 px-3 py-2 text-left transition ${
-                    isSelected ? 'bg-accent/10' : 'hover:bg-surface-2'
+                    isSelected
+                      ? 'bg-accent/10 shadow-[inset_2px_0_0_var(--color-accent)]'
+                      : 'hover:bg-surface-2'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 rounded bg-surface-2 px-1 py-px text-[9.5px] font-semibold text-muted">
+                    <span className="shrink-0 rounded bg-surface-2 px-1 py-px text-2xs font-semibold text-muted">
                       {exchange.method}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-ink">
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
                       {exchange.label}
                     </span>
                     {exchange.error ? (
@@ -91,16 +99,18 @@ export function ProtocolInspector({
                       <Badge tone={failed ? 'fail' : 'pass'}>{exchange.status}</Badge>
                     )}
                   </div>
-                  <div className="mt-0.5 truncate text-[10px] text-muted">
+                  <div className="mt-0.5 truncate text-2xs text-muted">
                     {exchange.from} → {exchange.to}
                     {exchange.durationMs !== undefined && ` · ${exchange.durationMs}ms`}
                   </div>
                 </button>
+                </li>
               );
             })}
+            </ul>
           </div>
 
-          <div className="min-h-0 overflow-auto">
+          <div id="inspector-panel" className="min-h-0 overflow-auto">
             {selected ? (
               <ExchangeDetail exchange={selected} explain={explain} />
             ) : (
@@ -114,11 +124,11 @@ export function ProtocolInspector({
           {artifacts.map((artifact) => (
             <details key={artifact.id} className="group">
               <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-surface-2">
-                <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-ink">
+                <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
                   {artifact.label}
                 </span>
                 <Badge>{artifact.kind}</Badge>
-                <span className="text-[10px] text-muted">{STEP_LABELS[artifact.step]}</span>
+                <span className="text-2xs text-muted">{STEP_LABELS[artifact.step]}</span>
               </summary>
               <pre className="payload max-h-96 overflow-auto whitespace-pre-wrap break-all border-t border-line/60 bg-canvas px-3 py-2 text-muted">
                 {formatPayload(artifact.value)}
@@ -137,32 +147,32 @@ function ExchangeDetail({ exchange, explain }: { exchange: HttpExchange; explain
   return (
     <div className="space-y-3 p-3">
       <div>
-        <div className="text-[12px] font-semibold text-ink">{exchange.label}</div>
+        <div className="text-sm font-semibold text-ink">{exchange.label}</div>
         <div className="payload mt-1 break-all text-accent">
           {exchange.method} {exchange.url}
         </div>
-        <div className="mt-1 text-[10px] text-muted">
+        <div className="mt-1 text-2xs text-muted">
           {exchange.from} → {exchange.to} · {STEP_LABELS[exchange.step]}
           {exchange.durationMs !== undefined && ` · ${exchange.durationMs}ms`}
         </div>
       </div>
 
       {exchange.error && (
-        <div className="rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-[11px] leading-snug text-warn">
+        <div className="rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-xs leading-snug text-warn">
           {exchange.error}
         </div>
       )}
 
       {explain && (
         <div className="space-y-1.5 rounded-md border border-info/30 bg-info/5 px-2.5 py-2">
-          <p className="text-[11px] leading-snug text-ink">
+          <p className="text-xs leading-snug text-ink">
             {explanation?.what ?? STEP_EXPLANATIONS[exchange.step].what}
           </p>
-          <p className="text-[11px] leading-snug text-muted">
+          <p className="text-xs leading-snug text-muted">
             {explanation?.why ?? STEP_EXPLANATIONS[exchange.step].why}
           </p>
           {(explanation?.lookFor ?? STEP_EXPLANATIONS[exchange.step].lookFor) && (
-            <p className="text-[11px] leading-snug text-muted">
+            <p className="text-xs leading-snug text-muted">
               <span className="text-info">What to look for: </span>
               {explanation?.lookFor ?? STEP_EXPLANATIONS[exchange.step].lookFor}
             </p>
@@ -181,7 +191,7 @@ function ExchangeDetail({ exchange, explain }: { exchange: HttpExchange; explain
 function Section({ label, value, collapsed }: { label: string; value: unknown; collapsed?: boolean }) {
   return (
     <details open={!collapsed}>
-      <summary className="cursor-pointer text-[11px] font-medium text-muted hover:text-ink">{label}</summary>
+      <summary className="cursor-pointer text-xs font-medium text-muted hover:text-ink">{label}</summary>
       <pre className="payload mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-md border border-line bg-canvas px-2.5 py-2 text-muted">
         {formatPayload(value)}
       </pre>
@@ -190,5 +200,5 @@ function Section({ label, value, collapsed }: { label: string; value: unknown; c
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="p-4 text-[11.5px] text-muted">{children}</p>;
+  return <p className="p-4 text-xs text-muted">{children}</p>;
 }

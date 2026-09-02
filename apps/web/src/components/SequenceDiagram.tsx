@@ -54,9 +54,9 @@ export function SequenceDiagram({ exchanges }: { exchanges: HttpExchange[] }) {
   return (
     <Panel title="Protocol sequence" subtitle="Rendered from the exchanges actually observed" className="h-full">
       {exchanges.length === 0 ? (
-        <p className="p-4 text-[11.5px] text-muted">The sequence is drawn as messages are captured.</p>
+        <p className="p-4 text-xs text-muted">The sequence is drawn as messages are captured.</p>
       ) : error ? (
-        <p className="p-4 text-[11.5px] text-fail">Could not render the diagram: {error}</p>
+        <p className="p-4 text-xs text-fail">Could not render the diagram: {error}</p>
       ) : (
         <div ref={containerRef} className="flex min-h-full items-start justify-center overflow-auto p-3" />
       )}

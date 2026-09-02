@@ -51,7 +51,7 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
         subtitle="@injistack/react-inji-verify-sdk driving verify-service directly"
       >
         <div className="space-y-3 p-3">
-          <p className="text-[12px] leading-relaxed text-muted">
+          <p className="text-sm leading-relaxed text-muted">
             Everywhere else, a result depends on our adapter reading verify-service correctly — and
             finding 22 records what happened when it did not. Here the official component talks to
             verify-service from the browser with nothing of ours in between, so the outcome is
@@ -60,13 +60,13 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
 
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="warn">endpoint only</Badge>
-            <span className="text-[11px] text-muted">
+            <span className="text-xs text-muted">
               The exchange happens in your browser, so the protocol inspector cannot capture it.
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[11px] text-ink">
+            <label className="flex items-center gap-1.5 text-xs text-ink">
               <input
                 type="checkbox"
                 checked={sameDevice}
@@ -79,7 +79,7 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
               />
               Same-device flow
             </label>
-            <span className="text-[10.5px] text-muted">
+            <span className="text-2xs text-muted">
               {sameDevice
                 ? 'Redirects to a web wallet. The SDK refuses to start on desktop without one.'
                 : 'Cross-device: the SDK renders its own OpenID4VP QR code and polls for the response.'}
@@ -88,7 +88,7 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
 
           {sameDevice && (
             <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-ink">Web wallet URL</span>
+              <span className="mb-1 block text-xs font-medium text-ink">Web wallet URL</span>
               <input
                 value={webWalletBaseUrl}
                 onChange={(event) => setWebWalletBaseUrl(event.target.value)}
@@ -98,13 +98,13 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
           )}
 
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-ink">verify-service URL</span>
+            <span className="mb-1 block text-xs font-medium text-ink">verify-service URL</span>
             <input
               value={serviceUrl}
               onChange={(event) => setServiceUrl(event.target.value)}
               className="payload w-full rounded-md border border-line bg-surface-2 px-2 py-1.5 text-ink outline-none focus:border-accent"
             />
-            <span className="mt-1 block text-[10px] leading-snug text-muted">
+            <span className="mt-1 block text-2xs leading-snug text-muted">
               Defaults to <code>/proxy/verify</code>, this playground's same-origin passthrough to{' '}
               <code>{verifyServiceUrl}</code>. Pointing the SDK straight at verify-service fails: it
               sends no CORS headers and answers preflight with 403, so a browser cannot call it from
@@ -113,7 +113,7 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
           </label>
 
           <div>
-            <div className="mb-1 text-[10.5px] uppercase tracking-wider text-muted">
+            <div className="mb-1 text-2xs uppercase tracking-wider text-muted">
               DCQL query sent by the SDK
             </div>
             <pre className="payload max-h-40 overflow-auto rounded-md border border-line bg-canvas px-2.5 py-2 text-muted">
@@ -140,7 +140,7 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
                 triggerElement={
                   <button
                     type="button"
-                    className="rounded-md bg-accent px-3 py-1.5 text-[12px] font-semibold text-canvas"
+                    className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-canvas"
                   >
                     Start SDK verification
                   </button>
@@ -155,14 +155,14 @@ export function OfficialSdk({ verifyServiceUrl }: { verifyServiceUrl: string }) 
                 setResult(undefined);
                 setStarted(true);
               }}
-              className="rounded-md bg-accent px-4 py-1.5 text-[12px] font-semibold text-canvas transition hover:brightness-110"
+              className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-canvas transition hover:brightness-110"
             >
               Load the SDK component
             </button>
           )}
 
           {error && (
-            <p className="rounded-md border border-fail/40 bg-fail/10 px-2.5 py-2 text-[11px] text-fail">{error}</p>
+            <p className="rounded-md border border-fail/40 bg-fail/10 px-2.5 py-2 text-xs text-fail">{error}</p>
           )}
         </div>
       </Panel>
