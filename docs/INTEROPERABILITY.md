@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T10:54:59.634Z by `scripts/run-matrix.mjs`.
+Generated 2026-09-02T11:01:18.105Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -27,7 +27,7 @@ exchanges captured.
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 30 | 0 | 2 | 0 |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 29 | 0 | 3 | 0 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 30 | 0 | 2 | 0 |
 | `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 31 | 0 | 0 | 0 |
 | `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
 | `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 30 | 0 | 0 | 1 |
@@ -61,7 +61,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | `ldp_vc` | `wrong-type` | Presentation satisfies the presentation definition |
 | `ldp_vc` | `strip-holder-proof` | Presentation carries a holder proof |
 | `ldp_vc` | `replay-nonce` | Presentation and credential proofs verify; Holder echoed the verifier nonce |
-| `ldp_vc` | `revoke-credential` | Verifier accepts the issued credential on its own; Presentation and credential proofs verify; Credential has not been revoked |
+| `ldp_vc` | `revoke-credential` | Presentation and credential proofs verify; Credential has not been revoked |
 | `vc+sd-jwt` | `break-signature` | Issuer signature verifies |
 | `vc+sd-jwt` | `expire-credential` | **not detected** |
 | `vc+sd-jwt` | `wrong-type` | Presentation satisfies the presentation definition |
@@ -84,9 +84,9 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 - **Wallet presents an expired credential rather than blocking it** — `warn`, 1 run(s). The held credential is past its expiration date. This wallet forwards it so the verifier can be observed rejecting it; a production wallet may instead refuse to present it at all.
 - **Credential is within its validity window** — `warn`, 1 run(s). The credential expiration date is in the past.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T10:54:50.000Z.
-- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T10:54:54.000Z.
-- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T10:54:57.615Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T11:01:09.000Z.
+- **Credential is within its validity window** — `warn`, 1 run(s). Credential expired at 2026-09-01T11:01:12.000Z.
+- **Document is within its validity window** — `warn`, 1 run(s). validUntil was 2026-09-01T11:01:16.093Z.
 - **DeviceResponse binds to this request** — `warn`, 1 run(s). Device authentication omitted; the response proves issuance but not possession.
 
 ## Conformance checks exercised

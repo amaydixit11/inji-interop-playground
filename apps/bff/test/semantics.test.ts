@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import type { ConformanceCheck, TamperMode } from '@interop/shared';
 import { TAMPER_MODE_LABELS } from '@interop/shared';
-import { expectedVerdict } from '../src/core/engine.js';
+import { expectedVerdict, STEP_TIMEOUTS_MS } from '../src/core/engine.js';
 import { buildNarrative } from '../src/core/narrative.js';
 
 describe('expected outcomes', () => {
@@ -141,5 +141,22 @@ describe('run narrative', () => {
     // `vct` and `docType` constrain which credential is acceptable; they are not
     // claims the verifier asked to be shown.
     assert.deepEqual(narrative.requestedClaims, ['fullName']);
+  });
+});
+
+describe('step deadlines', () => {
+  test('every phase has a bounded budget', () => {
+    // A participant that accepts the connection and never answers is the most
+    // likely real failure, and the least useful one to sit through.
+    for (const [step, budget] of Object.entries(STEP_TIMEOUTS_MS)) {
+      assert.ok(budget > 0, `${step} has no budget`);
+      assert.ok(budget <= 300_000, `${step} budget of ${budget}ms is too long to sit through`);
+    }
+  });
+
+  test('presentation and verification get longer budgets than discovery', () => {
+    // They poll a verifier; discovery is a single request.
+    assert.ok(STEP_TIMEOUTS_MS.present > STEP_TIMEOUTS_MS.discover);
+    assert.ok(STEP_TIMEOUTS_MS.verify > STEP_TIMEOUTS_MS.discover);
   });
 });

@@ -131,6 +131,7 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
   // and shard across several lists.
   const statusList = new StatusList(DEFAULT_STATUS_LIST_LENGTH);
   let nextStatusIndex = 0;
+  let reusedStatusIndices = false;
   const offers = new Map<string, PendingOffer>();
   const tokensByCode = new Map<string, PendingOffer>();
   const tokens = new Map<string, IssuedToken>();
@@ -387,7 +388,16 @@ export function createMockIssuer(deps: MockIssuerDeps): Router {
 
     try {
       // Allocated per issuance so each credential can be revoked individually.
-      const statusIndex = nextStatusIndex++;
+      // Wraps rather than throwing at the end of the list. A long-lived
+      // playground would otherwise stop issuing entirely once it had minted
+      // 131,072 credentials, which is a worse failure than reusing an index
+      // whose credential is long gone.
+      const statusIndex = nextStatusIndex % DEFAULT_STATUS_LIST_LENGTH;
+      nextStatusIndex = statusIndex + 1;
+      if (statusIndex === 0 && nextStatusIndex === 1 && reusedStatusIndices) {
+        console.warn('Status list indices have wrapped; earlier credentials now share an index.');
+      }
+      if (nextStatusIndex >= DEFAULT_STATUS_LIST_LENGTH) reusedStatusIndices = true;
 
       const minted = await mintCredential({
         format: token.offer.format,

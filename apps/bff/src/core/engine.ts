@@ -74,6 +74,59 @@ export function expectedVerdict(tamper: TamperMode): { verdict: VerificationOutc
 
 const STEP_ORDER: StepId[] = ['discover', 'offer', 'issue', 'present', 'verify'];
 
+/**
+ * How long each phase may take before the run gives up on it.
+ *
+ * Without these a participant that accepts a connection and then never answers
+ * hangs the run indefinitely — the worst outcome, because it looks like the
+ * playground is broken rather than the service. Presentation and verification
+ * get longer budgets: they involve polling a verifier, and in a cross-device
+ * flow a person has to scan something.
+ */
+export const STEP_TIMEOUTS_MS: Record<StepId, number> = {
+  discover: 60_000,
+  offer: 60_000,
+  issue: 90_000,
+  present: 180_000,
+  verify: 180_000,
+};
+
+/**
+ * Fails a step that overruns its budget.
+ *
+ * The underlying work is not cancelled — an HTTP request in flight has its own
+ * abort — but the run stops waiting and reports which phase stalled, which is
+ * the part a reader needs.
+ */
+async function withStepDeadline<T>(step: StepId, work: Promise<T>, interactive: boolean): Promise<T> {
+  // An interactive step is waiting on a person, and the prompt has its own
+  // timeout; imposing a second, shorter one would cut them off mid-scan.
+  if (interactive) return work;
+
+  const budget = STEP_TIMEOUTS_MS[step];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new RunFailure(
+                `The "${STEP_LABELS[step]}" phase did not finish within ${Math.round(budget / 1000)}s. A participant accepted the connection and then stopped responding.`,
+                step,
+              ),
+            ),
+          budget,
+        );
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export class Run {
   readonly id = randomUUID();
   readonly startedAt = new Date();
@@ -129,6 +182,16 @@ export class Run {
       this.stepDurations[step] = Date.now() - startedAt;
       this.stepStartedAt.delete(step);
     }
+  }
+
+  /**
+   * Whether any participant needs a human. Interactive runs are exempt from the
+   * per-step deadlines, because the thing being waited on is a person.
+   */
+  private get interactive(): boolean {
+    return [this.participants.issuer, this.participants.wallet, this.participants.verifier].some(
+      (participant) => participant.manifest.interactive,
+    );
   }
 
   get runStatus(): RunStatus {
@@ -188,18 +251,22 @@ export class Run {
       }
 
       this.ctx.setStep('discover', 'running');
-      const endpoints = await this.participants.issuer.discover(this.ctx, issueOptions);
+      const endpoints = await withStepDeadline('discover', this.participants.issuer.discover(this.ctx, issueOptions), this.interactive);
       this.ctx.setStep('discover', 'passed');
       if (this.stopHere('discover')) return this.finish(versions);
 
       this.ctx.setStep('offer', 'running');
-      const offer = await this.participants.issuer.createOffer(this.ctx, endpoints, issueOptions);
+      const offer = await withStepDeadline('offer', this.participants.issuer.createOffer(this.ctx, endpoints, issueOptions), this.interactive);
       this.ctx.artifact({ label: 'Credential offer URI', kind: 'qr', value: offer.offerUri });
       this.ctx.setStep('offer', 'passed');
       if (this.stopHere('offer')) return this.finish(versions);
 
       this.ctx.setStep('issue', 'running');
-      held = await this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions);
+      held = await withStepDeadline(
+        'issue',
+        this.participants.wallet.acceptOffer(this.ctx, offer, endpoints, issueOptions),
+        this.interactive,
+      );
       this.checkIssuedFormat(held.format);
 
       // Asked before any presentation exists, so a verifier that simply cannot
@@ -218,12 +285,24 @@ export class Run {
       if (this.stopHere('issue')) return this.finish(versions, held);
 
       this.ctx.setStep('present', 'running');
-      request = await this.participants.verifier.createRequest(this.ctx, presentOptions);
-      await this.participants.wallet.present(this.ctx, request, held, presentOptions);
+      request = await withStepDeadline(
+        'present',
+        this.participants.verifier.createRequest(this.ctx, presentOptions),
+        this.interactive,
+      );
+      await withStepDeadline(
+        'present',
+        this.participants.wallet.present(this.ctx, request, held, presentOptions),
+        this.interactive,
+      );
       this.ctx.setStep('present', 'passed');
 
       this.ctx.setStep('verify', 'running');
-      outcome = await this.participants.verifier.awaitResult(this.ctx, request);
+      outcome = await withStepDeadline(
+        'verify',
+        this.participants.verifier.awaitResult(this.ctx, request),
+        this.interactive,
+      );
       this.ctx.artifact({ label: 'Verification result', kind: 'json', value: outcome.raw });
       this.evaluateOutcome(outcome);
       this.ctx.setStep('verify', 'passed');
