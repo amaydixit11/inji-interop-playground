@@ -423,9 +423,21 @@ for the next without restarting.
 ```bash
 npm run dev         # BFF on :8787, UI on :5173 with proxying
 npm run dev:bff     # BFF only
+npm run test        # 70 unit tests over the protocol primitives
 npm run build       # Production build of both
 npm run typecheck   # Typecheck every workspace
 ```
+
+The tests cover the load-bearing parts rather than the plumbing: SD-JWT digest commitment and key
+binding, mdoc COSE authentication and device binding, all three Data Integrity suites signing and
+rejecting tampering, Presentation Exchange constraint evaluation, status-list bit arithmetic, QR
+capacity bands, and the run semantics that decide whether a tampered run passes.
+
+They exist because two of the findings in this repository were bugs found by luck. One was a
+signature corruption that decoded to identical bytes, so a tamper test passed while testing nothing;
+there is now a test asserting exactly that hazard. Writing them turned up a third: a malformed
+`vp_token` threw out of mdoc verification instead of being rejected as a failed check, which in a run
+meant an exception rather than a reported finding.
 
 Run history is written to `runs/` as plain JSON — one readable file per run, so a result can be
 attached to a bug report without exporting anything.

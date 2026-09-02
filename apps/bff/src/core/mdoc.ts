@@ -448,10 +448,37 @@ export async function verifyMdocPresentation(options: MdocVerifyOptions): Promis
   const checks: MdocCheck[] = [];
   const claims: Record<string, unknown> = {};
 
-  const response = decode(Buffer.from(options.vpToken, 'base64url'));
+  // Decoding is the first thing an attacker controls, so a malformed token has
+  // to come back as a failed check rather than an exception. Throwing here would
+  // abort the run instead of recording that the verifier rejected the input.
+  let response: unknown;
+  try {
+    response = decode(Buffer.from(options.vpToken, 'base64url'));
+  } catch (error) {
+    return {
+      checks: [
+        {
+          id: 'mdoc.parse',
+          title: 'DeviceResponse parses as CBOR',
+          ok: false,
+          detail: `The token is not decodable CBOR: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      claims,
+      decoded: undefined,
+    };
+  }
+
   if (!(response instanceof Map)) {
     return {
-      checks: [{ id: 'mdoc.parse', title: 'DeviceResponse parses as CBOR', ok: false, detail: 'Token is not a CBOR map.' }],
+      checks: [
+        {
+          id: 'mdoc.parse',
+          title: 'DeviceResponse parses as CBOR',
+          ok: false,
+          detail: `The token decoded, but to a ${typeof response} rather than the CBOR map a DeviceResponse must be.`,
+        },
+      ],
       claims,
       decoded: undefined,
     };

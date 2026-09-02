@@ -18,7 +18,8 @@
     "dev:web": "npm run dev -w @interop/web",
     "build": "npm run build:shared && npm run build -w @interop/bff && npm run build -w @interop/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "matrix": "node scripts/run-matrix.mjs"
+    "matrix": "node scripts/run-matrix.mjs",
+    "test": "npm run build:shared && node --import tsx --test apps/bff/test/*.test.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
