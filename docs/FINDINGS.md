@@ -16,6 +16,39 @@ listed in the order they had to be solved.
 
 ---
 
+## Ranked summary
+
+Ordered by what it costs an integrator to hit the defect, not by the order we found it. **Blast
+radius** is who is affected; **fix cost** is our estimate of the change needed upstream, and a
+one-line estimate is a claim we are prepared to be wrong about.
+
+| # | Finding | Component | Severity | Blast radius | Fix cost |
+| --- | --- | --- | --- | --- | --- |
+| [1](#1-credentialoffercache-is-missing-from-the-shipped-cache-list) | `credentialOfferCache` absent from the shipped cache list | Certify 0.14.0 | **Blocker** | Every pre-authorized-code issuance, for everyone using the published compose file | One property |
+| [2](#2-pre-authorized-tokens-are-signed-locally-but-validated-against-a-remote-esignet) | Pre-authorized tokens signed locally, validated against remote eSignet | Certify 0.14.0 | **Blocker** | Same — the token is minted and then rejected by the issuer that minted it | Three properties |
+| [3](#3-dataprovider-plugin-mode-and-the-pre-authorized-code-flow-cannot-be-used-together) | `DataProvider` plugin mode is incompatible with the pre-authorized code flow | Certify 0.14.0 | **Blocker** | Anyone following the DataProvider quickstart; the two documented paths exclude each other | Docs, or plugin work |
+| [5](#5-key-aliases-do-not-survive-a-container-restart) | Key aliases do not survive a container restart | Certify 0.14.0 | **Blocker** | Any deployment that restarts — i.e. all of them; needs `down -v` to recover | Keymanager init |
+| [10](#10-inji-verify-ships-a-database-schema-that-does-not-match-its-own-image) | Ships a DB schema that does not match its own image (`response_code` missing) | inji-verify 0.18.2 | **Blocker** | Every fresh deploy from `docker-compose/db-init`; fails at first presentation | Ship the real DDL |
+| [8](#8-inji-verify-requires-an-x509-chain-to-verify-an-sd-jwt-vc--confirmed) | SD-JWT VC issuer keys resolved only from `x5c` | inji-verify 0.18.2 | **High** | Every SD-JWT issuer that identifies itself by DID — including Certify's own `did:web` | Resolver branch |
+| [8b](#8b-inji-verify-does-not-check-revocation-for-sd-jwt-vc) | No revocation check for SD-JWT VC; an empty status list is indistinguishable from a clean one | inji-verify 0.18.2 | **High** | A revoked credential verifies as valid — silently, with no warning to the relying party | Status list client |
+| [4](#4-none-of-the-well-known-documents-except-one-are-served-at-the-credential-issuer-identifier) | `.well-known` documents not served at the credential issuer identifier | Certify 0.14.0 | **High** | Any spec-conformant wallet doing discovery; reproduced on MOSIP's own Collab ([16](#16-confirmed-on-mosips-own-public-sandbox)) | Routing |
+| [6](#6-inji-verify-cannot-resolve-a-didweb-that-carries-a-port) | `did:web` with a port is not percent-decoded | inji-verify 0.18.2 | **High** | Every non-443 issuer — so every local, CI and staging deployment | One line |
+| [7](#7-inji-verify-cannot-load-issuer-hosted-json-ld-contexts) | Cannot load issuer-hosted JSON-LD contexts | inji-verify 0.18.2 | **High** | Any credential type not already in the bundled context set | Context loader |
+| [13](#13-inji-web-cannot-be-paired-with-an-arbitrary-issuer) | Inji Web cannot be pointed at an arbitrary issuer | Inji Web / Mimoto | **High** | Anyone testing their own issuer against the reference wallet — the core interop use case | Config surface |
+| [19](#19-the-current-sdk-and-the-released-verify-service-are-on-opposite-sides-of-a-version-boundary) | Current SDK calls `/v2/vp-session-request`, which 0.18.2 404s | SDK / verify-service | **High** | Every integrator following current docs; the predecessor SDK is deprecated | Release coordination |
+| [18](#18-mosips-own-verification-sdk-cannot-reach-verify-service-from-another-origin) | verify-service sends no CORS headers | inji-verify 0.18.2 | **Medium** | Every browser-hosted verifier, including MOSIP's own SDK | Filter config |
+| [9](#9-the-mock-issuance-plugin-emits-a-structurally-unverifiable-credential) | Mock issuance plugin emits a structurally unverifiable credential | Certify 0.14.0 | **Medium** | Evaluators, who reasonably read the mock plugin's output as representative | Plugin fix |
+| [15](#15-an-openid4vp-request-passed-by-value-is-five-times-too-big-for-a-qr-code) | OpenID4VP request by value is 1,169 bytes vs 217 by reference | Inji Verify | **Medium** | Cross-device flows on low-end cameras; degrades rather than fails | Default to `request_uri` |
+| [17](#17-collabs-did-document-authorises-the-did-itself-not-a-key) | Collab's DID document authorises the DID, not a key | Collab deployment | **Medium** | Verifiers that check `assertionMethod` properly will reject Collab-issued VCs | DID doc |
+| [4b](#4b-the-did-document-endpoint-returns-http-200-with-an-error-body) | DID document endpoint returns HTTP 200 with an error body | Certify 0.14.0 | **Medium** | Clients that trust the status code — the failure is invisible until parse time | Status code |
+| [11](#11-verify-service-returns-camelcase-in-its-api-envelope--but-the-request-object-is-correct) | camelCase in the API envelope around a conformant request object | inji-verify 0.18.2 | **Low** | Integration friction only; the protocol-level object is correct | Docs |
+| [14](#14-no-inji-service-will-tell-you-which-build-it-is) | No Inji service reports its own build | all | **Low** | Bug reports cannot state a version — which is why this list pins image tags | Actuator info |
+
+Findings [20–25](#findings-against-our-own-code) are against our own code, kept because they are the
+ones only a real counterparty could have surfaced.
+
+---
+
 ## 1. `credentialOfferCache` is missing from the shipped cache list
 
 **Observed.** `mosip/inji-certify`, `docker-compose/docker-compose-injistack/config/certify-default.properties`.
