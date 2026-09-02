@@ -250,6 +250,25 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: 'certify-admin',
+    title: "Can a new credential type be registered over Certify's API?",
+    question:
+      "Round-trip a credential configuration through Certify's admin API, then ask whether the new type is offerable — and drive the issuance authorization endpoint that asks for a credential before it will issue one.",
+    expect:
+      'Mixed, and both halves are worth knowing. Registration works and reaches discovery immediately, which is the good news. The rejection paths do not: a JSON body gets 403 rather than 415, and a missing parameter answers with a leaked Java controller signature. Writes and deletes a temporary configuration, so point it at a deployment you own. Needs the Inji stack running.',
+    duration: 'seconds',
+    requires: ['inji-certify'],
+    order: 13,
+    track: 'real',
+    config: {
+      ...REFERENCE,
+      issuerId: 'inji-certify',
+      format: 'ldp_vc',
+      stopAfter: 'discover',
+      overrides: { 'inji-certify': { auditAdminApi: 'on' } },
+    },
+  },
+  {
     id: 'phone-wallet',
     title: 'Does it work with a real phone wallet?',
     question: 'Show a QR code, scan it with Inji Wallet, and let the phone talk to the issuer directly.',
@@ -257,7 +276,7 @@ export const SCENARIOS: Scenario[] = [
       'Needs a phone, and PUBLIC_URL set to something it can reach. The run is marked endpoint-only: the wallet’s own traffic is not captured, so it is weaker evidence than the others.',
     duration: 'needs-a-phone',
     requires: [],
-    order: 13,
+    order: 14,
     track: 'real',
     config: {
       issuerId: 'reference-issuer',

@@ -1,6 +1,7 @@
 import type { CredentialIssuerMetadata, CredentialOffer, Participant } from '@interop/shared';
 import { PRE_AUTHORIZED_CODE_GRANT } from '@interop/shared';
 import type { RunContext } from '../core/context.js';
+import { auditCredentialConfigurations, auditIarEndpoint } from '../core/certify-admin.js';
 import { discoverFromActuator } from '../core/versions.js';
 import { BaseOid4vciIssuer } from './oid4vci-issuer.js';
 import type { IssueOptions, IssuerEndpoints, OfferResult } from './types.js';
@@ -59,8 +60,43 @@ export class InjiCertifyIssuer extends BaseOid4vciIssuer {
           placeholder: 'InjiTestCredential',
           required: false,
         },
+        {
+          key: 'auditAdminApi',
+          label: "Audit Certify's admin API (writes a temporary credential configuration)",
+          value: 'off',
+          placeholder: 'on',
+          required: false,
+        },
       ],
     };
+  }
+
+  /**
+   * Adds Certify's administrative API to the discovery phase, when asked.
+   *
+   * Opt-in because the credential-configurations probe writes: it registers a
+   * credential type and deletes it again. That is fine against a deployment you
+   * own and rude against a shared one, so it never runs unless the run says so.
+   */
+  override async discover(ctx: RunContext, opts: IssueOptions): Promise<IssuerEndpoints> {
+    const endpoints = await super.discover(ctx, opts);
+
+    if ((ctx.config.overrides?.[this.manifest.id]?.auditAdminApi ?? '').toLowerCase() !== 'on') {
+      return endpoints;
+    }
+
+    const apiBase = this.apiBaseUrl(ctx, endpoints.metadata);
+    const configurationId =
+      ctx.config.overrides?.[this.manifest.id]?.credentialConfigurationId || endpoints.configurationId;
+
+    await auditCredentialConfigurations(
+      ctx,
+      apiBase,
+      `${this.baseUrl(ctx)}/.well-known/openid-credential-issuer`,
+    );
+    await auditIarEndpoint(ctx, apiBase, configurationId);
+
+    return endpoints;
   }
 
   protected baseUrl(ctx: RunContext): string {

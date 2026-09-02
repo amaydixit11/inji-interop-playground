@@ -43,6 +43,14 @@ one-line estimate is a claim we are prepared to be wrong about.
 | [4b](#4b-the-did-document-endpoint-returns-http-200-with-an-error-body) | DID document endpoint returns HTTP 200 with an error body | Certify 0.14.0 | **Medium** | Clients that trust the status code — the failure is invisible until parse time | Status code |
 | [11](#11-verify-service-returns-camelcase-in-its-api-envelope--but-the-request-object-is-correct) | camelCase in the API envelope around a conformant request object | inji-verify 0.18.2 | **Low** | Integration friction only; the protocol-level object is correct | Docs |
 | [14](#14-no-inji-service-will-tell-you-which-build-it-is) | No Inji service reports its own build | all | **Low** | Bug reports cannot state a version — which is why this list pins image tags | Actuator info |
+| [29](#29-a-bad-credential-configuration-is-rejected-with-http-200) | A bad credential configuration is rejected with HTTP 200 and a raw JPA error | Certify 0.14.0 | **Medium** | Anyone registering credential types over the API; a client keying on status reads a rejection as success | Validation + status |
+| [26](#26-oauthiar-answers-a-json-body-with-403-forbidden) | `/oauth/iar` answers a JSON body with 403 instead of 415 — as its own OpenAPI document invites | Certify 0.14.0 | **Medium** | Every generated client; 403 sends the developer to debug auth instead of the content type | Status + spec |
+| [28](#28-iar-post-is-not-a-registered-openid4vp-response-mode) | `iar-post` is not a registered OpenID4VP response mode | Certify 0.14.0 | **Medium** | A spec-conformant wallet cannot answer Certify's interaction demand | Use `direct_post` |
+| [27](#27-an-iar-rejection-returns-the-java-controller-signature) | An IAR rejection returns the Java controller signature instead of the bad parameter | Certify 0.14.0 | **Low** | Developer time only, but it never names the missing parameter | Map the violation |
+
+[Finding 30](#30-registering-a-credential-type-over-the-api-works-end-to-end) is a positive result,
+and the one most relevant to this project's purpose: a credential type registered over Certify's API
+*is* immediately issuable.
 
 Findings [20–25](#findings-against-our-own-code) are against our own code, kept because they are the
 ones only a real counterparty could have surfaced.
@@ -663,6 +671,144 @@ other direction.
 **Suggested fix:** a compatibility statement in the SDK README naming the verify-service versions
 each release targets. The playground keeps the current SDK and shows the 404, so the boundary is
 visible rather than mysterious.
+
+---
+
+## 26. `/oauth/iar` answers a JSON body with 403 Forbidden
+
+**Observed.** `injistack/inji-certify-with-plugins:0.14.0`, `POST /v1/certify/oauth/iar`.
+
+The issuance authorization endpoint reads `application/x-www-form-urlencoded` only. Send the same
+parameters as JSON and it answers:
+
+```
+403 {"timestamp":...,"status":403,"error":"Forbidden","path":"/v1/certify/oauth/iar"}
+```
+
+403 sends a developer to look at authentication, credentials and scopes. The actual problem is the
+media type, which is what `415 Unsupported Media Type` exists to say. Sending no `Content-Type` at
+all produces the same 403.
+
+What makes this more than pedantry is that **Certify's own OpenAPI document invites the mistake.**
+`GET /v1/certify/v3/api-docs` declares the parameter as:
+
+```json
+{ "name": "iarRequest", "in": "query", "required": true,
+  "schema": { "$ref": "#/components/schemas/IarRequest" } }
+```
+
+An object schema `in: query` — so a generated client sends either JSON or a query string, and both
+get 403. The endpoint in fact binds from form fields, and with the correct content type it accepts
+the parameters from the query string *or* the body.
+
+**Fix:** answer 415 for an unsupported media type, and describe the parameter as a
+`requestBody` with `application/x-www-form-urlencoded` content.
+
+---
+
+## 27. An IAR rejection returns the Java controller signature
+
+**Observed.** Same endpoint, omitting `code_challenge`:
+
+```
+400 {"error":"invalid_request","error_description":"Validation failed for argument [0] in public
+org.springframework.http.ResponseEntity<io.mosip.certify.core.dto.IarResponse>
+io.mosip.certify.controller.OAuthController.handleIarRequest(io.mosip.certify.core.dto.IarRequest)
+throws io.mosip.certify.core.exception.CertifyException: [Error in object 'iarRequest': codes
+[ValidIar.iarRequest,ValidIar]; arg…"
+```
+
+An OAuth `error_description` is read by the client developer. This one names the internal DTO, the
+controller class, the method signature, the exception type and the bean-validation codes — and never
+says that `code_challenge` is the missing parameter.
+
+The same endpoint gets this right elsewhere: `code_challenge_method=plain` is refused with
+`code_challenge_method must be S256`, which is exactly what a rejection should read like. So one
+path is hand-written and the other is a raw `MethodArgumentNotValidException` reaching the wire.
+
+**Fix:** map the constraint violation to the parameter name.
+
+---
+
+## 28. `iar-post` is not a registered OpenID4VP response mode
+
+**Observed.** The `require_interaction` response embeds an OpenID4VP request:
+
+```json
+{ "status": "require_interaction", "type": "openid4vp_presentation",
+  "auth_session": "iar_session_…",
+  "openid4vp_request": { "response_uri": "…/oauth/iar", "response_type": "vp_token",
+    "nonce": "…", "client_id": "certify-verifier-client", "response_mode": "iar-post",
+    "presentation_definition": { "id": "MOSIPVerifiableCredential", … } } }
+```
+
+`response_mode` is `iar-post`. OpenID4VP registers `direct_post` and `direct_post.jwt`; `iar-post`
+is neither. A wallet implementing the specification will not recognise it, and the sensible thing
+for that wallet to do — refuse an unknown response mode rather than guess — means it cannot complete
+the exchange. Reported as a warning rather than a failure because the flow is a draft-era extension
+and the intent is legible.
+
+Also worth recording: the presentation definition demands `RsaSignature2018`, which is why the
+playground implements that suite by hand (see [`suites.ts`](../apps/bff/src/core/suites.ts)) —
+`@digitalbazaar` ships no implementation of it.
+
+---
+
+## 29. A bad credential configuration is rejected with HTTP 200
+
+**Observed.** `POST /v1/certify/credential-configurations`, omitting `credentialConfigKeyId`:
+
+```
+200 {"responseTime":"…","response":null,
+     "errors":[{"errorCode":"unknown_error","errorMessage":"Could not commit JPA transaction"}]}
+```
+
+Three defects in one response:
+
+- **HTTP 200 for a rejection.** A successful create answers `201`. So a client that branches on the
+  status code reads this as success and then fails on `response: null`. This is finding
+  [4b](#4b-the-did-document-endpoint-returns-http-200-with-an-error-body) again, in a different
+  controller.
+- **A persistence error on the wire.** `Could not commit JPA transaction` says the request reached
+  the database with no validation in front of it, and names no field. Validation does exist on this
+  endpoint — omitting the context or credential type yields the perfectly good
+  `Fields context, credentialType, and signatureCryptoSuite are mandatory for the ldp_vc format` —
+  so this path is simply not covered by it.
+- **`credentialConfigKeyId` is not documented as required.** The published
+  `CredentialConfigurationDTO` lists `required: [credentialFormat, metaDataDisplay, scope]`. Omitting
+  a field the schema says is optional should not produce a database error.
+
+One more inconsistency, recorded but not asserted: `DELETE` answers with a bare string,
+`Deleted configuration with id: PlaygroundProbeCredential`, while every other operation on the same
+resource returns the JSON envelope.
+
+**Fix:** validate `credentialConfigKeyId` alongside the other mandatory fields, and return 400.
+
+---
+
+## 30. Registering a credential type over the API works, end to end
+
+**Observed.** The positive finding of this group, and the one most relevant to the playground's
+purpose. A credential configuration round-trips cleanly, and — the part that actually matters —
+a type registered through the API is **advertised to wallets immediately**:
+
+| Step | Result |
+| --- | --- |
+| `POST /credential-configurations` | `201 {"id":"PlaygroundProbeCredential","status":"active"}` |
+| Appears in `credential_configurations_supported` | **yes**, with no restart |
+| `GET /credential-configurations/{id}` | 200, matching what was written |
+| `PUT /credential-configurations/{id}` | 200, and the change reads back |
+| `DELETE /credential-configurations/{id}` | 200, and a subsequent read is a genuine 404 |
+
+So "issue any credential type" is achievable against Certify without editing properties files and
+restarting the container — which is what findings 1–5 otherwise force you to do. It is worth stating
+plainly, because a report listing only the rejection-path defects would leave the impression that
+this API does not work. It does.
+
+The playground exercises this as the `certify-admin` scenario. The probe writes, so it is **opt-in**
+(`auditAdminApi: on`) and registers its configuration under a reserved key it deletes again — a
+conformance test that leaves a half-registered credential type behind has broken the deployment it
+was measuring.
 
 ---
 

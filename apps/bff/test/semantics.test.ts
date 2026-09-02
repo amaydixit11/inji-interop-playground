@@ -183,3 +183,39 @@ describe('grant types', () => {
     );
   });
 });
+
+describe("Certify's admin API probe", () => {
+  test('a persistence-layer message is recognised as a leaked internal', () => {
+    // The check exists to tell "Could not commit JPA transaction" apart from a
+    // real validation message, so both directions need to hold.
+    const raw = (message: string) => /JPA|transaction|constraint|SQL|Hibernate/i.test(message);
+
+    assert.ok(raw('unknown_error: Could not commit JPA transaction'));
+    assert.ok(raw('could not execute statement; SQL [n/a]; constraint [null]'));
+    assert.ok(
+      !raw('Fields context, credentialType, and signatureCryptoSuite are mandatory for the ldp_vc format.'),
+      'a genuine field-validation message must not be flagged as a leak',
+    );
+    assert.ok(!raw('code_challenge_method must be S256'));
+  });
+
+  test('a Java controller signature in an error_description is recognised as a leak', () => {
+    const leaks = (description: string) =>
+      /org\.springframework|io\.mosip|java\.|ResponseEntity|Validation failed for argument/.test(description);
+
+    assert.ok(
+      leaks(
+        'Validation failed for argument [0] in public org.springframework.http.ResponseEntity' +
+          '<io.mosip.certify.core.dto.IarResponse> io.mosip.certify.controller.OAuthController.handleIarRequest',
+      ),
+    );
+    assert.ok(!leaks('code_challenge_method must be S256'), 'the endpoint gets this one right');
+    assert.ok(!leaks('authorization_details are required'));
+  });
+
+  test('only the registered OpenID4VP response modes are accepted without a warning', () => {
+    const registered = ['direct_post', 'direct_post.jwt'];
+    assert.ok(!registered.includes('iar-post'), 'iar-post is what Certify sends, and it is not registered');
+    for (const mode of registered) assert.ok(registered.includes(mode));
+  });
+});
