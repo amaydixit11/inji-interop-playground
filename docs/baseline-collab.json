@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-23T12:02:47.508Z",
+  "runs": [
+    {
+      "key": "Inji Certify | Reference Wallet (headless) | Reference Verifier (OpenID4VP) | ldp_vc | Ed25519Signature2020 | draft-13 | cross-device | 1.1 | did | presentation-exchange | pre-authorized_code | none",
+      "status": "failed",
+      "checks": {
+        "run.version-attribution": "warn",
+        "vci.metadata.credential-endpoint": "pass",
+        "vci.metadata.configurations": "pass",
+        "vci.metadata.format-supported": "pass",
+        "vci.as.metadata-at-issuer": "fail",
+        "vci.as.metadata": "warn",
+        "vci.issuer.key-material": "pass",
+        "vci.issuer.assertion-method": "fail",
+        "run.stopped-early": "pass"
+      }
+    }
+  ]
+}

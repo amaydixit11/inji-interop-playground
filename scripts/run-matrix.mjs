@@ -13,6 +13,7 @@
  *                               [--formats a,b] [--faults a,b]
  *                               [--save-baseline baseline.json]
  *                               [--baseline baseline.json] [--fail-on-regression]
+ *                               [--stop-after discover]
  *
  * Baselines are for the person changing one of these services. Record what your
  * build does today, change it, run again against the baseline, and the exit code
@@ -203,6 +204,7 @@ async function runOne({
     queryLanguage,
     grantType,
     tamper,
+    stopAfter: args['stop-after'],
   });
 
   // The run executes after the POST returns, so poll until the record is
@@ -218,7 +220,7 @@ async function runOne({
     if (response.ok) return response.json();
     await sleep(500);
   }
-  fail(`Run ${runId} (${format}, ${tamper}) did not complete within 180s.`);
+  fail(`Run ${runId} (${format}, ${tamper}) did not complete within 360s.`);
 }
 
 /** Reduces a run set to the assertion outcomes worth comparing later. */

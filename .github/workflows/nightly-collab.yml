@@ -47,14 +47,17 @@ jobs:
 
       - name: Audit Collab Certify metadata
         id: audit
-        # Expected to report findings, so a non-zero exit is not a broken job.
-        # The artifact is the output; failing the run would only hide it.
-        continue-on-error: true
+        # Collab has known open findings, so an absolute pass/fail would be red
+        # every night. It is compared against a recorded baseline instead, and
+        # fails only when a check that used to pass stops passing.
         run: |
           node scripts/run-matrix.mjs \
             --issuer inji-certify \
             --formats ldp_vc \
             --faults none \
+            --stop-after discover \
+            --baseline docs/baseline-collab.json \
+            --fail-on-regression \
             --out collab-audit.md
         env:
           CERTIFY_BASE_URL: https://injicertify-mock.collab.mosip.net
