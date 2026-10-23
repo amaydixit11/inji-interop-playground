@@ -94,9 +94,10 @@ export class ReferenceVerifier implements VerifierAdapter {
   /** Verifies the credential alone, before any presentation exists. */
   async verifyCredentialDirectly(ctx: RunContext, held: HeldCredential): Promise<void> {
     const response = await ctx.http<{
-      valid: boolean;
-      expired: boolean;
+      valid: boolean | null;
+      expired: boolean | null;
       errors: string[];
+      skipped?: string;
     }>({
       label: 'Direct Credential Verification',
       from: 'Playground',
@@ -113,6 +114,17 @@ export class ReferenceVerifier implements VerifierAdapter {
         status: 'warn',
         spec: 'Playground credential verification',
         detail: `The endpoint returned HTTP ${response.status}.`,
+      });
+      return;
+    }
+
+    if (response.body.skipped) {
+      ctx.check({
+        id: 'verifier.direct.credential',
+        title: 'Verifier accepts the issued credential on its own',
+        status: 'skip',
+        spec: 'W3C VC Data Model',
+        detail: response.body.skipped,
       });
       return;
     }

@@ -300,10 +300,12 @@ export function createMockVerifier(deps: MockVerifierDeps): Router {
     const format = req.body?.format as CredentialFormat | undefined;
     const credential = req.body?.credential;
 
+    // Not checked is reported as not checked: `valid: true` here was read as a
+    // pass by every SD-JWT and mdoc run.
     if (format !== 'ldp_vc' || !credential || typeof credential !== 'object') {
       res.json({
-        valid: true,
-        expired: false,
+        valid: null,
+        expired: null,
         errors: [],
         skipped: `Direct verification is implemented for ldp_vc only; ${String(format)} was not checked.`,
       });

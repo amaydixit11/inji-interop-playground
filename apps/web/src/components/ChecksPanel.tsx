@@ -19,6 +19,7 @@ export function ChecksPanel({ checks }: { checks: ConformanceCheck[] }) {
     fail: checks.filter((c) => c.status === 'fail' && !c.expected).length,
     expected: checks.filter((c) => c.status === 'fail' && c.expected).length,
     warn: checks.filter((c) => c.status === 'warn').length,
+    skip: checks.filter((c) => c.status === 'skip').length,
   };
 
   return (
@@ -32,6 +33,7 @@ export function ChecksPanel({ checks }: { checks: ConformanceCheck[] }) {
             {counts.fail > 0 && <Badge tone="fail" glyph>{counts.fail} fail</Badge>}
             {counts.expected > 0 && <Badge tone="info" glyph>{counts.expected} expected</Badge>}
             {counts.warn > 0 && <Badge tone="warn" glyph>{counts.warn} warn</Badge>}
+            {counts.skip > 0 && <Badge tone="neutral" glyph>{counts.skip} not checked</Badge>}
           </div>
           <button
             type="button"

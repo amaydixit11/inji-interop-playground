@@ -252,7 +252,7 @@ Standard OpenID4VP with `direct_post`.
 | POST | `/response` | Wallet posts `vp_token`, `presentation_submission`, `state` |
 | GET | `/return?response_code=` | Same-device return; the code works only once |
 | GET | `/result/:transactionId` | Verification outcome |
-| POST | `/verify-credential` | Verifies one `ldp_vc` with no presentation (mirrors Inji Verify `/v2/vc-verification`) |
+| POST | `/verify-credential` | Verifies one `ldp_vc` with no presentation (mirrors Inji Verify `/v2/vc-verification`). Other formats return `valid: null` and a `skipped` reason |
 
 ### `POST /mock-verifier/requests`
 
