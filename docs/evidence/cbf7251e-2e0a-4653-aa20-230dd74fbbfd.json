@@ -1,0 +1,812 @@
+{
+  "id": "cbf7251e-2e0a-4653-aa20-230dd74fbbfd",
+  "config": {
+    "issuerId": "inji-certify",
+    "walletId": "inji-web",
+    "verifierId": "inji-verify",
+    "format": "ldp_vc",
+    "proofType": "Ed25519Signature2020",
+    "walletProofType": "none",
+    "grantType": "authorization_code",
+    "queryLanguage": "dcql",
+    "tamper": "none"
+  },
+  "status": "passed",
+  "startedAt": "2026-10-23T12:14:56.850Z",
+  "finishedAt": "2026-10-23T12:16:10.590Z",
+  "participants": {
+    "issuer": {
+      "id": "inji-certify",
+      "role": "issuer",
+      "label": "Inji Certify (Collab)",
+      "kind": "inji",
+      "summary": "Issuer did:web:api.collab.mosip.net:identity-service:56de166e-0e2f-4734-b8e7-be42b3117d39, reached through Mimoto.",
+      "traceability": "endpoint-only",
+      "formats": [
+        "ldp_vc"
+      ],
+      "specs": [],
+      "interactive": true,
+      "config": []
+    },
+    "wallet": {
+      "id": "inji-web",
+      "role": "wallet",
+      "label": "Inji Web (Collab)",
+      "kind": "inji",
+      "summary": "injiweb.collab.mosip.net, guest session.",
+      "traceability": "endpoint-only",
+      "formats": [
+        "ldp_vc"
+      ],
+      "specs": [],
+      "interactive": true,
+      "config": []
+    },
+    "verifier": {
+      "id": "inji-verify",
+      "role": "verifier",
+      "label": "Inji Verify (Collab)",
+      "kind": "inji",
+      "summary": "injiverify.collab.mosip.net.",
+      "traceability": "endpoint-only",
+      "formats": [
+        "ldp_vc"
+      ],
+      "specs": [],
+      "interactive": true,
+      "config": []
+    }
+  },
+  "steps": {
+    "discover": "skipped",
+    "offer": "skipped",
+    "issue": "passed",
+    "present": "passed",
+    "verify": "passed"
+  },
+  "exchanges": [
+    {
+      "id": "38e62a6e-9b89-45fc-a3a4-c5c7e3616d11",
+      "step": "issue",
+      "label": "Authorization Request (PKCE)",
+      "from": "Wallet",
+      "to": "Authorization Server",
+      "method": "GET",
+      "url": "https://esignet-insurance.collab.mosip.net/authorize?response_type=code&client_id=esignet-sunbird-partner&scope=sunbird_rc_insurance_vc_ldp&redirect_uri=https%3A%2F%2Finjiweb.collab.mosip.net%2Fredirect&state=%5Bredacted%5D&code_challenge=mDWWN0Bjujd0VW9g276wSpeXgcDBulvZwKIo1xtm8Xo&code_challenge_method=S256&ui_locales=en",
+      "requestHeaders": {
+        "accept-language": "en-GB,en;q=0.9",
+        "referer": "https://injiweb.collab.mosip.net/",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-encoding": "gzip",
+        "content-type": "text/html",
+        "date": "Fri, 23 Oct 2026 12:14:56 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "etag": "W/\"693aa582-3cb\"",
+        "last-modified": "Thu, 11 Dec 2025 11:05:38 GMT",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-envoy-upstream-service-time": "4",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "responseBody": "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"/><link id=\"icon\" rel=\"icon\" href=\"/favicon.ico\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/><meta name=\"theme-color\" content=\"#000000\"/><meta name=\"description\" content=\"Web site created using create-react-app\"/><link rel=\"apple-touch-icon\" href=\"/logo.png\"/><link id=\"fonts-url\" href=\"https://fonts.googleapis.com/css?family=Inter\" rel=\"stylesheet\"><link href=\"https://fonts.googleapis.com/css?family=Roboto\" rel=\"stylesheet\"><link rel=\"manifest\" href=\"/manifest.json\"/><script src=\"/env-config.js\"></script><script defer=\"defer\" src=\"/theme-config.js\"></script><link rel=\"stylesheet\" href=\"/theme/variables.css\"><title id=\"title\">eSignet</title><script defer=\"defer\" src=\"/static/js/main.2f11d423.js\"></script><link href=\"/static/css/main.74f5ffdf.css\" rel=\"stylesheet\"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id=\"root\"></div></body></html>",
+      "durationMs": 121,
+      "startedAt": "2026-10-23T12:14:56.850809088Z"
+    },
+    {
+      "id": "43b0971f-642f-42a9-bf85-8a5d16c7574e",
+      "step": "issue",
+      "label": "eSignet: OAuth details",
+      "from": "Wallet",
+      "to": "Authorization Server",
+      "method": "POST",
+      "url": "https://esignet-insurance.collab.mosip.net/v1/esignet/authorization/v3/oauth-details",
+      "requestHeaders": {
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "en-GB,en;q=0.9",
+        "content-type": "application/json",
+        "referer": "https://esignet-insurance.collab.mosip.net/authorize?response_type=code&client_id=esignet-sunbird-partner&scope=sunbird_rc_insurance_vc_ldp&redirect_uri=https://injiweb.collab.mosip.net/redirect&state=KlMYgs8JCzuB9Gco9._SPq8-41oLC4S9Hf8TZg9N64C&code_challenge=mDWWN0Bjujd0VW9g276wSpeXgcDBulvZwKIo1xtm8Xo&code_challenge_method=S256&ui_locales=en",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "requestTime": "2026-10-23T12:15:00.089Z",
+        "request": {
+          "state": "[redacted]",
+          "clientId": "esignet-sunbird-partner",
+          "redirectUri": "https://injiweb.collab.mosip.net/redirect",
+          "responseType": "code",
+          "scope": "sunbird_rc_insurance_vc_ldp",
+          "uiLocales": "en",
+          "codeChallenge": "mDWWN0Bjujd0VW9g276wSpeXgcDBulvZwKIo1xtm8Xo",
+          "codeChallengeMethod": "S256"
+        }
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:00 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "content-encoding": "gzip",
+        "expires": "0",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "15",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "1; mode=block"
+      },
+      "responseBody": {
+        "responseTime": "2026-10-23T12:15:00.189Z",
+        "response": {
+          "transactionId": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+          "logoUrl": "https://inji.github.io/inji-config/logos/InjiStackLogo.png",
+          "authFactors": [
+            [
+              {
+                "type": "KBI",
+                "count": 0,
+                "subTypes": null
+              }
+            ]
+          ],
+          "authorizeScopes": [],
+          "essentialClaims": [],
+          "voluntaryClaims": [],
+          "configs": {
+            "wallet.qr-code-buffer-in-secs": 10,
+            "wallet.config": [
+              {
+                "wallet.name": "Inji Mobile App",
+                "wallet.logo-url": "https://mosip.github.io/inji-config/logos/InjiStackLogo.png",
+                "wallet.download-uri": "#",
+                "wallet.deep-link-uri": "io.mosip.residentapp.inji://wla-auth?linkCode=LINK_CODE&linkExpireDateTime=LINK_EXPIRE_DT",
+                "wallet.footer": "true"
+              }
+            ],
+            "otp.length": 6,
+            "password.regex": "^.{8,20}$",
+            "captcha.sitekey": "6LdD9HMpAAAAAGFIwp8t8oo7gJ92867z9oGgCpIL",
+            "captcha.enable": "",
+            "password.max-length": 20,
+            "auth.factor.kbi.field-details": [
+              {
+                "id": "policyNumber",
+                "type": "text",
+                "format": "",
+                "maxLength": 50,
+                "regex": "^[0-9\\\\-]*$"
+              },
+              {
+                "id": "fullName",
+                "type": "text",
+                "format": "",
+                "maxLength": 50,
+                "regex": "^[A-Za-z\\s.0-9]+$"
+              },
+              {
+                "id": "dob",
+                "type": "date",
+                "format": "dd/mm/yyyy"
+              }
+            ],
+            "sbi.capture.score.finger": 70,
+            "sbi.timeout.CAPTURE": 30,
+            "send.otp.channels": "email,phone",
+            "linked-transaction-expire-in-secs": 240,
+            "username.prefix": "",
+            "sbi.port.range": "4501-4600",
+            "consent.screen.timeout-in-secs": 600,
+            "sbi.capture.count.finger": 1,
+            "sbi.capture.score.face": 70,
+            "consent.screen.timeout-buffer-in-secs": 5,
+            "username.regex": ".*",
+            "sbi.capture.count.face": 1,
+            "username.input-type": "text",
+            "auth.factor.kbi.individual-id-field": "policyNumber",
+            "preauth-screen-timeout-in-secs": 600,
+            "username.postfix": "",
+            "login-id.options": [
+              {
+                "id": "vid",
+                "svg": "vid_icon",
+                "prefixes": "",
+                "postfix": "",
+                "maxLength": 16,
+                "regex": ".*"
+              }
+            ],
+            "sbi.bio.subtypes.iris": "UNKNOWN",
+            "signup.config": "{\"signup.banner\": false, \"signup.url\": \"}",
+            "sbi.timeout.DINFO": 30,
+            "sbi.capture.count.iris": 1,
+            "sbi.bio.subtypes.finger": "UNKNOWN",
+            "error.banner.close-timer": 10,
+            "sbi.capture.score.iris": 70,
+            "resend.otp.delay.secs": 180,
+            "clientAdditionalConfig": null,
+            "username.max-length": 16,
+            "forgot-password.config": {
+              "forgot-password": true,
+              "forgot-password.url": "https://signup.collab.mosip.net/reset-password"
+            },
+            "sbi.timeout.DISC": 30,
+            "auth.txnid.length": "10",
+            "sbi.env": "Developer",
+            "eKYC-steps.config": "https://signup.collab.mosip.net/identity-verification"
+          },
+          "redirectUri": "https://injiweb.collab.mosip.net/redirect",
+          "clientName": {
+            "@none": "esignet-sunbird-partner"
+          },
+          "credentialScopes": [
+            "sunbird_rc_insurance_vc_ldp"
+          ]
+        },
+        "errors": []
+      },
+      "durationMs": 41,
+      "startedAt": "2026-10-23T12:15:00.090009856Z"
+    },
+    {
+      "id": "88bdd53e-a025-40ed-ab76-bf41f340abea",
+      "step": "issue",
+      "label": "eSignet: Authenticate the holder",
+      "from": "Wallet",
+      "to": "Authorization Server",
+      "method": "POST",
+      "url": "https://esignet-insurance.collab.mosip.net/v1/esignet/authorization/v3/authenticate",
+      "requestHeaders": {
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "en-GB,en;q=0.9",
+        "content-type": "application/json",
+        "referer": "https://esignet-insurance.collab.mosip.net/login?state=KlMYgs8JCzuB9Gco9._SPq8-41oLC4S9Hf8TZg9N64C",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "oauth-details-hash": "h6gClhIzgv-ldo_9tMqOklgyocNK3zTO3nCO91d_uP4",
+        "oauth-details-key": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "requestTime": "2026-10-23T12:15:05.018Z",
+        "request": {
+          "transactionId": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+          "individualId": "12345",
+          "challengeList": [
+            {
+              "authFactorType": "KBI",
+              "challenge": "eyJmdWxsTmFtZSI6Imluc3VyYW5jZUNyZWRlbnRpYWxzIiwiZG9iIjoiMjAwMC0wMS0wMSJ9",
+              "format": "base64url-encoded-json"
+            }
+          ],
+          "captchaToken": null
+        }
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:05 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "content-encoding": "gzip",
+        "expires": "0",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "102",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "1; mode=block"
+      },
+      "durationMs": 127,
+      "startedAt": "2026-10-23T12:15:05.021976064Z"
+    },
+    {
+      "id": "8c2ed21b-85ed-4a20-92ad-402a957c1df1",
+      "step": "issue",
+      "label": "eSignet: Claim details",
+      "from": "Wallet",
+      "to": "Authorization Server",
+      "method": "GET",
+      "url": "https://esignet-insurance.collab.mosip.net/v1/esignet/authorization/claim-details",
+      "requestHeaders": {
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "en-GB,en;q=0.9",
+        "referer": "https://esignet-insurance.collab.mosip.net/claim-details?state=KlMYgs8JCzuB9Gco9._SPq8-41oLC4S9Hf8TZg9N64C&consentAction=NOCAPTURE&authenticationTime=1792757705",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "oauth-details-hash": "h6gClhIzgv-ldo_9tMqOklgyocNK3zTO3nCO91d_uP4",
+        "oauth-details-key": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:05 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "content-encoding": "gzip",
+        "expires": "0",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "36",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "1; mode=block"
+      },
+      "durationMs": 63,
+      "startedAt": "2026-10-23T12:15:05.154937856Z"
+    },
+    {
+      "id": "ef13404c-bc57-4365-b8f2-c775e554a91f",
+      "step": "issue",
+      "label": "eSignet: Authorization code",
+      "from": "Authorization Server",
+      "to": "Wallet",
+      "method": "POST",
+      "url": "https://esignet-insurance.collab.mosip.net/v1/esignet/authorization/auth-code",
+      "requestHeaders": {
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "en-GB,en;q=0.9",
+        "content-type": "application/json",
+        "referer": "https://esignet-insurance.collab.mosip.net/claim-details?state=KlMYgs8JCzuB9Gco9._SPq8-41oLC4S9Hf8TZg9N64C&consentAction=NOCAPTURE&authenticationTime=1792757705",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "oauth-details-hash": "h6gClhIzgv-ldo_9tMqOklgyocNK3zTO3nCO91d_uP4",
+        "oauth-details-key": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "requestTime": "2026-10-23T12:15:05.218Z",
+        "request": {
+          "transactionId": "0bezFgoQGqnqtcK_4pR5JVo6VvwdzPiR2QLhL65SdzI",
+          "acceptedClaims": [],
+          "permittedAuthorizeScopes": []
+        }
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:05 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "content-encoding": "gzip",
+        "expires": "0",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "56",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "1; mode=block"
+      },
+      "durationMs": 82,
+      "startedAt": "2026-10-23T12:15:05.219410944Z"
+    },
+    {
+      "id": "2695aaff-b4a9-4e28-9708-0e5b96127591",
+      "step": "issue",
+      "label": "Token + Credential Request (via Mimoto)",
+      "from": "Wallet",
+      "to": "Issuer",
+      "method": "POST",
+      "url": "https://injiweb.collab.mosip.net/v1/mimoto/credentials/download",
+      "requestHeaders": {
+        "accept": "application/pdf",
+        "accept-language": "en-GB,en;q=0.9",
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "content-type": "application/x-www-form-urlencoded",
+        "referer": "https://injiweb.collab.mosip.net/redirect?state=KlMYgs8JCzuB9Gco9._SPq8-41oLC4S9Hf8TZg9N64C&code=gyodrJ4hGlYdsllH6OGTAULIFb33sQIi9ElrEtQAyVY&ui_locales=null",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "grant_type": "authorization_code",
+        "code": "[redacted]",
+        "redirect_uri": "https://injiweb.collab.mosip.net/redirect",
+        "code_verifier": "[redacted]",
+        "issuer": "StayProtected",
+        "credential": "InsuranceCredential",
+        "vcStorageExpiryLimitInTimes": "1"
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/pdf",
+        "date": "Fri, 23 Oct 2026 12:15:12 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "access-control-expose-headers": "Content-Disposition",
+        "cache-control": "no-store",
+        "expires": "0",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "6499",
+        "x-frame-options": "SAMEORIGIN",
+        "x-xss-protection": "0"
+      },
+      "responseBody": {
+        "omitted": "application/pdf, 177709 bytes"
+      },
+      "durationMs": 6609,
+      "startedAt": "2026-10-23T12:15:05.587219968Z"
+    },
+    {
+      "id": "95fecd9e-e9d2-4553-89f5-f3381218fc7e",
+      "step": "present",
+      "label": "Create Authorization Request",
+      "from": "Verifier",
+      "to": "Verifier",
+      "method": "POST",
+      "url": "https://injiverify.collab.mosip.net/v1/verify/v2/vp-session-request",
+      "requestHeaders": {
+        "accept-language": "en-GB,en;q=0.9",
+        "content-type": "application/json",
+        "referer": "https://injiverify.collab.mosip.net/",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "clientId": "injiverify.collab.mosip.net/",
+        "nonce": "7nAGlfj_ajAyQPJY5jlOhwaKSzyzRppR6k2si3de7Lw",
+        "dcqlQuery": {
+          "credentials": [
+            {
+              "id": "7d7e0419-5cc9-46f1-85d8-ad5c87b8b72e",
+              "format": "ldp_vc",
+              "require_cryptographic_holder_binding": false,
+              "meta": {
+                "type_values": [
+                  [
+                    "VerifiableCredential",
+                    "InsuranceCredential"
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        "responseCodeValidationRequired": true
+      },
+      "status": 201,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:31 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "29",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "durationMs": 56,
+      "startedAt": "2026-10-23T12:15:31.430733824Z"
+    },
+    {
+      "id": "a14d9d67-5afa-426a-9358-bf4ef9f7e249",
+      "step": "present",
+      "label": "Authorization Request (INJI_OVP)",
+      "from": "Verifier",
+      "to": "Wallet",
+      "method": "GET",
+      "url": "https://injiweb.collab.mosip.net/authorize?response_type=vp_token&resource=http%3A%2F%2Fdatashare-inji.injiweb%2Fv1%2Fdatashare%2Fget%2Fstatic-policyid%2Fstatic-subscriberid%2Fstatic-subscriberidstatic-policyid202610231215119eg0ndImgDQ&presentation_definition=%7B%22id%22%3A%227fb7c04c-4777-4a5d-a257-c8275769cbfb%22%2C%22input_descriptors%22%3A%5B%7B%22id%22%3A%2279678187-eb45-489c-a9b6-41fa5c03b034%22%2C%22format%22%3A%7B%22ldpVc%22%3A%7B%22proofTypes%22%3A%5B%22Ed25519Signature2020%22%5D%7D%7D%2C%22constraints%22%3A%7B%22fields%22%3A%5B%7B%22path%22%3A%5B%22%24.type%22%5D%2C%22filter%22%3A%7B%22type%22%3A%22String%22%2C%22pattern%22%3A%22InsuranceCredential%22%7D%7D%5D%2C%22limitDisclosure%22%3Anull%7D%7D%5D%7D&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%227d7e0419-5cc9-46f1-85d8-ad5c87b8b72e%22%2C%22format%22%3A%22ldp_vc%22%2C%22require_cryptographic_holder_binding%22%3Afalse%2C%22meta%22%3A%7B%22type_values%22%3A%5B%5B%22VerifiableCredential%22%2C%22InsuranceCredential%22%5D%5D%7D%7D%5D%7D&client_id=injiverify.collab.mosip.net%2F&state=%5Bredacted%5D&response_mode=direct_post&response_uri=https%3A%2F%2Finjiverify.collab.mosip.net%2Fv1%2Fverify%2Fv2%2Fvp-submission%2Fdirect-post&nonce=7nAGlfj_ajAyQPJY5jlOhwaKSzyzRppR6k2si3de7Lw",
+      "requestHeaders": {
+        "accept-language": "en-GB,en;q=0.9",
+        "referer": "https://injiverify.collab.mosip.net/",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-encoding": "gzip",
+        "content-type": "text/html",
+        "date": "Fri, 23 Oct 2026 12:15:31 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "etag": "W/\"6a7dc504-34d\"",
+        "last-modified": "Thu, 13 Aug 2026 13:22:12 GMT",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-envoy-upstream-service-time": "0",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "durationMs": 27,
+      "startedAt": "2026-10-23T12:15:31.489423872Z"
+    },
+    {
+      "id": "23e0eefc-9350-4bfe-b515-0371ba2314d3",
+      "step": "present",
+      "label": "Authorization Response (vp_token)",
+      "from": "Wallet",
+      "to": "Verifier",
+      "method": "GET",
+      "url": "https://injiweb.collab.mosip.net/v1/mimoto/authorize?response_type=vp_token&resource=http%3A%2F%2Fdatashare-inji.injiweb%2Fv1%2Fdatashare%2Fget%2Fstatic-policyid%2Fstatic-subscriberid%2Fstatic-subscriberidstatic-policyid202610231215119eg0ndImgDQ&presentation_definition=%7B%22id%22%3A%227fb7c04c-4777-4a5d-a257-c8275769cbfb%22%2C%22input_descriptors%22%3A%5B%7B%22id%22%3A%2279678187-eb45-489c-a9b6-41fa5c03b034%22%2C%22format%22%3A%7B%22ldpVc%22%3A%7B%22proofTypes%22%3A%5B%22Ed25519Signature2020%22%5D%7D%7D%2C%22constraints%22%3A%7B%22fields%22%3A%5B%7B%22path%22%3A%5B%22%24.type%22%5D%2C%22filter%22%3A%7B%22type%22%3A%22String%22%2C%22pattern%22%3A%22InsuranceCredential%22%7D%7D%5D%2C%22limitDisclosure%22%3Anull%7D%7D%5D%7D&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%227d7e0419-5cc9-46f1-85d8-ad5c87b8b72e%22%2C%22format%22%3A%22ldp_vc%22%2C%22require_cryptographic_holder_binding%22%3Afalse%2C%22meta%22%3A%7B%22type_values%22%3A%5B%5B%22VerifiableCredential%22%2C%22InsuranceCredential%22%5D%5D%7D%7D%5D%7D&client_id=injiverify.collab.mosip.net%2F&state=%5Bredacted%5D&response_mode=direct_post&response_uri=https%3A%2F%2Finjiverify.collab.mosip.net%2Fv1%2Fverify%2Fv2%2Fvp-submission%2Fdirect-post&nonce=7nAGlfj_ajAyQPJY5jlOhwaKSzyzRppR6k2si3de7Lw",
+      "requestHeaders": {
+        "accept-language": "en-GB,en;q=0.9",
+        "referer": "https://injiweb.collab.mosip.net/authorize?response_type=vp_token&resource=http%3A%2F%2Fdatashare-inji.injiweb%2Fv1%2Fdatashare%2Fget%2Fstatic-policyid%2Fstatic-subscriberid%2Fstatic-subscriberidstatic-policyid202610231215119eg0ndImgDQ&presentation_definition=%7B%22id%22%3A%227fb7c04c-4777-4a5d-a257-c8275769cbfb%22%2C%22input_descriptors%22%3A%5B%7B%22id%22%3A%2279678187-eb45-489c-a9b6-41fa5c03b034%22%2C%22format%22%3A%7B%22ldpVc%22%3A%7B%22proofTypes%22%3A%5B%22Ed25519Signature2020%22%5D%7D%7D%2C%22constraints%22%3A%7B%22fields%22%3A%5B%7B%22path%22%3A%5B%22%24.type%22%5D%2C%22filter%22%3A%7B%22type%22%3A%22String%22%2C%22pattern%22%3A%22InsuranceCredential%22%7D%7D%5D%2C%22limitDisclosure%22%3Anull%7D%7D%5D%7D&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%227d7e0419-5cc9-46f1-85d8-ad5c87b8b72e%22%2C%22format%22%3A%22ldp_vc%22%2C%22require_cryptographic_holder_binding%22%3Afalse%2C%22meta%22%3A%7B%22type_values%22%3A%5B%5B%22VerifiableCredential%22%2C%22InsuranceCredential%22%5D%5D%7D%7D%5D%7D&client_id=injiverify.collab.mosip.net%2F&state=req_6091e188-a88f-4c38-a253-bdb9fc017be0&response_mode=direct_post&response_uri=https%3A%2F%2Finjiverify.collab.mosip.net%2Fv1%2Fverify%2Fv2%2Fvp-submission%2Fdirect-post&nonce=7nAGlfj_ajAyQPJY5jlOhwaKSzyzRppR6k2si3de7Lw",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "responseHeaders": {},
+      "durationMs": 0,
+      "error": "Followed as a browser redirect; no response was captured.",
+      "startedAt": "2026-10-23T12:15:31.802989056Z"
+    },
+    {
+      "id": "90e04ae5-18d7-49b9-be68-8560ba14a420",
+      "step": "verify",
+      "label": "Fetch Verification Result",
+      "from": "Verifier",
+      "to": "Verifier",
+      "method": "POST",
+      "url": "https://injiverify.collab.mosip.net/v1/verify/vp-session-results",
+      "requestHeaders": {
+        "accept-language": "en-GB,en;q=0.9",
+        "content-type": "application/json",
+        "referer": "https://injiverify.collab.mosip.net/",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+        "sec-ch-ua": "\"Chromium\";v=\"151\", \"Not=A?Brand\";v=\"99\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\""
+      },
+      "requestBody": {
+        "responseCode": "[redacted]",
+        "skipStatusChecks": false,
+        "statusCheckFilters": [
+          "revocation"
+        ],
+        "includeClaims": true
+      },
+      "status": 200,
+      "responseHeaders": {
+        "connection": "keep-alive",
+        "content-type": "application/json",
+        "date": "Fri, 23 Oct 2026 12:15:34 GMT",
+        "server": "nginx",
+        "transfer-encoding": "chunked",
+        "cache-control": "no-store",
+        "content-encoding": "gzip",
+        "pragma": "no-cache",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "x-content-type-options": "nosniff",
+        "x-envoy-upstream-service-time": "944",
+        "x-frame-options": "SAMEORIGIN"
+      },
+      "responseBody": {
+        "transactionId": "txn_022579d9-fc5d-4f2c-a8dd-5bc7ddfa4fbd",
+        "allChecksSuccessful": true,
+        "credentialResults": [
+          {
+            "allChecksSuccessful": true,
+            "schemaAndSignatureCheck": {
+              "valid": true,
+              "error": null
+            },
+            "expiryCheck": {
+              "valid": true
+            },
+            "statusCheck": [],
+            "claims": {
+              "benefits": [
+                "Critical Surgery",
+                "Full body checkup"
+              ],
+              "gender": "Male",
+              "policyName": "insuranceCredentials",
+              "dob": "2000-01-01",
+              "mobile": "0123456789",
+              "policyNumber": "12345",
+              "fullName": "insuranceCredentials",
+              "policyIssuedOn": "2025-11-24",
+              "id": "did:jwk:eyJrdHkiOiJFQyIsInVzZSI6InNpZyIsImNydiI6IlAtMjU2IiwieCI6IkhHeDJ4My1BQzRBbTlsSFNfQVFCZXc3R21rMGkwRWtlR1lJVUlPbWpiVTAiLCJ5IjoiQWRTM2dRMzREcjR2WGJtMGljTkdGX3R4MjZPRHVzX1BLU25DT1M4ekhzRSIsImFsZyI6IkVTMjU2In0=",
+              "email": "abcd@gmail.com",
+              "policyExpiresOn": "2033-04-20"
+            },
+            "verifiableCredential": "{\"credentialSubject\":{\"benefits\":[\"Critical Surgery\",\"Full body checkup\"],\"gender\":\"Male\",\"policyName\":\"insuranceCredentials\",\"dob\":\"2000-01-01\",\"mobile\":\"0123456789\",\"policyNumber\":\"12345\",\"fullName\":\"insuranceCredentials\",\"policyIssuedOn\":\"2025-11-24\",\"id\":\"did:jwk:eyJrdHkiOiJFQyIsInVzZSI6InNpZyIsImNydiI6IlAtMjU2IiwieCI6IkhHeDJ4My1BQzRBbTlsSFNfQVFCZXc3R21rMGkwRWtlR1lJVUlPbWpiVTAiLCJ5IjoiQWRTM2dRMzREcjR2WGJtMGljTkdGX3R4MjZPRHVzX1BLU25DT1M4ekhzRSIsImFsZyI6IkVTMjU2In0=\",\"email\":\"abcd@gmail.com\",\"policyExpiresOn\":\"2033-04-20\"},\"issuanceDate\":\"2026-10-23T12:15:09.770Z\",\"id\":\"did:rcw:ecb43281-b5b3-498d-b2e8-08a351f65794\",\"proof\":{\"proofValue\":\"z221fdfJb4ybMPc9KGYUCHAcZdMSyRLciAo8fmC3QY2pH14GcaYzFvaa1GhCVPg2h85iiGpYH7nVCcQ2Z7vYjU3Z9\",\"created\":\"2026-10-23T12:15:09Z\",\"proofPurpose\":\"assertionMethod\",\"type\":\"Ed25519Signature2020\",\"verificationMethod\":\"did:web:api.collab.mosip.net:identity-service:56de166e-0e2f-4734-b8e7-be42b3117d39#key-0\"},\"type\":[\"VerifiableCredential\",\"InsuranceCredential\"],\"@context\":[\"https://www.w3.org/2018/credentials/v1\",\"https://inji.github.io/inji-config/contexts/insurance-context.json\",\"https://w3id.org/security/suites/ed25519-2020/v1\"],\"issuer\":\"did:web:api.collab.mosip.net:identity-service:56de166e-0e2f-4734-b8e7-be42b3117d39\",\"expirationDate\":\"2026-11-22T12:15:06.687Z\"}",
+            "holderProofCheck": null
+          }
+        ]
+      },
+      "durationMs": 969,
+      "startedAt": "2026-10-23T12:15:33.012502784Z"
+    }
+  ],
+  "checks": [
+    {
+      "id": "wallet.traceability",
+      "step": "issue",
+      "title": "Wallet exchanges were captured",
+      "status": "warn",
+      "spec": "Playground observability",
+      "detail": "Imported from a browser capture of Inji Web and Inji Verify. The playground was not in the path, so wallet-internal steps (Mimoto to Certify) are not visible."
+    },
+    {
+      "id": "issue.pkce",
+      "step": "issue",
+      "title": "Authorization code request uses PKCE S256",
+      "status": "pass",
+      "spec": "RFC 7636",
+      "detail": "code_challenge_method=S256",
+      "attributedTo": "wallet"
+    },
+    {
+      "id": "issue.downloaded",
+      "step": "issue",
+      "title": "Wallet obtained the credential",
+      "status": "pass",
+      "spec": "OpenID4VCI §7–8",
+      "detail": "Mimoto answered 200 with application/pdf, 177709 bytes.",
+      "attributedTo": "issuer"
+    },
+    {
+      "id": "present.query",
+      "step": "present",
+      "title": "Verifier states what it wants",
+      "status": "pass",
+      "spec": "OpenID4VP 1.0 §6 (DCQL)",
+      "detail": "DCQL, format ldp_vc, types [[\"VerifiableCredential\",\"InsuranceCredential\"]].",
+      "attributedTo": "verifier"
+    },
+    {
+      "id": "present.holder-binding",
+      "step": "present",
+      "title": "Verifier requires holder binding",
+      "status": "warn",
+      "spec": "OpenID4VP 1.0 §6.1",
+      "detail": "require_cryptographic_holder_binding is false. Without it, whoever holds the QR can present the credential.",
+      "attributedTo": "verifier"
+    },
+    {
+      "id": "verify.signature",
+      "step": "verify",
+      "title": "Inji Verify: signature and schema",
+      "status": "pass",
+      "spec": "W3C VC Data Integrity",
+      "detail": "{\"valid\":true,\"error\":null}",
+      "attributedTo": "verifier"
+    },
+    {
+      "id": "verify.expiry",
+      "step": "verify",
+      "title": "Inji Verify: validity period",
+      "status": "pass",
+      "spec": "W3C VC 1.1 §4.7",
+      "detail": "expirationDate 2026-11-22T12:15:06.687Z",
+      "attributedTo": "verifier"
+    },
+    {
+      "id": "verify.status",
+      "step": "verify",
+      "title": "Inji Verify: revocation status",
+      "status": "warn",
+      "spec": "W3C Bitstring Status List",
+      "detail": "statusCheck is empty: the credential carries no status entry, or status was not checked. The response does not say which.",
+      "attributedTo": "verifier"
+    },
+    {
+      "id": "verify.independent",
+      "step": "verify",
+      "title": "An independent verifier agrees",
+      "status": "pass",
+      "spec": "Cross-implementation",
+      "detail": "Reference verifier (not Inji code): {\"valid\":true,\"expired\":false,\"errors\":[]}"
+    },
+    {
+      "id": "verify.outcome",
+      "step": "verify",
+      "title": "Verification succeeded",
+      "status": "pass",
+      "spec": "Run expectation",
+      "detail": "allChecksSuccessful: true",
+      "attributedTo": "verifier"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "7cc26924-70d2-4691-982c-e96dfd9faa8d",
+      "step": "verify",
+      "kind": "json",
+      "label": "Credential returned by Inji Verify",
+      "value": {
+        "credentialSubject": {
+          "benefits": [
+            "Critical Surgery",
+            "Full body checkup"
+          ],
+          "gender": "Male",
+          "policyName": "insuranceCredentials",
+          "dob": "2000-01-01",
+          "mobile": "0123456789",
+          "policyNumber": "12345",
+          "fullName": "insuranceCredentials",
+          "policyIssuedOn": "2025-11-24",
+          "id": "did:jwk:eyJrdHkiOiJFQyIsInVzZSI6InNpZyIsImNydiI6IlAtMjU2IiwieCI6IkhHeDJ4My1BQzRBbTlsSFNfQVFCZXc3R21rMGkwRWtlR1lJVUlPbWpiVTAiLCJ5IjoiQWRTM2dRMzREcjR2WGJtMGljTkdGX3R4MjZPRHVzX1BLU25DT1M4ekhzRSIsImFsZyI6IkVTMjU2In0=",
+          "email": "abcd@gmail.com",
+          "policyExpiresOn": "2033-04-20"
+        },
+        "issuanceDate": "2026-10-23T12:15:09.770Z",
+        "id": "did:rcw:ecb43281-b5b3-498d-b2e8-08a351f65794",
+        "proof": {
+          "proofValue": "z221fdfJb4ybMPc9KGYUCHAcZdMSyRLciAo8fmC3QY2pH14GcaYzFvaa1GhCVPg2h85iiGpYH7nVCcQ2Z7vYjU3Z9",
+          "created": "2026-10-23T12:15:09Z",
+          "proofPurpose": "assertionMethod",
+          "type": "Ed25519Signature2020",
+          "verificationMethod": "did:web:api.collab.mosip.net:identity-service:56de166e-0e2f-4734-b8e7-be42b3117d39#key-0"
+        },
+        "type": [
+          "VerifiableCredential",
+          "InsuranceCredential"
+        ],
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://inji.github.io/inji-config/contexts/insurance-context.json",
+          "https://w3id.org/security/suites/ed25519-2020/v1"
+        ],
+        "issuer": "did:web:api.collab.mosip.net:identity-service:56de166e-0e2f-4734-b8e7-be42b3117d39",
+        "expirationDate": "2026-11-22T12:15:06.687Z"
+      }
+    }
+  ],
+  "summary": {
+    "checksPassed": 7,
+    "checksFailed": 0,
+    "checksWarned": 3,
+    "checksExpectedFailures": 0,
+    "durationMs": 73740
+  },
+  "versions": [
+    {
+      "participantId": "inji-certify",
+      "role": "issuer",
+      "value": "collab",
+      "source": "declared",
+      "detail": "MOSIP Collab sandbox, imported from a browser capture"
+    },
+    {
+      "participantId": "inji-verify",
+      "role": "verifier",
+      "value": "collab",
+      "source": "declared",
+      "detail": "MOSIP Collab sandbox, imported from a browser capture"
+    }
+  ],
+  "traceability": "endpoint-only"
+}

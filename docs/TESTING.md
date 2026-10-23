@@ -6,7 +6,7 @@ Three layers, each run on 2026-10-23 against commit `a8027b4`.
 |---|---|---|---|
 | Unit | Each protocol primitive behaves to spec, including the edge cases | `npm test` | **91 / 91 pass**, 18 suites |
 | End-to-end fault matrix | A full `issue → hold → present → verify` cycle, every format, every fault | `node scripts/run-matrix.mjs` | **27 / 27 pass** on the reference stack |
-| Live Inji stack | What happens when real Inji releases talk to each other and to the spec | runs from the UI against `docker-compose.inji.yml` | **26 ranked findings**, 5 blockers: [FINDINGS.md](FINDINGS.md) |
+| Live Inji stack | What happens when real Inji releases talk to each other and to the spec | runs from the UI against `docker-compose.inji.yml` | **27 ranked findings**, 5 blockers: [FINDINGS.md](FINDINGS.md) |
 
 A run with an injected fault **passes when the verifier rejects the credential**. A verifier that
 accepts a forged, expired, revoked or replayed credential is the failure being tested for.
@@ -117,7 +117,7 @@ fault was correctly detected. `Warn` flags something worth knowing that is not a
 and Inji Web 0.16.0. Pairing each one with a reference implementation on the other side isolates
 faults to one component.
 
-This is where the playground proved useful: **26 ranked findings** against Inji releases, 5 of them blockers. With its
+This is where the playground proved useful: **27 ranked findings** against Inji releases, 5 of them blockers. With its
 published configuration, Inji Certify cannot complete a single pre-authorized-code issuance, and Inji
 Verify accepts a revoked SD-JWT credential as valid.
 
@@ -131,7 +131,14 @@ Every finding has its reproduction, the error
 text quoted verbatim, the blast radius and a fix estimate in [FINDINGS.md](FINDINGS.md). Write-ups
 ready to file upstream are in [upstream-issues/](upstream-issues/).
 
-## 4. Phone wallet
+## 4. All three Inji modules, on Collab
+
+Inji Certify → Inji Web → Inji Verify on MOSIP's Collab sandbox: **valid**, and confirmed by local
+Inji Verify and by the playground's own verifier. Imported as run
+`cbf7251e-2e0a-4653-aa20-230dd74fbbfd` (7 passed, 0 failed, 3 warned), which loads into the History
+tab. Steps and exchanges: [COLLAB-ALL-INJI.md](COLLAB-ALL-INJI.md).
+
+## 5. Phone wallet
 
 Issuing to and presenting from Inji Wallet on a real phone needs a person and a public tunnel URL.
 The procedure and what was verified are in [PHONE-TEST.md](PHONE-TEST.md).

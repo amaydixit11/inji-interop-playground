@@ -34,6 +34,7 @@ one-line estimate is a claim we are prepared to be wrong about.
 | [31](#31-inji-verify-accepts-an-sd-jwt-presentation-with-no-holder-proof) | SD-JWT accepted with no holder proof, although the credential is key-bound | inji-verify 0.18.2 | **High** | Every SD-JWT relying party: a copied credential can be presented by anyone | Reject missing KB-JWT when `cnf` present |
 | [32](#32-inji-verify-does-not-check-the-nonce-in-the-sd-jwt-key-binding-jwt) | KB-JWT nonce not checked, so presentations can be replayed | inji-verify 0.18.2 | **High** | Every SD-JWT relying party | Compare nonce and aud |
 | [33](#33-inji-verify-does-not-apply-the-presentation-definitions-constraints) | Presentation definition constraints not applied: wrong credential type accepted | inji-verify 0.18.2 | **Medium** | Relying parties that trust `allChecksSuccessful` | Evaluate constraints, or say they were skipped |
+| [34](#34-a-used-up-online-sharing-qr-ends-on-a-raw-http-401) | A used-up online-sharing QR ends on a raw HTTP 401 via `/v1/mimoto/null` | Inji Web / Mimoto (Collab) | **Low** | Relying parties re-scanning a one-use credential: no result, no reason | Redirect with the error |
 | [4](#4-none-of-the-well-known-documents-except-one-are-served-at-the-credential-issuer-identifier) | `.well-known` documents not served at the credential issuer identifier | Certify 0.14.0 | **High** | Any spec-conformant wallet doing discovery; reproduced on MOSIP's own Collab ([16](#16-confirmed-on-mosips-own-public-sandbox)) | Routing |
 | [6](#6-inji-verify-cannot-resolve-a-didweb-that-carries-a-port) | `did:web` with a port is not percent-decoded | inji-verify 0.18.2 | **High** | Every non-443 issuer — so every local, CI and staging deployment | One line |
 | [7](#7-inji-verify-cannot-load-issuer-hosted-json-ld-contexts) | Cannot load issuer-hosted JSON-LD contexts | inji-verify 0.18.2 | **High** | Any credential type not already in the bundled context set | Context loader |
@@ -860,6 +861,24 @@ constraints were skipped.
 
 **Suggested fix:** evaluate `presentation_definition` (or DCQL) constraints against the presented
 credential, or report in the response that they were not evaluated.
+
+---
+
+## 34. A used-up online-sharing QR ends on a raw HTTP 401
+
+**Observed** (2026-10-23, Collab: Inji Web and Inji Verify). The credential PDF Inji Web saves says it
+can be verified once. Uploading it to Inji Verify a second time does refuse it, but not visibly:
+Inji Verify sends the browser to Inji Web, and Mimoto then redirects to
+
+```
+https://injiweb.collab.mosip.net/v1/mimoto/null?error=resource_not_found&error_description=The+requested+resource+expired.
+```
+
+The `null` is where the return address should be. The browser lands on Chrome's own "HTTP ERROR 401"
+page; Inji Verify never regains control, so the verifier sees neither a result nor the reason.
+
+**Suggested fix:** redirect back to the verifier's `redirect_uri` with the error, as OAuth does for
+every other authorization failure, so Inji Verify can show "this credential has already been used".
 
 ---
 

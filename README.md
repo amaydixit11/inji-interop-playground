@@ -286,6 +286,7 @@ cycle with the inspector open, the plain-language view, a fault injection, then 
 ## Architecture
 
 Diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Endpoints: [`docs/API.md`](docs/API.md).
+All three Inji modules end to end on Collab: [`docs/COLLAB-ALL-INJI.md`](docs/COLLAB-ALL-INJI.md).
 Test cases and results: [`docs/TESTING.md`](docs/TESTING.md). Test data: [`docs/TEST-DATA.md`](docs/TEST-DATA.md).
 
 ```
