@@ -86,27 +86,26 @@ Result: **27 / 27 passed**.
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 32 | 0 | 2 | 0 |
 | `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 31 | 0 | 3 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 33 | 0 | 0 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 32 | 0 | 0 | 1 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 33 | 0 | 0 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 32 | 0 | 0 | 1 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 32 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 31 | 0 | 0 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 30 | 0 | 0 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 29 | 0 | 1 | 1 |
-| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 30 | 0 | 1 | 0 |
-
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 32 | 0 | 0 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 31 | 0 | 0 | 1 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 28 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `vc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 32 | 0 | 0 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 31 | 0 | 0 | 1 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 28 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `dc+sd-jwt` | `Ed25519Signature2020` | `draft-13` | `revoke-credential` | **passed** | `invalid` | 31 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `none` | **passed** | `valid` | 30 | 0 | 0 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `break-signature` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `expire-credential` | **passed** | `valid-but-expired` | 29 | 0 | 0 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `wrong-type` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `strip-holder-proof` | **passed** | `invalid` | 28 | 0 | 1 | 1 |
+| `mso_mdoc` | `Ed25519Signature2020` | `draft-13` | `replay-nonce` | **passed** | `invalid` | 29 | 0 | 1 | 0 |
 
 `Pass` counts conformance checks that passed. `Expected fail` counts checks that failed because the
 fault was correctly detected. `Warn` flags something worth knowing that is not a failure.
