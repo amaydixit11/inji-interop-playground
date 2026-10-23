@@ -45,8 +45,22 @@ jobs:
           done
           echo "BFF did not become healthy"; cat bff.log; exit 1
 
+      # Collab has not been reachable from GitHub-hosted runners: every scheduled
+      # run so far failed at the first request. Say so as a warning, with curl's
+      # own error, rather than reporting it as a conformance regression.
+      - name: Check Collab is reachable
+        id: reach
+        run: |
+          if curl -sS --max-time 20 -o /dev/null https://injicertify-mock.collab.mosip.net/v1/certify/.well-known/openid-credential-issuer; then
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Collab is not reachable from this runner, so the audit was skipped. Run it locally: see README, Running the matrix from CI."
+          fi
+
       - name: Audit Collab Certify metadata
         id: audit
+        if: steps.reach.outputs.reachable == 'true'
         # Collab has known open findings, so an absolute pass/fail would be red
         # every night. It is compared against a recorded baseline instead, and
         # fails only when a check that used to pass stops passing.
@@ -70,6 +84,8 @@ jobs:
             echo
             if [ -f collab-audit.md ]; then
               sed -n '/^## Findings/,/^## Conformance/p' collab-audit.md | head -40
+            elif [ '${{ steps.reach.outputs.reachable }}' = 'false' ]; then
+              echo 'Skipped: Collab was not reachable from this runner.'
             else
               echo 'The audit produced no report — see the logs.'
             fi

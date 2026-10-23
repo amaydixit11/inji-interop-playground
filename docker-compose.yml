@@ -18,8 +18,8 @@ services:
       # inside every QR code — so a phone wallet needs a tunnel URL here, not
       # localhost. See README, "Testing with a real phone wallet".
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8787}
-      CERTIFY_BASE_URL: ${CERTIFY_BASE_URL:-http://host.docker.internal:8090/v1/certify}
-      VERIFY_BASE_URL: ${VERIFY_BASE_URL:-http://host.docker.internal:8000/v1/verify}
+      CERTIFY_BASE_URL: ${CERTIFY_BASE_URL:-http://host.docker.internal:8091}
+      VERIFY_BASE_URL: ${VERIFY_BASE_URL:-http://host.docker.internal:8010/v1/verify}
       INJI_WEB_URL: ${INJI_WEB_URL:-https://injiweb.collab.mosip.net}
     volumes:
       # Keys persist so credentials issued in one session still verify in the

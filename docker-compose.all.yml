@@ -1,0 +1,29 @@
+# The playground and the Inji stack together, in one command:
+#
+#   docker compose -f docker-compose.all.yml up -d --build
+#
+# Then open http://localhost:8787. The Inji services take a few minutes to
+# become healthy on first start.
+#
+# Inji advertises its own endpoints as `localhost` URLs. Inside the playground
+# container that is the container itself, so DIAL_REWRITES sends those requests
+# to the Inji containers by name instead. The protocol inspector still shows the
+# URLs the services published.
+
+include:
+  - docker-compose.inji.yml
+
+services:
+  playground:
+    extends:
+      file: docker-compose.yml
+      service: playground
+    environment:
+      CERTIFY_BASE_URL: http://localhost:8091
+      VERIFY_BASE_URL: http://localhost:8010/v1/verify
+      DIAL_REWRITES: http://localhost:8091=http://certify-nginx:80,http://localhost:8010=http://verify-service:8080
+    networks: [default, inji]
+
+volumes:
+  playground-keys:
+  playground-runs:

@@ -39,6 +39,14 @@ Or with Docker:
 docker compose up --build   # then open http://localhost:8787
 ```
 
+Or the playground and the real Inji stack (Certify, Mimoto, Inji Web, Verify) in one command:
+
+```bash
+docker compose -f docker-compose.all.yml up -d --build   # then open http://localhost:8787
+```
+
+The Inji services take a few minutes to become healthy on first start.
+
 ---
 
 ## What problem this solves
@@ -441,9 +449,15 @@ in-process.
 **`nightly-collab.yml`** — a nightly conformance audit of the public MOSIP Collab sandbox, which needs
 no credentials. Discovery only, for the reason in
 [finding 16](docs/FINDINGS.md): Collab delegates authorization to eSignet, so issuance there cannot
-complete without a person logging in. The job is expected to report findings, so it does not fail on
-them — the report is the output, and failing would only bury it. Findings land in the run summary and
-as an artifact.
+complete without a person logging in. Collab has known open findings, so the job compares against a
+recorded baseline (`docs/baseline-collab.json`) and fails only when a check that used to pass stops
+passing. Findings land in the run summary and as an artifact.
+
+Collab has not been reachable from GitHub-hosted runners: every scheduled run so far failed at the
+first request. The job now checks first and reports that as a warning rather than a result. To audit
+Collab, run the same command locally:
+`CERTIFY_BASE_URL=https://injicertify-mock.collab.mosip.net npm run dev:bff`, then
+`node scripts/run-matrix.mjs --issuer inji-certify --formats ldp_vc --faults none --stop-after discover --baseline docs/baseline-collab.json --fail-on-regression`.
 
 Collab is worth watching precisely because nobody here configured it: a finding that reproduces there
 is a property of the software rather than of one local setup.

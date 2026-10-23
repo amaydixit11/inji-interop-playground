@@ -93,7 +93,9 @@ function broadcast(event: RunEvent): void {
  * public address, which does not resolve from inside the container.
  */
 function dialInternally(url: string): string {
-  return url.startsWith(config.publicUrl) ? config.internalUrl + url.slice(config.publicUrl.length) : url;
+  if (url.startsWith(config.publicUrl)) return config.internalUrl + url.slice(config.publicUrl.length);
+  const rewrite = config.dialRewrites.find(([from]) => url.startsWith(from));
+  return rewrite ? rewrite[1] + url.slice(rewrite[0].length) : url;
 }
 
 /* --------------------------- Hosted participants -------------------------- */

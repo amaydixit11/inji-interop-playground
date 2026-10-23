@@ -15,6 +15,15 @@ export interface AppConfig {
    * how the public URL is published or mapped.
    */
   internalUrl: string;
+  /**
+   * Prefix rewrites applied to every outbound request, as `from=to` pairs.
+   *
+   * For a playground in a container talking to Inji services that advertise
+   * `localhost` URLs: the protocol names `http://localhost:8091`, which from
+   * inside the container is the container itself. The inspector still shows
+   * the URL the protocol used; only the dial target changes.
+   */
+  dialRewrites: Array<[from: string, to: string]>;
   certifyBaseUrl: string;
   certifyConfigurationId: string;
   verifyBaseUrl: string;
@@ -27,6 +36,10 @@ export function loadConfig(): AppConfig {
     port,
     publicUrl: (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, ''),
     internalUrl: `http://127.0.0.1:${port}`,
+    dialRewrites: (process.env.DIAL_REWRITES ?? '')
+      .split(',')
+      .map((pair) => pair.trim().split('='))
+      .filter((pair): pair is [string, string] => pair.length === 2 && pair[0] !== '' && pair[1] !== ''),
     certifyBaseUrl: process.env.CERTIFY_BASE_URL ?? 'http://localhost:8091',
     certifyConfigurationId: process.env.CERTIFY_CREDENTIAL_CONFIG_ID ?? '',
     verifyBaseUrl: process.env.VERIFY_BASE_URL ?? 'http://localhost:8010/v1/verify',
