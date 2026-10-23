@@ -1,4 +1,7 @@
+import securityContext from '@digitalbazaar/security-context';
 import { securityLoader } from '@digitalbazaar/security-document-loader';
+import ed25519Signature2018Context from 'ed25519-signature-2018-context';
+import { JWS_2020_V1, JWS_2020_V1_URL, STATUS_LIST_2021_V1, STATUS_LIST_2021_V1_URL } from '../contexts/vendored.js';
 import { didWebUrl } from './keys.js';
 
 /**
@@ -52,6 +55,13 @@ interface LoaderOptions {
  */
 export function buildDocumentLoader({ publicUrl, statics }: LoaderOptions): DocumentLoader {
   const loader = securityLoader();
+  // The security loader bundles neither these nor the two vendored ones, and
+  // every one of them is in a credential or DID document the playground signs.
+  for (const [url, document] of [...securityContext.contexts, ...ed25519Signature2018Context.contexts]) {
+    loader.addStatic(url, document);
+  }
+  loader.addStatic(JWS_2020_V1_URL, JWS_2020_V1);
+  loader.addStatic(STATUS_LIST_2021_V1_URL, STATUS_LIST_2021_V1);
   loader.addStatic(new URL(PLAYGROUND_CONTEXT_PATH, publicUrl).toString(), PLAYGROUND_CONTEXT);
   for (const [url, document] of Object.entries(statics)) loader.addStatic(url, document);
 

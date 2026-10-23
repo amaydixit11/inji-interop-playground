@@ -142,3 +142,14 @@ declare module '@mosip/pixelpass' {
   const pixelpass: PixelPass;
   export default pixelpass;
 }
+
+// Context packages: each exposes its JSON-LD documents as a URL-keyed map.
+declare module '@digitalbazaar/security-context' {
+  const securityContext: { contexts: Map<string, unknown> };
+  export default securityContext;
+}
+
+declare module 'ed25519-signature-2018-context' {
+  const ed25519Signature2018Context: { contexts: Map<string, unknown> };
+  export default ed25519Signature2018Context;
+}
