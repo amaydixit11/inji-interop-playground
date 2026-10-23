@@ -334,7 +334,10 @@ export class RunContext {
       };
     } catch (error) {
       if (error instanceof RunFailure) throw error;
-      const message = error instanceof Error ? error.message : String(error);
+      // Node's fetch reports every network failure as "fetch failed" and puts
+      // the reason (DNS, TLS, refused) on `cause`, which is the part worth reading.
+      const cause = error instanceof Error && error.cause instanceof Error ? `: ${error.cause.message}` : '';
+      const message = error instanceof Error ? `${error.message}${cause}` : String(error);
       exchange.error = controller.signal.aborted ? `Timed out after ${req.timeoutMs ?? 30_000}ms` : message;
       exchange.durationMs = Date.now() - startedAtMs;
       this.record(exchange);
