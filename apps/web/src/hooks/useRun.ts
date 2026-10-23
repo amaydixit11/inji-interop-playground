@@ -93,6 +93,12 @@ export function useRun(): {
   const socketRef = useRef<WebSocket>();
   /** Highest event sequence applied, so nothing is applied twice or backwards. */
   const lastSeqRef = useRef(0);
+  /**
+   * Socket events held back while the catch-up fetch is in flight. Applying
+   * them straight away advanced lastSeqRef past the events emitted before the
+   * run id was known, and the catch-up then discarded those as already seen.
+   */
+  const bufferRef = useRef<StampedRunEvent[] | null>(null);
 
   useEffect(() => {
     let closed = false;
@@ -113,6 +119,10 @@ export function useRun(): {
         // Events for an earlier run, or ones already applied, are ignored so a
         // stale stream cannot overwrite what is on screen.
         if (event.runId !== runIdRef.current || event.seq <= lastSeqRef.current) return;
+        if (bufferRef.current) {
+          bufferRef.current.push(event);
+          return;
+        }
         lastSeqRef.current = event.seq;
         setRun((current) => (current ? reduce(current, event) : current));
       };
@@ -129,6 +139,7 @@ export function useRun(): {
   const start = useCallback(async (config: RunConfig) => {
     setError(undefined);
     try {
+      bufferRef.current = [];
       const { runId } = await api.start(config);
       runIdRef.current = runId;
       lastSeqRef.current = 0;
@@ -147,12 +158,17 @@ export function useRun(): {
       // new id is recovered here. Events already applied from the socket are
       // skipped rather than replayed over newer state.
       const { events } = await api.events(runId);
-      const missed = events.filter((event) => event.seq > lastSeqRef.current);
-      if (missed.length > 0) {
-        lastSeqRef.current = missed[missed.length - 1].seq;
-        setRun((current) => (current ? missed.reduce(reduce, current) : current));
+      // Both sources, in sequence order, each event once.
+      const bySeq = new Map<number, StampedRunEvent>();
+      for (const event of [...events, ...(bufferRef.current ?? [])]) bySeq.set(event.seq, event);
+      bufferRef.current = null;
+      const ordered = [...bySeq.values()].sort((a, b) => a.seq - b.seq);
+      if (ordered.length > 0) {
+        lastSeqRef.current = ordered[ordered.length - 1].seq;
+        setRun((current) => (current ? ordered.reduce(reduce, current) : current));
       }
     } catch (caught) {
+      bufferRef.current = null;
       setError(caught instanceof Error ? caught.message : String(caught));
     }
   }, []);
