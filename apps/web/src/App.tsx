@@ -40,7 +40,7 @@ export function App() {
   // On by default: the playground's first job is explaining the protocols, and
   // somebody who already knows them can turn it off in one click.
   const [explain, setExplain] = useState(true);
-  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderOpen, setBuilderOpen] = useState(true);
   // The scenario grid fills the viewport, so a run started from it would land
   // entirely below the fold. It collapses on the first run and can be reopened.
   const [scenariosOpen, setScenariosOpen] = useState(true);
@@ -275,6 +275,7 @@ export function App() {
                 setConfig(scenarioConfig);
                 setActiveScenario(scenario);
                 setScenariosOpen(false);
+                setBuilderOpen(false);
                 void start(scenarioConfig);
               }}
             />
@@ -288,7 +289,7 @@ export function App() {
                 <span aria-hidden="true" className="text-muted transition-transform">
                   {builderOpen ? '▾' : '▸'}
                 </span>
-                Configure a run yourself
+                Choose issuer, wallet and verifier
                 <span className="payload ml-1 truncate text-xs font-normal text-muted">
                   {config.issuerId} → {config.walletId} → {config.verifierId} · {config.format}
                 </span>
@@ -308,6 +309,7 @@ export function App() {
                 onClick={() => {
                   setActiveScenario(undefined);
                   setScenariosOpen(false);
+                  setBuilderOpen(false);
                   void start(config);
                 }}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas shadow-[0_1px_0_rgb(255_255_255_/_0.2)_inset,0_6px_16px_-8px_rgb(92_176_255_/_0.7)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
