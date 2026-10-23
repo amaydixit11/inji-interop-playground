@@ -336,7 +336,7 @@ export class RunContext {
       if (error instanceof RunFailure) throw error;
       // Node's fetch reports every network failure as "fetch failed" and puts
       // the reason (DNS, TLS, refused) on `cause`, which is the part worth reading.
-      const cause = error instanceof Error && error.cause instanceof Error ? `: ${error.cause.message}` : '';
+      const cause = error instanceof Error ? describeCause(error.cause) : '';
       const message = error instanceof Error ? `${error.message}${cause}` : String(error);
       exchange.error = controller.signal.aborted ? `Timed out after ${req.timeoutMs ?? 30_000}ms` : message;
       exchange.durationMs = Date.now() - startedAtMs;
@@ -377,4 +377,18 @@ function truncate(text: string, max: number): string {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+/**
+ * The useful part of a network error. Connecting to a host with several
+ * addresses fails with an AggregateError whose own message is empty, so the
+ * per-address codes (ENETUNREACH, ETIMEDOUT, ECONNREFUSED) are what say why.
+ */
+function describeCause(cause: unknown): string {
+  if (!(cause instanceof Error)) return '';
+  const inner = cause instanceof AggregateError
+    ? cause.errors.map((e: { code?: string; message?: string }) => e.code ?? e.message)
+    : [];
+  const parts = [cause.message, (cause as { code?: string }).code, ...inner].filter(Boolean);
+  return parts.length ? `: ${[...new Set(parts)].join(', ')}` : '';
 }
