@@ -81,6 +81,25 @@ describe('control API', () => {
     assert.match(body.message, /reference-issuer/);
   });
 
+  test('an unknown fault mode or format is refused, not run as the default', async () => {
+    for (const change of [{ tamper: 'explode' }, { format: 'pdf' }, { stopAfter: 'lunch' }]) {
+      const response = await startRun({ ...REFERENCE, ...change });
+      assert.equal(response.status, 400, JSON.stringify(change));
+      const body = await response.json();
+      assert.match(body.message, /must be one of/);
+    }
+  });
+
+  test('a body that is not JSON gets a JSON error', async () => {
+    const response = await fetch(`${base}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not json',
+    });
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, 'invalid_json');
+  });
+
   test('an unknown run is a 404, for reading it and for acting on it', async () => {
     assert.equal((await fetch(`${base}/api/runs/does-not-exist`)).status, 404);
     const action = await fetch(`${base}/api/runs/does-not-exist/actions/x`, { method: 'POST' });

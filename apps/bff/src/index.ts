@@ -6,6 +6,17 @@ import cors from 'cors';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Participant, RunConfig, RunEvent, StampedRunEvent } from '@interop/shared';
+import {
+  CREDENTIAL_FORMAT_LABELS,
+  FLOW_MODE_LABELS,
+  GRANT_TYPE_LABELS,
+  ISSUER_KEY_REFERENCE_LABELS,
+  QUERY_LANGUAGE_LABELS,
+  STEP_LABELS,
+  TAMPER_MODE_LABELS,
+  VC_VERSION_LABELS,
+  VCI_DRAFT_LABELS,
+} from '@interop/shared';
 import { loadConfig } from './config.js';
 import { Run } from './core/engine.js';
 import { buildDocumentLoader, PLAYGROUND_CONTEXT, PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from './core/jsonld.js';
@@ -22,6 +33,15 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '4mb' }));
 app.use(express.urlencoded({ extended: true, limit: '4mb' }));
+// A malformed body would otherwise get Express's HTML error page, unlike every
+// other error this API returns.
+app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (error instanceof SyntaxError) {
+    res.status(400).json({ error: 'invalid_json', message: error.message });
+    return;
+  }
+  next(error);
+});
 
 const issuerKey = () => getIssuerKey(config.publicUrl);
 const walletKey = () => getWalletKey(config.publicUrl);
@@ -188,6 +208,11 @@ app.get('/api/runs/:id/events', (req, res) => {
 });
 
 app.post('/api/runs', async (req, res) => {
+  const problem = invalidRunConfig(req.body);
+  if (problem) {
+    res.status(400).json({ error: 'invalid_configuration', message: problem });
+    return;
+  }
   const runConfig = req.body as RunConfig;
 
   let run: Run;
@@ -219,6 +244,41 @@ app.post('/api/runs', async (req, res) => {
     })
     .finally(() => activeRuns.delete(run.id));
 });
+
+/**
+ * Why a run configuration cannot be run, or undefined when it can.
+ *
+ * Checked before the run starts because the engine treats an unknown value as
+ * the default: a misspelt fault mode ran as "none" and reported a pass, which
+ * reads exactly like a verifier that caught the fault.
+ */
+function invalidRunConfig(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') return 'Expected a JSON object.';
+  const config = body as Record<string, unknown>;
+  for (const field of ['issuerId', 'walletId', 'verifierId', 'proofType']) {
+    if (typeof config[field] !== 'string' || config[field] === '') return `${field} is required.`;
+  }
+  const choices: Array<[string, Record<string, string>, boolean]> = [
+    ['format', CREDENTIAL_FORMAT_LABELS, true],
+    ['tamper', TAMPER_MODE_LABELS, true],
+    ['walletProofType', { jwt: '', cwt: '', none: '' }, true],
+    ['vciDraft', VCI_DRAFT_LABELS, false],
+    ['flowMode', FLOW_MODE_LABELS, false],
+    ['vcVersion', VC_VERSION_LABELS, false],
+    ['issuerKeyReference', ISSUER_KEY_REFERENCE_LABELS, false],
+    ['queryLanguage', QUERY_LANGUAGE_LABELS, false],
+    ['grantType', GRANT_TYPE_LABELS, false],
+    ['stopAfter', STEP_LABELS, false],
+  ];
+  for (const [field, allowed, required] of choices) {
+    const value = config[field];
+    if (value === undefined && !required) continue;
+    if (typeof value !== 'string' || !(value in allowed)) {
+      return `${field} must be one of: ${Object.keys(allowed).join(', ')}. Got ${JSON.stringify(value)}.`;
+    }
+  }
+  return undefined;
+}
 
 /** Signals that a human has completed an out-of-band step (a QR scan). */
 app.post('/api/runs/:id/actions/:actionId', (req, res) => {

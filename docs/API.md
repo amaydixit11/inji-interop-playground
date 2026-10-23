@@ -82,6 +82,10 @@ curl -X POST localhost:8787/api/runs -H 'content-type: application/json' -d '{
 { "runId": "95925553-0ca4-4bd4-aa76-0663c59360aa" }
 ```
 
+Every field is checked before the run starts: an unknown `format`, `tamper`, `stopAfter` or other
+option is refused with `400 invalid_configuration` and the allowed values, rather than run as the
+default. A body that is not JSON gets `400 invalid_json`.
+
 `400 invalid_configuration` when an id is unknown:
 
 ```json
