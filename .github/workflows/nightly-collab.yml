@@ -22,6 +22,10 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Job-level, because the playground process started below is the one that
+    # calls Certify; set only on the audit step, it never reached the server.
+    env:
+      CERTIFY_BASE_URL: https://injicertify-mock.collab.mosip.net
 
     steps:
       - uses: actions/checkout@v4
@@ -45,9 +49,8 @@ jobs:
           done
           echo "BFF did not become healthy"; cat bff.log; exit 1
 
-      # Collab has not been reachable from GitHub-hosted runners: every scheduled
-      # run so far failed at the first request. Say so as a warning, with curl's
-      # own error, rather than reporting it as a conformance regression.
+      # A Collab outage is not a conformance regression, so it is reported as a
+      # warning, with curl's own error, and the audit is skipped.
       - name: Check Collab is reachable
         id: reach
         run: |
@@ -73,8 +76,6 @@ jobs:
             --baseline docs/baseline-collab.json \
             --fail-on-regression \
             --out collab-audit.md
-        env:
-          CERTIFY_BASE_URL: https://injicertify-mock.collab.mosip.net
 
       - name: Summarise
         if: always()

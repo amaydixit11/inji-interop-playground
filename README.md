@@ -454,9 +454,8 @@ complete without a person logging in. Collab has known open findings, so the job
 recorded baseline (`docs/baseline-collab.json`) and fails only when a check that used to pass stops
 passing. Findings land in the run summary and as an artifact.
 
-Collab has not been reachable from GitHub-hosted runners: every scheduled run so far failed at the
-first request. The job now checks first and reports that as a warning rather than a result. To audit
-Collab, run the same command locally:
+If Collab is down, the job reports a warning and skips the audit rather than reporting a regression.
+To audit Collab by hand, run the same command locally:
 `CERTIFY_BASE_URL=https://injicertify-mock.collab.mosip.net npm run dev:bff`, then
 `node scripts/run-matrix.mjs --issuer inji-certify --formats ldp_vc --faults none --stop-after discover --baseline docs/baseline-collab.json --fail-on-regression`.
 
