@@ -16,8 +16,19 @@ export interface Scenario {
   question: string;
   /** What actually happens, stated up front — including expected failures. */
   expect: string;
-  /** Roughly how long, so nobody waits on a run that needs a phone. */
-  duration: 'seconds' | 'needs-a-phone';
+  /**
+   * The run status this scenario should end in. Stated rather than read from
+   * `expect`, whose prose does not always open with a verdict ("Mixed", "The
+   * x5c run passes") and was being scored as a surprise when it did not.
+   */
+  expected: 'passed' | 'failed';
+  /**
+   * Roughly how long, so nobody waits on a run that needs a phone. `recorded`
+   * is a flow the playground cannot drive itself, shown from a committed run.
+   */
+  duration: 'seconds' | 'needs-a-phone' | 'recorded';
+  /** The committed run in docs/evidence that a `recorded` scenario opens. */
+  evidenceRunId?: string;
   /** Participants that must be reachable; used to grey out what cannot run. */
   requires: string[];
   config: Partial<RunConfig> & Pick<RunConfig, 'issuerId' | 'walletId' | 'verifierId' | 'format'>;
@@ -64,7 +75,8 @@ export const SCENARIOS: Scenario[] = [
     title: 'Does the whole cycle work?',
     question: 'Issue a W3C JSON-LD credential, hold it, present it, verify it — end to end.',
     expect:
-      'Passes, with around 25 conformance checks. Start here: it is the shape every other run is a variation on.',
+      'Passes, with about 30 conformance checks. Start here: it is the shape every other run is a variation on.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 1,
@@ -77,6 +89,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Issue an SD-JWT VC with five claims and present only the two the verifier asked for.',
     expect:
       'Passes. The inspector shows the withheld claims are still committed to by the issuer’s signature — the verifier can tell nothing was tampered with, without learning what it was.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 2,
@@ -89,6 +102,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Corrupt a byte of the issuer’s signature after signing, then present it as normal.',
     expect:
       'Passes — because the verifier rejects it. A tampered run succeeds when the fault is caught; it fails only if the forgery gets through.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 3,
@@ -102,6 +116,7 @@ export const SCENARIOS: Scenario[] = [
       'Issue a credential, revoke it through the issuer’s status list, then present it. The signature is still perfectly valid.',
     expect:
       'Passes — the verifier rejects on status. This is the one failure mode where everything is cryptographically correct and the answer is still no.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 4,
@@ -114,6 +129,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Issue an ISO/IEC 18013-5 mdoc and present it over OpenID4VP with device binding.',
     expect:
       'Passes. A completely different technology stack from the others — CBOR and COSE rather than JSON and JOSE — through the same playground.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 5,
@@ -126,6 +142,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Sign the presentation over a nonce from a different exchange and send it anyway.',
     expect:
       'Passes — the verifier rejects it. This is what the nonce is for, and the check that proves it is doing its job.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 6,
@@ -139,6 +156,7 @@ export const SCENARIOS: Scenario[] = [
       'Run the presentation as a redirect on one device rather than a QR code scanned by another, and try to redeem the response code twice.',
     expect:
       'Passes. The verifier hands back a one-time code instead of being polled, and refuses the second redemption.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 7,
@@ -156,6 +174,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Speak OpenID4VCI draft 11 — a different endpoint, and a response that echoes the format.',
     expect:
       'Passes. The response shape is asserted against draft 11’s rules rather than draft 13’s, which is how revision drift gets caught instead of silently tolerated.',
+    expected: 'passed',
     duration: 'seconds',
     requires: [],
     order: 8,
@@ -167,7 +186,8 @@ export const SCENARIOS: Scenario[] = [
     title: 'What happens against real Inji Certify?',
     question: 'Swap the reference issuer for a live Inji Certify and change nothing else.',
     expect:
-      'Fails, and that is the point. Around ten findings: a context that will not dereference, a placeholder issuer DID, a verification method pointing at a key set rather than a key. Needs the Inji stack running.',
+      'Fails, and that is the point. More than ten findings: a context that will not dereference, a placeholder issuer DID, a verification method pointing at a key set rather than a key. Needs the Inji stack running.',
+    expected: 'failed',
     duration: 'seconds',
     requires: ['inji-certify'],
     order: 9,
@@ -186,6 +206,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Send a conformant credential from the reference issuer to a live Inji Verify.',
     expect:
       'Fails at verification. Direct credential verification isolates it to the credential rather than the exchange — the JSON-LD context cannot be loaded. Needs the Inji stack running.',
+    expected: 'failed',
     duration: 'seconds',
     requires: ['inji-verify'],
     order: 10,
@@ -200,11 +221,11 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     id: 'x5c-vs-did',
-    title: 'Why does Inji Verify reject our SD-JWT?',
-    question:
-      'Send the same SD-JWT to a live Inji Verify twice — once naming the issuer key by DID, once with a certificate chain embedded.',
+    title: 'Does Inji Verify accept an SD-JWT that carries its certificate?',
+    question: 'Send an SD-JWT whose header embeds the issuer’s certificate chain (x5c) to a live Inji Verify.',
     expect:
-      'The x5c run passes end to end; the DID run is rejected. Same credential, same issuer, one difference. Needs the Inji stack running.',
+      'Passes end to end. The same credential naming its key by DID is rejected: run the next scenario, then compare the two in Compare. Needs the Inji stack running.',
+    expected: 'passed',
     duration: 'seconds',
     requires: ['inji-verify'],
     order: 11,
@@ -219,12 +240,74 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: 'did-to-verify',
+    title: 'And the same SD-JWT, naming its key by DID?',
+    question: 'Change one thing from the previous scenario: the issuer key is referenced by its did:web instead of an embedded certificate.',
+    expected: 'failed',
+    expect:
+      'Fails: Inji Verify resolves SD-JWT issuer keys only from x5c (finding 8), so a DID-identified issuer, Certify included, is rejected. Needs the Inji stack running.',
+    duration: 'seconds',
+    requires: ['inji-verify'],
+    order: 11.1,
+    track: 'real',
+    config: {
+      issuerId: 'reference-issuer',
+      walletId: 'reference-wallet',
+      verifierId: 'inji-verify',
+      format: 'vc+sd-jwt',
+      issuerKeyReference: 'did',
+      tamper: 'none',
+    },
+  },
+  {
+    id: 'verify-replay',
+    title: 'Does Inji Verify catch a replayed SD-JWT presentation?',
+    question: 'Present an SD-JWT whose key-binding proof was signed over a nonce from an earlier exchange.',
+    expected: 'failed',
+    expect:
+      'Fails, and it should not: Inji Verify accepts the stale nonce (finding 32), so a captured presentation can be replayed. The reference verifier rejects the same thing. Needs the Inji stack running.',
+    duration: 'seconds',
+    requires: ['inji-verify'],
+    order: 11.2,
+    track: 'real',
+    config: {
+      issuerId: 'reference-issuer',
+      walletId: 'reference-wallet',
+      verifierId: 'inji-verify',
+      format: 'vc+sd-jwt',
+      issuerKeyReference: 'x5c',
+      tamper: 'replay-nonce',
+    },
+  },
+  {
+    id: 'collab-all-inji',
+    title: 'Do all three Inji modules work together?',
+    question: 'Inji Certify issues, Inji Web holds, Inji Verify verifies, all on MOSIP’s Collab sandbox.',
+    expected: 'passed',
+    expect:
+      'Passes. Recorded from the browser, because Inji Web and Inji Verify talk to each other there and the playground cannot stand in the path; local Inji Verify and the reference verifier agree. Steps to repeat it: docs/COLLAB-ALL-INJI.md.',
+    duration: 'recorded',
+    evidenceRunId: 'cbf7251e-2e0a-4653-aa20-230dd74fbbfd',
+    requires: [],
+    order: 11.3,
+    track: 'real',
+    config: {
+      issuerId: 'inji-certify',
+      walletId: 'inji-web',
+      verifierId: 'inji-verify',
+      format: 'ldp_vc',
+      grantType: 'authorization_code',
+      tamper: 'none',
+    },
+  },
+  {
     id: 'collab-audit',
     title: 'Is the public MOSIP Collab sandbox conformant?',
     question:
       "Audit the metadata of MOSIP's own hosted Certify — discovery only, since issuance there needs an interactive eSignet login.",
     expect:
       'Fails on metadata conformance, and independently confirms the local findings: the authorization server metadata and JWKS are both absent from the credential issuer identifier. Needs internet access, not the local stack.',
+    expected: 'failed',
     duration: 'seconds',
     requires: [],
     order: 12,
@@ -256,6 +339,7 @@ export const SCENARIOS: Scenario[] = [
       "Round-trip a credential configuration through Certify's admin API, then ask whether the new type is offerable — and drive the issuance authorization endpoint that asks for a credential before it will issue one.",
     expect:
       'Mixed, and both halves are worth knowing. Registration works and reaches discovery immediately, which is the good news. The rejection paths do not: a JSON body gets 403 rather than 415, and a missing parameter answers with a leaked Java controller signature. Writes and deletes a temporary configuration, so point it at a deployment you own. Needs the Inji stack running.',
+    expected: 'failed',
     duration: 'seconds',
     requires: ['inji-certify'],
     order: 13,
@@ -274,6 +358,7 @@ export const SCENARIOS: Scenario[] = [
     question: 'Show a QR code, scan it with Inji Wallet, and let the phone talk to the issuer directly.',
     expect:
       'Needs a phone, and PUBLIC_URL set to something it can reach. The run is marked endpoint-only: the wallet’s own traffic is not captured, so it is weaker evidence than the others.',
+    expected: 'passed',
     duration: 'needs-a-phone',
     requires: [],
     order: 14,

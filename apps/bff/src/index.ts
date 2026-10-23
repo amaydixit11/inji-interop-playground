@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { RunConfig, RunEvent, StampedRunEvent } from '@interop/shared';
+import type { Participant, RunConfig, RunEvent, StampedRunEvent } from '@interop/shared';
 import { loadConfig } from './config.js';
 import { Run } from './core/engine.js';
 import { buildDocumentLoader, PLAYGROUND_CONTEXT, PLAYGROUND_CONTEXT_PATH, type DocumentLoader } from './core/jsonld.js';
@@ -136,9 +136,33 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', publicUrl: config.publicUrl });
 });
 
-app.get('/api/participants', (_req, res) => {
-  res.json({ participants: registry.participants(), publicUrl: config.publicUrl });
+app.get('/api/participants', async (_req, res) => {
+  res.json({ participants: await withReachability(registry.participants()), publicUrl: config.publicUrl });
 });
+
+/**
+ * Marks Inji and external participants that cannot be reached right now.
+ *
+ * Without it a scenario needing the Inji stack looks runnable, fails at its
+ * first request, and, being a scenario expected to fail, gets scored as
+ * "as expected". The playground's own participants are in-process and skipped.
+ */
+async function withReachability(participants: Participant[]): Promise<Participant[]> {
+  return Promise.all(
+    participants.map(async (participant) => {
+      const baseUrl = participant.kind === 'mock' ? undefined : participant.config.find((f) => f.key === 'baseUrl')?.value;
+      if (!baseUrl) return participant;
+      try {
+        // Any HTTP answer counts: the question is whether something is listening.
+        await fetch(dialInternally(baseUrl), { signal: AbortSignal.timeout(2500) });
+        return participant;
+      } catch {
+        const hint = participant.kind === 'inji' ? ' Start the Inji stack: docker compose -f docker-compose.inji.yml up -d' : '';
+        return { ...participant, unavailable: `Nothing answered at ${baseUrl}.${hint}` };
+      }
+    }),
+  );
+}
 
 app.get('/api/runs', (_req, res) => {
   res.json({ runs: store.listSummaries() });

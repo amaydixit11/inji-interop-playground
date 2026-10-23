@@ -22,9 +22,12 @@ export function Scenarios({
   disabled,
   open,
   onOpenChange,
+  onOpenRecorded,
 }: {
   participants: Participant[];
   onRun: (config: RunConfig, scenario: Scenario) => void;
+  /** Opens the committed run behind a `recorded` scenario. */
+  onOpenRecorded: (runId: string) => void;
   onRunAll: () => void;
   onCancelAll: () => void;
   batch: BatchEntry[];
@@ -34,7 +37,7 @@ export function Scenarios({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const available = new Set(participants.map((participant) => participant.id));
+  const unavailable = unavailableParticipants(participants);
   const byId = new Map(batch.map((entry) => [entry.scenario.id, entry]));
 
   return (
@@ -99,10 +102,11 @@ export function Scenarios({
                   <ScenarioCard
                     key={scenario.id}
                     scenario={scenario}
-                    available={available}
+                    unavailable={unavailable}
                     outcome={byId.get(scenario.id)}
                     disabled={disabled}
                     onRun={onRun}
+                    onOpenRecorded={onOpenRecorded}
                   />
                 ))}
               </ul>
@@ -114,24 +118,48 @@ export function Scenarios({
   );
 }
 
+/**
+ * Why each participant cannot be used right now, keyed by id: not registered,
+ * or registered but not answering (the Inji stack is not running).
+ */
+export function unavailableParticipants(participants: Participant[]): Map<string, string> {
+  const reasons = new Map<string, string>();
+  for (const participant of participants) {
+    if (participant.unavailable) reasons.set(participant.id, `${participant.label}: ${participant.unavailable}`);
+  }
+  const registered = new Set(participants.map((participant) => participant.id));
+  for (const scenario of SCENARIOS) {
+    for (const id of scenario.requires) if (!registered.has(id)) reasons.set(id, `${id} is not registered.`);
+  }
+  return reasons;
+}
+
+/** The reasons a scenario cannot run, or an empty list when it can. */
+export function blockers(scenario: Scenario, unavailable: Map<string, string>): string[] {
+  return scenario.requires.flatMap((id) => (unavailable.has(id) ? [unavailable.get(id) as string] : []));
+}
+
 function ScenarioCard({
   scenario,
-  available,
+  unavailable,
   outcome,
   disabled,
   onRun,
+  onOpenRecorded,
 }: {
   scenario: Scenario;
-  available: Set<string>;
+  unavailable: Map<string, string>;
   outcome?: BatchEntry;
   disabled: boolean;
   onRun: (config: RunConfig, scenario: Scenario) => void;
+  onOpenRecorded: (runId: string) => void;
 }) {
-  // A scenario naming a participant that is not registered cannot run; saying
-  // so on the card beats a preflight failure.
-  const missing = scenario.requires.filter((id) => !available.has(id));
+  // Saying on the card that a participant is not answering beats a run that
+  // fails at its first request.
+  const missing = blockers(scenario, unavailable);
   const blocked = missing.length > 0;
-  const expectsFailure = scenario.expect.startsWith('Fails');
+  const expectsFailure = scenario.expected === 'failed';
+  const recorded = scenario.duration === 'recorded' && scenario.evidenceRunId;
   const detailId = `scenario-${scenario.id}-detail`;
 
   const status = outcome && outcome.status !== 'pending' ? outcome.status : undefined;
@@ -139,15 +167,20 @@ function ScenarioCard({
     status === 'running' ? 'accent'
     : status === 'skipped' ? 'neutral'
     : status === 'passed' ? 'pass'
+    // A failure the card predicted is the result, not an alarm.
+    : status === 'failed' && expectsFailure && !outcome?.detail?.startsWith('Not what') ? 'warn'
     : status ? 'fail'
     : undefined;
+  const statusLabel = statusTone === 'warn' ? 'failed, as expected' : status;
 
   return (
     <li className="contents">
       <button
         type="button"
         disabled={disabled || blocked}
-        onClick={() => onRun(scenarioConfig(scenario), scenario)}
+        onClick={() =>
+          recorded ? onOpenRecorded(scenario.evidenceRunId as string) : onRun(scenarioConfig(scenario), scenario)
+        }
         aria-label={scenario.title}
         aria-describedby={detailId}
         className="group relative flex flex-col overflow-hidden rounded-lg border border-line bg-surface-2 p-3.5 text-left transition hover:-translate-y-px hover:border-accent/60 hover:bg-surface-3 hover:shadow-lift focus-visible:border-accent/60 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:shadow-none"
@@ -162,7 +195,7 @@ function ScenarioCard({
           <h4 className="min-w-0 flex-1 text-base font-medium leading-snug text-ink">{scenario.title}</h4>
           {statusTone && status ? (
             <Badge tone={statusTone} glyph>
-              {status}
+              {statusLabel}
             </Badge>
           ) : expectsFailure ? (
             <Badge tone="warn" glyph title="This run is expected to fail — the findings are the result.">
@@ -171,6 +204,10 @@ function ScenarioCard({
           ) : scenario.duration === 'needs-a-phone' ? (
             <Badge tone="warn" glyph>
               needs a phone
+            </Badge>
+          ) : recorded ? (
+            <Badge tone="info" glyph title="Recorded from the browser; opens the committed run.">
+              recorded
             </Badge>
           ) : null}
         </div>
@@ -185,10 +222,11 @@ function ScenarioCard({
           {blocked && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-warn">
               <StatusIcon tone="warn" label="Cannot run" />
-              <span>Needs {missing.join(', ')} — start the Inji stack to enable this.</span>
+              <span>{missing.join(' ')}</span>
             </p>
           )}
-          {outcome?.detail && (
+          {/* A blocked card already says why; the batch's "Not run" would repeat it. */}
+          {outcome?.detail && !(blocked && outcome.detail.startsWith('Not run')) && (
             <p
               className={`mt-2 flex items-start gap-1.5 text-xs leading-relaxed ${
                 outcome.detail.startsWith('Not what') ? 'text-fail' : 'text-muted'
@@ -205,7 +243,7 @@ function ScenarioCard({
             aria-hidden="true"
             className="mt-2.5 text-xs font-medium text-accent opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
           >
-            Run this →
+            {recorded ? 'Open the recorded run →' : 'Run this →'}
           </span>
         )}
       </button>
@@ -223,6 +261,7 @@ function ScenarioCard({
 function BatchProgress({ entries }: { entries: BatchEntry[] }) {
   const done = entries.filter((entry) => entry.status !== 'pending' && entry.status !== 'running').length;
   const surprises = entries.filter((entry) => entry.detail?.startsWith('Not what')).length;
+  const notRun = entries.filter((entry) => entry.detail?.startsWith('Not run')).length;
   const percent = entries.length === 0 ? 0 : Math.round((done / entries.length) * 100);
 
   return (
@@ -235,9 +274,11 @@ function BatchProgress({ entries }: { entries: BatchEntry[] }) {
           {surprises > 0 && <StatusIcon tone="fail" label="Unexpected" labelled />}
           {surprises > 0
             ? `${surprises} did not match what the scenario expected`
-            : done === entries.length
-              ? 'All outcomes were as expected'
-              : 'Running…'}
+            : done < entries.length
+              ? 'Running…'
+              : notRun > 0
+                ? `The rest were as expected · ${notRun} not run, see the cards`
+                : 'All outcomes were as expected'}
         </span>
       </div>
       <div

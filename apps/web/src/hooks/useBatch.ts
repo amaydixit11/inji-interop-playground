@@ -25,7 +25,7 @@ export interface BatchState {
  * the progress list means anything to someone watching.
  */
 export function useBatch(onFinished: () => void): BatchState & {
-  start: () => Promise<void>;
+  start: (blocked: (scenario: Scenario) => string[]) => Promise<void>;
   cancel: () => void;
   reset: () => void;
 } {
@@ -33,10 +33,10 @@ export function useBatch(onFinished: () => void): BatchState & {
   const [running, setRunning] = useState(false);
   const cancelled = useRef(false);
 
-  const start = useCallback(async () => {
-    // Scenarios needing a person are skipped: a batch that stops waiting for
-    // someone to scan a QR code is not a batch.
-    const runnable = [...SCENARIOS].sort((a, b) => a.order - b.order).filter((s) => s.duration !== 'needs-a-phone');
+  const start = useCallback(async (blocked: (scenario: Scenario) => string[]) => {
+    // Only what can run unattended: a batch that stops waiting for someone to
+    // scan a QR code is not a batch, and a recorded flow is not run at all.
+    const runnable = [...SCENARIOS].sort((a, b) => a.order - b.order).filter((s) => s.duration === 'seconds');
 
     cancelled.current = false;
     setRunning(true);
@@ -50,24 +50,36 @@ export function useBatch(onFinished: () => void): BatchState & {
         break;
       }
 
+      // A participant that is not answering would fail the run at its first
+      // request, which a scenario expected to fail would score as a success.
+      const reasons = blocked(scenario);
+      if (reasons.length > 0) {
+        setEntries((current) =>
+          current.map((entry, i) => (i === index ? { ...entry, status: 'skipped', detail: `Not run: ${reasons.join(' ')}` } : entry)),
+        );
+        continue;
+      }
+
       setEntries((current) => current.map((entry, i) => (i === index ? { ...entry, status: 'running' } : entry)));
 
       try {
         const record = await runToCompletion(scenarioConfig(scenario));
-        const expectedFailure = scenario.expect.startsWith('Fails');
-        const asExpected = expectedFailure ? record.status === 'failed' : record.status === 'passed';
+        const unreachable = record.summary?.failure?.message.includes('could not reach');
+        const asExpected = !unreachable && record.status === scenario.expected;
 
         setEntries((current) =>
           current.map((entry, i) =>
-            i === index
-              ? {
-                  ...entry,
-                  status: record.status === 'passed' ? 'passed' : 'failed',
-                  detail: asExpected
-                    ? summarise(record)
-                    : `Not what this scenario expected — ${summarise(record)}`,
-                }
-              : entry,
+            i !== index
+              ? entry
+              : unreachable
+                ? { ...entry, status: 'skipped', detail: `Not run: ${record.summary?.failure?.message}` }
+                : {
+                    ...entry,
+                    status: record.status === 'passed' ? 'passed' : 'failed',
+                    detail: asExpected
+                      ? summarise(record)
+                      : `Not what this scenario expected — ${summarise(record)}`,
+                  },
           ),
         );
       } catch (error) {

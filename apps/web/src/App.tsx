@@ -11,7 +11,7 @@ import { OfficialSdk } from './components/OfficialSdk.js';
 import { HistoryMatrix, toMarkdown } from './components/HistoryMatrix.js';
 import { ProtocolInspector } from './components/ProtocolInspector.js';
 import { RunBuilder } from './components/RunBuilder.js';
-import { Scenarios } from './components/Scenarios.js';
+import { blockers, Scenarios, unavailableParticipants } from './components/Scenarios.js';
 import { SequenceDiagram } from './components/SequenceDiagram.js';
 import { Story } from './components/Story.js';
 import { Timeline } from './components/Timeline.js';
@@ -56,6 +56,32 @@ export function App() {
   const [openedRun, setOpenedRun] = useState<LiveRun>();
   useEffect(() => setOpenedRun(undefined), [run?.id]);
   const shown = openedRun ?? run;
+
+  // Runs started by "Run all" go through the API rather than the live socket,
+  // so nothing sets the viewed record. Story then describes the latest run
+  // that has a narrative instead of claiming there is nothing to describe.
+  useEffect(() => {
+    if (view !== 'story' || viewedRecord?.narrative) return;
+    const latest = history.find((item) => item.narrative);
+    if (latest) api.run(latest.id).then(setViewedRecord).catch(() => undefined);
+  }, [view, viewedRecord, history]);
+
+  /** Opens a saved run in the live view: from History, or a recorded scenario. */
+  const openRun = useCallback((id: string) => {
+    // The listing carries no payloads, so the full record is fetched before it
+    // can fill the inspector.
+    void api
+      .run(id)
+      .then((full) => {
+        setConfig(full.config);
+        setOpenedRun({ ...full, logs: [] });
+        setViewedRecord(full);
+        setScenariosOpen(false);
+        setBuilderOpen(false);
+        setView('live');
+      })
+      .catch((caught: Error) => setLoadError(caught.message));
+  }, []);
   const outputRef = useRef<HTMLDivElement>(null);
   const refreshHistoryRef = useRef<() => void>(() => undefined);
   const batch = useBatch(() => refreshHistoryRef.current());
@@ -247,21 +273,7 @@ export function App() {
           <div className="h-full">
             <HistoryMatrix
               runs={history}
-              onSelect={(record) => {
-                setConfig(record.config);
-                // The listing carries no payloads, so the full record is
-                // fetched before it can fill the inspector.
-                void api
-                  .run(record.id)
-                  .then((full) => {
-                    setOpenedRun({ ...full, logs: [] });
-                    setViewedRecord(full);
-                    setScenariosOpen(false);
-                    setBuilderOpen(false);
-                    setView('live');
-                  })
-                  .catch((caught: Error) => setLoadError(caught.message));
-              }}
+              onSelect={(record) => openRun(record.id)}
               onOpenStory={(record) => {
                 // The listing carries no payloads, so the full record is
                 // fetched before showing it.
@@ -282,7 +294,8 @@ export function App() {
               participants={participants}
               batch={batch.entries}
               batchRunning={batch.running}
-              onRunAll={() => void batch.start()}
+              onRunAll={() => void batch.start((scenario) => blockers(scenario, unavailableParticipants(participants)))}
+              onOpenRecorded={openRun}
               onCancelAll={batch.cancel}
               disabled={busy}
               open={scenariosOpen}
@@ -359,7 +372,7 @@ export function App() {
                   {shown.summary?.failure && (
                     <span className="measure text-xs text-fail">{shown.summary.failure.message}</span>
                   )}
-                  {activeScenario && shown.status === 'failed' && activeScenario.expect.startsWith('Fails') && (
+                  {activeScenario && shown.status === 'failed' && activeScenario.expected === 'failed' && (
                     <span className="measure text-xs text-info">
                       This scenario is expected to fail — the findings are the result.
                     </span>

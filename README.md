@@ -25,13 +25,15 @@ Open <http://localhost:5173> and pick a scenario from **Start here**.
 Nothing else needs installing. The playground hosts its own reference issuer, wallet and verifier, so
 there is a complete working cycle to look at before wiring up anything real.
 
-Fourteen scenarios, each phrased as a question the run answers — *Does the verifier catch a forged
+Seventeen scenarios, each phrased as a question the run answers — *Does the verifier catch a forged
 credential?*, *Is a revoked credential still accepted?*, *What happens against real Inji Certify?* —
-with what to expect stated up front, including the two that are supposed to fail.
+with what to expect stated up front, including the six that are supposed to fail. Cards that need the
+Inji stack are greyed out, with the command to start it, until it answers.
 
 **Run all** executes every unattended scenario in sequence and reports how many outcomes differed
-from what the scenario predicted. Not how many passed: two of them are supposed to fail, and a batch
-where everything passes would mean the runs that find real defects had stopped finding them.
+from what the scenario predicted. Not how many passed: six of them are supposed to fail, and a batch
+where everything passes would mean the runs that find real defects had stopped finding them. A
+scenario whose participant is not running is reported as not run, never as an expected failure.
 
 Or with Docker:
 
