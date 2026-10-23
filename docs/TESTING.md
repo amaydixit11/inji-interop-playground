@@ -6,7 +6,7 @@ Three layers, each run on 2026-10-23 against commit `a8027b4`.
 |---|---|---|---|
 | Unit | Each protocol primitive behaves to spec, including the edge cases | `npm test` | **91 / 91 pass**, 18 suites |
 | End-to-end fault matrix | A full `issue → hold → present → verify` cycle, every format, every fault | `node scripts/run-matrix.mjs` | **27 / 27 pass** on the reference stack |
-| Live Inji stack | What happens when real Inji releases talk to each other and to the spec | runs from the UI against `docker-compose.inji.yml` | **23 ranked findings**, 5 blockers: [FINDINGS.md](FINDINGS.md) |
+| Live Inji stack | What happens when real Inji releases talk to each other and to the spec | runs from the UI against `docker-compose.inji.yml` | **26 ranked findings**, 5 blockers: [FINDINGS.md](FINDINGS.md) |
 
 A run with an injected fault **passes when the verifier rejects the credential**. A verifier that
 accepts a forged, expired, revoked or replayed credential is the failure being tested for.
@@ -117,9 +117,17 @@ fault was correctly detected. `Warn` flags something worth knowing that is not a
 and Inji Web 0.16.0. Pairing each one with a reference implementation on the other side isolates
 faults to one component.
 
-This is where the playground proved useful: **23 ranked findings** against Inji releases, 5 of them blockers. With its
+This is where the playground proved useful: **26 ranked findings** against Inji releases, 5 of them blockers. With its
 published configuration, Inji Certify cannot complete a single pre-authorized-code issuance, and Inji
-Verify accepts a revoked SD-JWT credential as valid. Every finding has its reproduction, the error
+Verify accepts a revoked SD-JWT credential as valid.
+
+Inji Verify does pass end to end with an SD-JWT that embeds its certificate chain (`x5c`): run
+`c300c565-2409-4f9e-9d13-008ffb2724b3`, 30 checks, 0 failed, and it rejects a broken signature and an
+expired credential correctly. But the same matrix shows it also accepts a presentation with no holder
+proof, a replayed nonce and the wrong credential type (findings 31–33):
+[INTEROPERABILITY-inji-verify.md](INTEROPERABILITY-inji-verify.md).
+
+Every finding has its reproduction, the error
 text quoted verbatim, the blast radius and a fix estimate in [FINDINGS.md](FINDINGS.md). Write-ups
 ready to file upstream are in [upstream-issues/](upstream-issues/).
 

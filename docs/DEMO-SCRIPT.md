@@ -99,7 +99,7 @@ comparison.
 
 Open `docs/FINDINGS.md`.
 
-> "Twenty-five findings against real MOSIP software. Inji Certify cannot complete a single
+> "Twenty-six ranked findings against real MOSIP software. Inji Certify cannot complete a single
 > pre-authorized-code issuance with the configuration it ships — three separate causes, each hiding
 > the next. Inji Verify does not percent-decode the port in a `did:web`, which rules out every
 > development deployment."

@@ -31,6 +31,9 @@ one-line estimate is a claim we are prepared to be wrong about.
 | [10](#10-inji-verify-ships-a-database-schema-that-does-not-match-its-own-image) | Ships a DB schema that does not match its own image (`response_code` missing) | inji-verify 0.18.2 | **Blocker** | Every fresh deploy from `docker-compose/db-init`; fails at first presentation | Ship the real DDL |
 | [8](#8-inji-verify-requires-an-x509-chain-to-verify-an-sd-jwt-vc--confirmed) | SD-JWT VC issuer keys resolved only from `x5c` | inji-verify 0.18.2 | **High** | Every SD-JWT issuer that identifies itself by DID — including Certify's own `did:web` | Resolver branch |
 | [8b](#8b-inji-verify-does-not-check-revocation-for-sd-jwt-vc) | No revocation check for SD-JWT VC; an empty status list is indistinguishable from a clean one | inji-verify 0.18.2 | **High** | A revoked credential verifies as valid — silently, with no warning to the relying party | Status list client |
+| [31](#31-inji-verify-accepts-an-sd-jwt-presentation-with-no-holder-proof) | SD-JWT accepted with no holder proof, although the credential is key-bound | inji-verify 0.18.2 | **High** | Every SD-JWT relying party: a copied credential can be presented by anyone | Reject missing KB-JWT when `cnf` present |
+| [32](#32-inji-verify-does-not-check-the-nonce-in-the-sd-jwt-key-binding-jwt) | KB-JWT nonce not checked, so presentations can be replayed | inji-verify 0.18.2 | **High** | Every SD-JWT relying party | Compare nonce and aud |
+| [33](#33-inji-verify-does-not-apply-the-presentation-definitions-constraints) | Presentation definition constraints not applied: wrong credential type accepted | inji-verify 0.18.2 | **Medium** | Relying parties that trust `allChecksSuccessful` | Evaluate constraints, or say they were skipped |
 | [4](#4-none-of-the-well-known-documents-except-one-are-served-at-the-credential-issuer-identifier) | `.well-known` documents not served at the credential issuer identifier | Certify 0.14.0 | **High** | Any spec-conformant wallet doing discovery; reproduced on MOSIP's own Collab ([16](#16-confirmed-on-mosips-own-public-sandbox)) | Routing |
 | [6](#6-inji-verify-cannot-resolve-a-didweb-that-carries-a-port) | `did:web` with a port is not percent-decoded | inji-verify 0.18.2 | **High** | Every non-443 issuer — so every local, CI and staging deployment | One line |
 | [7](#7-inji-verify-cannot-load-issuer-hosted-json-ld-contexts) | Cannot load issuer-hosted JSON-LD contexts | inji-verify 0.18.2 | **High** | Any credential type not already in the bundled context set | Context loader |
@@ -809,6 +812,54 @@ The playground exercises this as the `certify-admin` scenario. The probe writes,
 (`auditAdminApi: on`) and registers its configuration under a reserved key it deletes again — a
 conformance test that leaves a half-registered credential type behind has broken the deployment it
 was measuring.
+
+---
+
+## 31. Inji Verify accepts an SD-JWT presentation with no holder proof
+
+**Observed** (2026-10-23, run `1f91d437-74b4-4c07-9070-9f02b9d21c75`, `inji-verify-service:0.18.2`).
+The credential carries a `cnf` key, so the issuer bound it to a holder. The presentation was sent with
+every disclosure and **no key binding JWT** after the final `~`. verify-service answered:
+
+```json
+{ "allChecksSuccessful": true, "credentialResults": [{ "allChecksSuccessful": true,
+  "schemaAndSignatureCheck": { "valid": true, "error": null }, "expiryCheck": { "valid": true } }] }
+```
+
+Anyone who has seen the credential once (a screenshot of a QR, a log line, a verifier that kept a
+copy) can present it as their own. SD-JWT VC requires key binding whenever the credential has `cnf`.
+
+**Suggested fix:** when the credential has `cnf`, reject a presentation without a KB-JWT.
+
+---
+
+## 32. Inji Verify does not check the nonce in the SD-JWT key binding JWT
+
+**Observed** (2026-10-23, run `efe4378d-8c57-4467-92e0-a85e64e9e9c4`). The KB-JWT is present and
+correctly signed by the holder key, but its `nonce` is `stale-nonce-from-an-earlier-exchange`, not the
+nonce verify-service issued in its authorization request. Result: `allChecksSuccessful: true`.
+
+The nonce is what stops a captured presentation being replayed to the same verifier later. Without
+the check, the key binding proves the holder signed *something* once, not that they are present now.
+
+**Suggested fix:** compare the KB-JWT `nonce` (and `aud`) with the values from the authorization
+request that this response answers.
+
+---
+
+## 33. Inji Verify does not apply the presentation definition's constraints
+
+**Observed** (2026-10-23, run `7425c6f0-2322-4272-abd1-3e42a87bf404`). The request asked for
+`vct` equal to the playground's credential type. The wallet presented a validly signed credential
+whose `vct` ends in `#unrelated`. Result: `allChecksSuccessful: true`, with the unrelated `vct` in
+the returned claims.
+
+A relying party that trusts `allChecksSuccessful` will accept any credential the issuer signed, not
+the one it asked for. Checking the claims itself is possible, but nothing in the response says the
+constraints were skipped.
+
+**Suggested fix:** evaluate `presentation_definition` (or DCQL) constraints against the presented
+credential, or report in the response that they were not evaluated.
 
 ---
 

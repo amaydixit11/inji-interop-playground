@@ -1,6 +1,6 @@
 # Interoperability report
 
-Generated 2026-09-02T09:23:47.598Z by `scripts/run-matrix.mjs`.
+Generated 2026-10-23T12:01:20.674Z by `scripts/run-matrix.mjs`.
 
 Every row is a real end-to-end `issue → hold → present → verify` cycle with all protocol
 exchanges captured.
@@ -21,7 +21,7 @@ exchanges captured.
 
 | Format | Suite | Revision | Fault injected | Result | Verdict | Pass | Fail | Expected fail | Warn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 19 | 14 | 0 | 3 |
+| `ldp_vc` | `Ed25519Signature2020` | `draft-13` | `none` | **failed** | `invalid` | 21 | 14 | 0 | 3 |
 
 A run with an injected fault passes when the verifier **rejects** the credential.
 `Expected fail` counts checks that failed because the fault was correctly detected.
@@ -48,7 +48,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 
 ## Conformance checks exercised
 
-36 distinct assertions across this run set.
+38 distinct assertions across this run set.
 
 | Check | Specification clause |
 | --- | --- |
@@ -71,6 +71,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Key material is published where a verifier will look for it | RFC 7517 / OpenID4VCI §11.2.1 |
 | Metadata advertises a credential endpoint | OpenID4VCI §11.2.3 |
 | Metadata uses the draft-13+ credential_configurations_supported shape | OpenID4VCI §11.2.3 |
+| Offer advertises a grant the wallet can complete | OpenID4VCI §4.1.1 |
 | Offer carries a pre-authorized code | OpenID4VCI §4.1.1 |
 | Offer names the credential issuer | OpenID4VCI §4.1.1 |
 | Offer uses credential_configuration_ids | OpenID4VCI §4.1.1 |
@@ -82,6 +83,7 @@ A run with an injected fault passes when the verifier **rejects** the credential
 | Proof verification method identifies a single key | W3C VC Data Integrity §2.2 |
 | Requested claims map onto the claims the issuer advertises | OpenID4VCI §11.2.3 |
 | Response carries a credential in the shape draft-13 defines | OpenID4VCI draft 11-13 §7.3 |
+| Response carries a presentation submission | OpenID4VP 1.0 §8.1 / OpenID4VP draft 21 §6.1 |
 | Response omits the format, as draft-13 requires | OpenID4VCI draft 12 §7.3 vs draft 13 §7.3 |
 | This run can be attributed to specific participant builds | Playground provenance |
 | Token response uses the Bearer token type | OpenID4VCI §6.2 / RFC 6749 §5.1 |
