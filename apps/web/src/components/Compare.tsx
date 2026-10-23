@@ -169,7 +169,15 @@ function ConfigDiff({ left, right }: { left: RunListItem; right: RunListItem }) 
     { field: 'Proof suite', left: left.config.proofType, right: right.config.proofType },
     { field: 'OpenID4VCI revision', left: left.config.vciDraft ?? 'draft-13', right: right.config.vciDraft ?? 'draft-13' },
     { field: 'Flow', left: left.config.flowMode ?? 'cross-device', right: right.config.flowMode ?? 'cross-device' },
+    { field: 'Data model', left: left.config.vcVersion ?? '1.1', right: right.config.vcVersion ?? '1.1' },
+    { field: 'Issuer key reference', left: left.config.issuerKeyReference ?? 'did', right: right.config.issuerKeyReference ?? 'did' },
+    { field: 'Request language', left: left.config.queryLanguage ?? 'presentation-exchange', right: right.config.queryLanguage ?? 'presentation-exchange' },
+    { field: 'Grant', left: left.config.grantType ?? 'pre-authorized_code', right: right.config.grantType ?? 'pre-authorized_code' },
+    { field: 'Holder binding', left: left.config.walletProofType, right: right.config.walletProofType },
+    { field: 'Stopped after', left: left.config.stopAfter ?? '(full run)', right: right.config.stopAfter ?? '(full run)' },
     { field: 'Fault', left: left.config.tamper, right: right.config.tamper },
+    { field: 'Claims', left: JSON.stringify(left.config.claims ?? 'default'), right: JSON.stringify(right.config.claims ?? 'default') },
+    ...overrideRows(left, right),
   ].filter((row) => row.left !== row.right);
 
   if (rows.length === 0) {
@@ -200,6 +208,19 @@ function ConfigDiff({ left, right }: { left: RunListItem; right: RunListItem }) 
       </tbody>
     </table>
   );
+}
+
+/** Per-participant overrides, one row per field, so a changed base URL shows as one. */
+function overrideRows(left: RunListItem, right: RunListItem): Array<{ field: string; left: string; right: string }> {
+  const a = left.config.overrides ?? {};
+  const b = right.config.overrides ?? {};
+  const rows: Array<{ field: string; left: string; right: string }> = [];
+  for (const participant of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    for (const key of new Set([...Object.keys(a[participant] ?? {}), ...Object.keys(b[participant] ?? {})])) {
+      rows.push({ field: `${participant} · ${key}`, left: a[participant]?.[key] ?? '(default)', right: b[participant]?.[key] ?? '(default)' });
+    }
+  }
+  return rows;
 }
 
 interface CheckDiff {
