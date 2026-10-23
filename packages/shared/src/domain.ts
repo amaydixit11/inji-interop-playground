@@ -453,6 +453,11 @@ export type RunListItem = Omit<RunRecord, 'exchanges' | 'artifacts'> & {
 /** Aggregate statistics over recorded runs. */
 export interface RunStats {
   total: number;
+  /**
+   * Runs left out of every rate below because a participant never answered.
+   * They say the stack was not running, not that the software failed.
+   */
+  notReached: number;
   passed: number;
   failed: number;
   /** Median and 95th percentile of total run duration, in milliseconds. */

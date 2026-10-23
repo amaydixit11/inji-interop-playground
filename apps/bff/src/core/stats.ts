@@ -7,7 +7,9 @@ import type { CheckStatus, RunRecord, RunStats, StatBucket, StepId, StepTimings 
  * someone to scan a QR code would drag an average far enough to be useless,
  * while the median still describes the typical run.
  */
-export function computeStats(runs: RunRecord[]): RunStats {
+export function computeStats(all: RunRecord[]): RunStats {
+  const unreached = (run: RunRecord) => run.summary?.failure?.message.includes('could not reach') ?? false;
+  const runs = all.filter((run) => !unreached(run));
   const durations = runs.map((run) => run.summary?.durationMs ?? 0).filter((value) => value > 0);
 
   const stepMedians: StepTimings = {};
@@ -20,6 +22,7 @@ export function computeStats(runs: RunRecord[]): RunStats {
 
   return {
     total: runs.length,
+    notReached: all.length - runs.length,
     passed: runs.filter((run) => run.status === 'passed').length,
     failed: runs.filter((run) => run.status !== 'passed').length,
     durationP50: percentile(durations, 50),

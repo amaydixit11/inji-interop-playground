@@ -45,7 +45,11 @@ export function Dashboard({ runs }: { runs: RunListItem[] }) {
   return (
     <div className="space-y-3 pb-2">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Tile label="Runs recorded" value={String(stats.total)} />
+        <Tile
+          label="Runs recorded"
+          value={String(stats.total)}
+          note={stats.notReached > 0 ? `${stats.notReached} more not counted: a participant was not running` : undefined}
+        />
         <Tile label="Pass rate" value={`${passRate}%`} note={`${stats.passed} passed · ${stats.failed} failed`} />
         <Tile label="Median run" value={formatMs(stats.durationP50)} note="end to end" />
         <Tile label="95th percentile" value={formatMs(stats.durationP95)} note="slowest 1 in 20" />
