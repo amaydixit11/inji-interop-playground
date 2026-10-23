@@ -277,6 +277,9 @@ cycle with the inspector open, the plain-language view, a fault injection, then 
 
 ## Architecture
 
+Diagrams: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Endpoints: [`docs/API.md`](docs/API.md).
+Test cases and results: [`docs/TESTING.md`](docs/TESTING.md). Test data: [`docs/TEST-DATA.md`](docs/TEST-DATA.md).
+
 ```
 apps/web     React + TypeScript + Tailwind. Selector, timeline, inspector, matrix.
 apps/bff     Node + Express + ws. Run engine, adapters, and the hosted reference modules.
@@ -480,7 +483,7 @@ for the next without restarting.
 ```bash
 npm run dev         # BFF on :8787, UI on :5173 with proxying
 npm run dev:bff     # BFF only
-npm run test        # 70 unit tests over the protocol primitives
+npm run test        # 91 unit tests over the protocol primitives
 npm run build       # Production build of both
 npm run typecheck   # Typecheck every workspace
 ```
