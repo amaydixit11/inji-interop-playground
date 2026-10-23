@@ -498,7 +498,7 @@ for the next without restarting.
 ```bash
 npm run dev         # BFF on :8787, UI on :5173 with proxying
 npm run dev:bff     # BFF only
-npm run test        # 91 unit tests over the protocol primitives
+npm run test        # 96 tests: protocol primitives, the HTTP API, capture import
 npm run build       # Production build of both
 npm run typecheck   # Typecheck every workspace
 ```
