@@ -94,6 +94,36 @@ export const EXCHANGE_EXPLANATIONS: Array<{ prefix: string; explanation: Explana
     },
   },
   {
+    prefix: 'Authorization Request (PKCE)',
+    explanation: {
+      what: 'The wallet sends the browser to the authorization server to log the holder in, carrying a PKCE `code_challenge`.',
+      why: 'Issuance behind a login is how most real deployments work. PKCE binds the code that comes back to this wallet, so an intercepted code is useless to anyone else.',
+      lookFor: '`code_challenge_method=S256`. `plain`, or no challenge at all, leaves the code redeemable by whoever sees it.',
+    },
+  },
+  {
+    prefix: 'eSignet:',
+    explanation: {
+      what: 'eSignet’s own login steps: fetch the client’s details, authenticate the holder, confirm the claims, issue the code.',
+      why: 'eSignet is MOSIP’s authorization server; these are its API rather than OpenID4VCI, and they end in the authorization code the wallet redeems.',
+    },
+  },
+  {
+    prefix: 'Token + Credential Request',
+    explanation: {
+      what: 'Inji Web’s backend, Mimoto, redeems the authorization code with the PKCE verifier and fetches the credential from Certify on the wallet’s behalf.',
+      why: 'The browser never holds the access token. Mimoto does the OpenID4VCI token and credential requests server-side and returns the result, here as a PDF with a QR code.',
+      lookFor: 'That `code_verifier` is sent: it is what proves the redeemer is the wallet that started the login.',
+    },
+  },
+  {
+    prefix: 'Authorization Request (INJI_OVP)',
+    explanation: {
+      what: 'Inji Verify sends the browser to Inji Web with an OpenID4VP request, from the online-sharing QR on the credential.',
+      why: 'The QR names where the credential can be fetched, not the credential itself, so it stays small and the wallet can refuse a second use.',
+    },
+  },
+  {
     prefix: 'Token Request',
     explanation: {
       what: 'The wallet exchanges the pre-authorized code from the offer for an access token.',

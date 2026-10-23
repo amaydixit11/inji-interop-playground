@@ -23,8 +23,11 @@ export function Scenarios({
   open,
   onOpenChange,
   onOpenRecorded,
+  publicUrl,
 }: {
   participants: Participant[];
+  /** Where QR payloads point; a phone cannot reach a localhost one. */
+  publicUrl: string;
   onRun: (config: RunConfig, scenario: Scenario) => void;
   /** Opens the committed run behind a `recorded` scenario. */
   onOpenRecorded: (runId: string) => void;
@@ -107,6 +110,7 @@ export function Scenarios({
                     disabled={disabled}
                     onRun={onRun}
                     onOpenRecorded={onOpenRecorded}
+                    publicUrl={publicUrl}
                   />
                 ))}
               </ul>
@@ -134,6 +138,14 @@ export function unavailableParticipants(participants: Participant[]): Map<string
   return reasons;
 }
 
+function isLocal(url: string): boolean {
+  try {
+    return ['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** The reasons a scenario cannot run, or an empty list when it can. */
 export function blockers(scenario: Scenario, unavailable: Map<string, string>): string[] {
   return scenario.requires.flatMap((id) => (unavailable.has(id) ? [unavailable.get(id) as string] : []));
@@ -146,8 +158,10 @@ function ScenarioCard({
   disabled,
   onRun,
   onOpenRecorded,
+  publicUrl,
 }: {
   scenario: Scenario;
+  publicUrl: string;
   unavailable: Map<string, string>;
   outcome?: BatchEntry;
   disabled: boolean;
@@ -219,6 +233,15 @@ function ScenarioCard({
             {scenario.expect}
           </p>
 
+          {scenario.duration === 'needs-a-phone' && isLocal(publicUrl) && (
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-warn">
+              <StatusIcon tone="warn" label="Will not reach a phone" />
+              <span>
+                PUBLIC_URL is {publicUrl}, which a phone cannot reach, so its QR codes will not resolve. Set it to a
+                tunnel URL first: docs/PHONE-TEST.md.
+              </span>
+            </p>
+          )}
           {blocked && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-warn">
               <StatusIcon tone="warn" label="Cannot run" />

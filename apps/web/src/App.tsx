@@ -296,6 +296,7 @@ export function App() {
               batchRunning={batch.running}
               onRunAll={() => void batch.start((scenario) => blockers(scenario, unavailableParticipants(participants)))}
               onOpenRecorded={openRun}
+              publicUrl={publicUrl}
               onCancelAll={batch.cancel}
               disabled={busy}
               open={scenariosOpen}
