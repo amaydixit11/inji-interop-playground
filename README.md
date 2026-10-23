@@ -25,7 +25,7 @@ Open <http://localhost:5173> and pick a scenario from **Start here**.
 Nothing else needs installing. The playground hosts its own reference issuer, wallet and verifier, so
 there is a complete working cycle to look at before wiring up anything real.
 
-Eleven scenarios, each phrased as a question the run answers — *Does the verifier catch a forged
+Fourteen scenarios, each phrased as a question the run answers — *Does the verifier catch a forged
 credential?*, *Is a revoked credential still accepted?*, *What happens against real Inji Certify?* —
 with what to expect stated up front, including the two that are supposed to fail.
 

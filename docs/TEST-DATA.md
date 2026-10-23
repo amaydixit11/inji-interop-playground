@@ -48,7 +48,7 @@ Generated into `.keys/` on first start and gitignored. Delete the folder to rota
 
 ## Ready-made run configurations
 
-The **Scenarios** panel in the UI runs these in one click (`packages/shared/src/scenarios.ts`):
+The **Scenarios** panel in the UI has 14 one-click scenarios (`packages/shared/src/scenarios.ts`). The core ones:
 
 | Scenario | Question it answers |
 |---|---|
