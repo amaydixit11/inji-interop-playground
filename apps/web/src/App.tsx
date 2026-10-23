@@ -3,7 +3,7 @@ import type { Participant, RunConfig, RunListItem, RunRecord, Scenario } from '@
 import { api } from './api.js';
 import { download, runReport } from './report.js';
 import { useBatch } from './hooks/useBatch.js';
-import { useRun } from './hooks/useRun.js';
+import { useRun, type LiveRun } from './hooks/useRun.js';
 import { ChecksPanel } from './components/ChecksPanel.js';
 import { Compare } from './components/Compare.js';
 import { Dashboard } from './components/Dashboard.js';
@@ -51,6 +51,11 @@ export function App() {
   const [viewedRecord, setViewedRecord] = useState<RunRecord>();
 
   const { run, connected, start, completeAction, abort, error } = useRun();
+  // A run opened from the history takes the live run's place on screen until
+  // the next run starts, so past runs get the same inspector and timeline.
+  const [openedRun, setOpenedRun] = useState<LiveRun>();
+  useEffect(() => setOpenedRun(undefined), [run?.id]);
+  const shown = openedRun ?? run;
   const outputRef = useRef<HTMLDivElement>(null);
   const refreshHistoryRef = useRef<() => void>(() => undefined);
   const batch = useBatch(() => refreshHistoryRef.current());
@@ -90,15 +95,15 @@ export function App() {
 
   const exchangeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const exchange of run?.exchanges ?? []) {
+    for (const exchange of shown?.exchanges ?? []) {
       counts[exchange.step] = (counts[exchange.step] ?? 0) + 1;
     }
     return counts;
-  }, [run?.exchanges]);
+  }, [shown?.exchanges]);
 
   /** Exports the run currently on screen, fetching the persisted record. */
   const exportRun = useCallback(async () => {
-    const id = run?.id ?? viewedRecord?.id;
+    const id = shown?.id ?? viewedRecord?.id;
     if (!id) return;
     try {
       const record = await api.run(id);
@@ -244,7 +249,18 @@ export function App() {
               runs={history}
               onSelect={(record) => {
                 setConfig(record.config);
-                setView('live');
+                // The listing carries no payloads, so the full record is
+                // fetched before it can fill the inspector.
+                void api
+                  .run(record.id)
+                  .then((full) => {
+                    setOpenedRun({ ...full, logs: [] });
+                    setViewedRecord(full);
+                    setScenariosOpen(false);
+                    setBuilderOpen(false);
+                    setView('live');
+                  })
+                  .catch((caught: Error) => setLoadError(caught.message));
               }}
               onOpenStory={(record) => {
                 // The listing carries no payloads, so the full record is
@@ -323,32 +339,32 @@ export function App() {
                 </span>
               )}
 
-              {run && (
+              {shown && (
                 <>
                   <span className="inline-flex items-center gap-1.5">
-                    <StatusIcon tone={runTone(run.status)} label={run.status} labelled />
-                    <Badge tone={runTone(run.status)} glyph>{run.status}</Badge>
+                    <StatusIcon tone={runTone(shown.status)} label={shown.status} labelled />
+                    <Badge tone={runTone(shown.status)} glyph>{shown.status}</Badge>
                   </span>
-                  {run.summary && (
+                  {shown.summary && (
                     <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
-                      <Tally tone="pass" count={run.summary.checksPassed} word="passed" />
-                      <Tally tone="fail" count={run.summary.checksFailed} word="failed" />
-                      <Tally tone="warn" count={run.summary.checksWarned} word="warned" />
-                      {run.summary.checksExpectedFailures > 0 && (
-                        <Tally tone="info" count={run.summary.checksExpectedFailures} word="expected" />
+                      <Tally tone="pass" count={shown.summary.checksPassed} word="passed" />
+                      <Tally tone="fail" count={shown.summary.checksFailed} word="failed" />
+                      <Tally tone="warn" count={shown.summary.checksWarned} word="warned" />
+                      {shown.summary.checksExpectedFailures > 0 && (
+                        <Tally tone="info" count={shown.summary.checksExpectedFailures} word="expected" />
                       )}
-                      <span className="text-muted">{run.summary.durationMs}ms</span>
+                      <span className="text-muted">{shown.summary.durationMs}ms</span>
                     </span>
                   )}
-                  {run.summary?.failure && (
-                    <span className="measure text-xs text-fail">{run.summary.failure.message}</span>
+                  {shown.summary?.failure && (
+                    <span className="measure text-xs text-fail">{shown.summary.failure.message}</span>
                   )}
-                  {activeScenario && run.status === 'failed' && activeScenario.expect.startsWith('Fails') && (
+                  {activeScenario && shown.status === 'failed' && activeScenario.expect.startsWith('Fails') && (
                     <span className="measure text-xs text-info">
                       This scenario is expected to fail — the findings are the result.
                     </span>
                   )}
-                  {(run.status === 'passed' || run.status === 'failed') && (
+                  {(shown.status === 'passed' || shown.status === 'failed') && (
                     <button
                       type="button"
                       onClick={() => void exportRun()}
@@ -361,23 +377,23 @@ export function App() {
               )}
             </div>
 
-            {run && (
+            {shown && (
               <div className="shrink-0 rounded-xl border border-line bg-surface shadow-card">
-                <Timeline steps={run.steps} exchangeCounts={exchangeCounts} explain={explain} />
+                <Timeline steps={shown.steps} exchangeCounts={exchangeCounts} explain={explain} />
               </div>
             )}
 
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
               {view === 'sequence' ? (
-                <SequenceDiagram exchanges={run?.exchanges ?? []} />
+                <SequenceDiagram exchanges={shown?.exchanges ?? []} />
               ) : (
                 <ProtocolInspector
-                  exchanges={run?.exchanges ?? []}
-                  artifacts={run?.artifacts ?? []}
+                  exchanges={shown?.exchanges ?? []}
+                  artifacts={shown?.artifacts ?? []}
                   explain={explain}
                 />
               )}
-              <ChecksPanel checks={run?.checks ?? []} />
+              <ChecksPanel checks={shown?.checks ?? []} />
             </div>
           </div>
         )}

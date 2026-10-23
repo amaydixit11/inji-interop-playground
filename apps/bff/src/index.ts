@@ -65,7 +65,8 @@ const registry = new Registry({
   env: config,
 });
 
-const store = new RunStore();
+// docs/evidence is three levels up from both src/index.ts and dist/index.js.
+const store = new RunStore(undefined, resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs/evidence'));
 const activeRuns = new Map<string, Run>();
 const sockets = new Set<WebSocket>();
 /** Recent events, replayed to a client that connects mid-run. */

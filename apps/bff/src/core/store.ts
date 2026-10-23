@@ -12,14 +12,27 @@ import type { RunListItem, RunRecord } from '@interop/shared';
 export class RunStore {
   private readonly cache = new Map<string, RunRecord>();
 
-  constructor(private readonly directory = resolve(process.cwd(), 'runs')) {}
+  constructor(
+    private readonly directory = resolve(process.cwd(), 'runs'),
+    /**
+     * Committed runs shown alongside the local history but never written to:
+     * imported captures of flows the playground cannot drive itself, such as
+     * Inji Web to Inji Verify on the Collab sandbox.
+     */
+    private readonly evidenceDirectory?: string,
+  ) {}
 
   async load(): Promise<void> {
+    if (this.evidenceDirectory) await this.loadFrom(this.evidenceDirectory);
+    await this.loadFrom(this.directory);
+  }
+
+  private async loadFrom(directory: string): Promise<void> {
     try {
-      const files = await readdir(this.directory);
+      const files = await readdir(directory);
       for (const file of files.filter((f) => f.endsWith('.json'))) {
         try {
-          const record = JSON.parse(await readFile(resolve(this.directory, file), 'utf8')) as RunRecord;
+          const record = JSON.parse(await readFile(resolve(directory, file), 'utf8')) as RunRecord;
           this.cache.set(record.id, record);
         } catch {
           // A truncated file from an interrupted write should not stop startup.

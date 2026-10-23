@@ -45,7 +45,7 @@ export function HistoryMatrix({
   return (
     <Panel
       title="Interoperability matrix"
-      subtitle={`${runs.length} recorded run(s) · load one back into the builder, or read what happened`}
+      subtitle={`${runs.length} recorded run(s) · open one in the inspector, or read what happened`}
       actions={
         <div className="flex items-center gap-2">
           <div role="group" aria-label="Filter by result" className="flex gap-1 rounded-lg border border-line bg-surface-2 p-1">
@@ -196,15 +196,15 @@ export function HistoryMatrix({
                       }}
                       className="whitespace-nowrap rounded-md border border-line px-2 py-0.5 text-2xs text-muted transition hover:border-accent hover:text-accent"
                     >
-                      Load
-                      <span className="sr-only"> this run's configuration</span>
+                      Open
+                      <span className="sr-only"> this run in the inspector</span>
                     </button>
                     {run.narrative && (
                       <button
                         type="button"
                         onClick={(event) => {
-                          // The row itself reloads the configuration; this opens
-                          // the run instead, so both are reachable.
+                          // The row opens the run in the inspector; this opens
+                          // its plain-language story instead.
                           event.stopPropagation();
                           onOpenStory(run);
                         }}

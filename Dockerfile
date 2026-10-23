@@ -24,6 +24,7 @@ RUN npm ci --omit=dev --workspace @interop/bff --workspace @interop/shared --inc
 COPY --from=build /app/packages/shared/dist packages/shared/dist
 COPY --from=build /app/apps/bff/dist apps/bff/dist
 COPY --from=build /app/apps/web/dist apps/web/dist
+COPY docs/evidence docs/evidence
 
 # Keys and run history live on a volume so credentials issued in one session
 # still verify in the next and the DID document stays stable across restarts.
