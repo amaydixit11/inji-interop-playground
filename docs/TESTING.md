@@ -1,10 +1,10 @@
 # Test cases and results
 
-Three layers, each run on 2026-10-23 against commit `a8027b4`.
+Three layers, each run on 2026-10-24 against `main`; CI runs the first two on every push.
 
 | Layer | What it proves | Command | Result |
 |---|---|---|---|
-| Unit + API | Each protocol primitive behaves to spec, including the edge cases; the HTTP API and capture import behave as documented | `npm test` | **96 / 96 pass**, 20 suites |
+| Unit + API | Each protocol primitive behaves to spec, including the edge cases; the HTTP API and capture import behave as documented | `npm test` | **102 / 102 pass**, 21 suites |
 | End-to-end fault matrix | A full `issue → hold → present → verify` cycle, every format, every fault | `node scripts/run-matrix.mjs` | **27 / 27 pass** on the reference stack |
 | Live Inji stack | What happens when real Inji releases talk to each other and to the spec | runs from the UI against `docker-compose.inji.yml` | **27 ranked findings**, 5 blockers: [FINDINGS.md](FINDINGS.md) |
 
@@ -40,17 +40,17 @@ npm test
 | Certify admin API probe | 3 | leaked persistence errors and Java controller signatures detected |
 | Data Integrity suites | 11 | Ed25519Signature2020 / 2018, RsaSignature2018: sign, verify, altered signature fails, altered claim fails |
 | Signature corruption | 1 | altering the last base64url character can be a no-op, so the tamper avoids it |
-| Control API (`api.test.ts`) | 4 | unknown participant → 400 naming valid ids; unknown run → 404; a run is accepted with 202 then persisted; evidence runs are listed but never rewritten |
+| Control API (`api.test.ts`) | 6 | unknown participant → 400 naming valid ids; unknown fault mode, format or stop step → 400, not run as the default; non-JSON body → JSON error; unknown run → 404; a run is accepted with 202 then persisted; evidence runs are listed but never rewritten |
 | Importing a browser capture | 1 | no cookie, bearer token, authorization code, PKCE verifier, `state` or response code survives into the record |
+| With no network (`offline.test.ts`) | 4 | the reference stack issues and verifies `ldp_vc` (including revocation), SD-JWT and mDoc with every outbound request blocked |
 
 Result:
 
 ```
-ℹ tests 91
-ℹ suites 18
-ℹ pass 91
+ℹ tests 102
+ℹ suites 21
+ℹ pass 102
 ℹ fail 0
-ℹ duration_ms 607
 ```
 
 ---
